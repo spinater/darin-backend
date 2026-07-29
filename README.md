@@ -47,6 +47,33 @@ GOOGLE_SHEET_LINK="https://docs.google.com/spreadsheets/d/<id>/edit"
 > ข้อมูลคร่อม 2024–2026 จึงแยกปีไม่ออก · โค้ดใช้ `spreadsheets.get?includeGridData=true`
 > ที่คืน serial + สีพื้น + note ครบ
 
+## Deploy บน server (docker compose)
+
+```bash
+cp .env.example .env      # ตั้ง POSTGRES_PASSWORD และ GOOGLE_SHEET_LINK อย่างน้อย
+docker compose up -d --build
+```
+
+| service | ทำอะไร |
+|---|---|
+| `db` | Postgres 17 · เก็บลง volume `pgdata` · **ไม่ publish port ออกนอก** |
+| `migrate` | รันครั้งเดียวตอนขึ้นระบบ: `prisma db push` + seed แล้วจบ |
+| `app` | Next.js standalone บน Node · เปิดที่ `${APP_PORT:-3000}` |
+
+`app` รอ `migrate` เสร็จก่อนเสมอ (`service_completed_successfully`) → deploy ใหม่ไม่ต้องสั่ง migrate เอง
+
+```bash
+docker compose logs -f app          # ดู log
+docker compose exec db psql -U darin darin_payroll   # เข้า DB
+docker compose down                 # หยุด (ข้อมูลอยู่ใน volume ไม่หาย)
+```
+
+**ก่อนเปิดให้คนอื่นเข้า:** ล็อกอิน `owner` / `changeme` → ไปหน้า **บัญชี** เปลี่ยนรหัสทันที
+แล้วตั้งรหัสให้เทรนเนอร์ทุกคนจากหน้าเดียวกัน
+
+> ยังไม่ได้ทำ TLS ไว้ให้ — ถ้าเปิดออกอินเทอร์เน็ต ให้วาง reverse proxy (Caddy/nginx/Cloudflare Tunnel)
+> หน้า `app` เพราะ session cookie ตั้ง `secure` ใน production ต้องมี https ถึงจะล็อกอินได้
+
 ## โครงสร้าง
 
 | ไฟล์ | หน้าที่ |
@@ -63,4 +90,4 @@ GOOGLE_SHEET_LINK="https://docs.google.com/spreadsheets/d/<id>/edit"
 2. ใส่ **เรท Yoga** (สเปคยังไม่ให้)
 3. ตอบคำถาม §7 ใน REQUIREMENTS.md — โดยเฉพาะ **สีในชีตแปลว่าอะไร** และ **ว่ายน้ำใครสอน**
 4. เคลียร์ **คิวรอตรวจ** ให้หมดก่อนกดคำนวณ ไม่งั้นจ่ายขาด
-5. เปลี่ยนรหัสผ่านทุกคน (seed = `changeme`)
+5. เปลี่ยนรหัสผ่านทุกคนที่หน้า **บัญชี** (seed = `changeme` เหมือนกันหมด)
