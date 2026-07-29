@@ -1,0 +1,9 @@
+node_modules
+.next
+generated
+.git
+.env
+docs
+*.md
+*.tsbuildinfo
+next-env.d.ts

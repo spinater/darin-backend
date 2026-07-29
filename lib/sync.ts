@@ -1,0 +1,141 @@
+import { db } from "./db";
+import { fetchGrids, fetchPublicGrids, loadXlsxGrids, type RawGrid } from "./sheets";
+import { parseGrid, type ColMap } from "./parser";
+
+export type SyncResult = {
+  sheetName: string;
+  created: number;
+  updated: number;
+  skippedReviewed: number;
+  ok: number;
+  needsReview: number;
+  ignored: number;
+};
+
+/**
+ * ดึงข้อมูลจากชีต → เก็บดิบ → parse → upsert คาบสอน
+ *
+ * idempotent: key = (sourceId,rowIndex,colIndex) กดซ้ำกี่ครั้งก็ได้ผลเดิม
+ * แถวที่คนตรวจแก้แล้ว (reviewed=true) จะไม่ถูกทับ
+ */
+export async function syncSources(opts: { xlsxPath?: string } = {}): Promise<SyncResult[]> {
+  const sources = await db.sheetSource.findMany({ where: { active: true } });
+  if (!sources.length) return [];
+
+  const aliases = new Map(
+    (await db.trainerAlias.findMany()).map((a) => [a.alias, a.staffId] as const),
+  );
+  const colorRules = new Map(
+    (await db.colorRule.findMany()).map((c) => [c.hex.toLowerCase(), c.meaning] as const),
+  );
+
+  const names = sources.map((s) => s.sheetName);
+  let grids: RawGrid[];
+  if (opts.xlsxPath) {
+    grids = await loadXlsxGrids(opts.xlsxPath, names);
+  } else {
+    const byId = new Map<string, string[]>();
+    for (const s of sources) byId.set(s.spreadsheetId, [...(byId.get(s.spreadsheetId) ?? []), s.sheetName]);
+    // มี service account → ใช้ API (ได้ note ด้วย) · ไม่มี → export endpoint สาธารณะ (ได้ serial + สี)
+    const hasSA = !!(process.env.GOOGLE_SA_EMAIL && process.env.GOOGLE_SA_PRIVATE_KEY);
+    grids = (
+      await Promise.all(
+        [...byId].map(([id, ns]) => (hasSA ? fetchGrids(id, ns) : fetchPublicGrids(id, ns))),
+      )
+    ).flat();
+  }
+
+  const results: SyncResult[] = [];
+
+  for (const source of sources) {
+    const grid = grids.find((g) => g.sheetName === source.sheetName);
+    if (!grid) continue;
+
+    await db.$transaction(
+      grid.rows.map((cells, rowIndex) =>
+        db.sheetRowRaw.upsert({
+          where: { sourceId_rowIndex: { sourceId: source.id, rowIndex } },
+          update: { cells: cells as any, syncedAt: new Date() },
+          create: { sourceId: source.id, rowIndex, cells: cells as any },
+        }),
+      ),
+    );
+
+    const parsed = parseGrid(grid, source.colMap as unknown as ColMap, source.headerRows, aliases);
+    const res: SyncResult = {
+      sheetName: source.sheetName,
+      created: 0,
+      updated: 0,
+      skippedReviewed: 0,
+      ok: 0,
+      needsReview: 0,
+      ignored: 0,
+    };
+
+    const existing = new Map(
+      (
+        await db.teachSession.findMany({
+          where: { sourceId: source.id },
+          select: { rowIndex: true, colIndex: true, reviewed: true, rawValue: true },
+        })
+      ).map((s) => [`${s.rowIndex}:${s.colIndex}`, s]),
+    );
+
+    for (const p of parsed) {
+      // สีที่ admin ตั้งกฎว่า "ไม่ต้องจ่าย" (§1.6)
+      let status = p.status;
+      let reviewNote = p.reviewNote;
+      const rule = p.bgColor ? colorRules.get(p.bgColor.toLowerCase()) : undefined;
+      if (rule === "skip") {
+        status = "ignored";
+        reviewNote = `สีในชีตระบุว่าไม่ต้องจ่าย (${p.bgColor})`;
+      } else if (rule === "review" && status === "ok") {
+        status = "needs_review";
+        reviewNote = `สีในชีตต้องให้คนตรวจ (${p.bgColor})`;
+      }
+
+      const key = `${p.rowIndex}:${p.colIndex}`;
+      const prev = existing.get(key);
+
+      if (prev?.reviewed) {
+        // คนแก้แล้ว — ทับไม่ได้ แต่ถ้าค่าดิบในชีตเปลี่ยน ต้องบอกให้รู้
+        if (prev.rawValue !== p.rawValue)
+          await db.teachSession.update({
+            where: { sourceId_rowIndex_colIndex: { sourceId: source.id, rowIndex: p.rowIndex, colIndex: p.colIndex } },
+            data: {
+              status: "needs_review",
+              reviewed: false,
+              reviewNote: `ค่าในชีตเปลี่ยนหลังตรวจแล้ว: "${prev.rawValue}" → "${p.rawValue}"`,
+            },
+          });
+        res.skippedReviewed++;
+        continue;
+      }
+
+      const data = {
+        date: p.date,
+        activity: source.activity,
+        staffId: p.staffId,
+        customerName: p.customerName,
+        customerPhone: p.customerPhone,
+        rawValue: p.rawValue,
+        bgColor: p.bgColor ?? null,
+        status,
+        reviewNote: reviewNote ?? null,
+      };
+      await db.teachSession.upsert({
+        where: { sourceId_rowIndex_colIndex: { sourceId: source.id, rowIndex: p.rowIndex, colIndex: p.colIndex } },
+        update: data,
+        create: { sourceId: source.id, rowIndex: p.rowIndex, colIndex: p.colIndex, ...data },
+      });
+      prev ? res.updated++ : res.created++;
+      if (status === "ok") res.ok++;
+      else if (status === "ignored") res.ignored++;
+      else res.needsReview++;
+    }
+
+    await db.sheetSource.update({ where: { id: source.id }, data: { lastSyncAt: new Date() } });
+    results.push(res);
+  }
+  return results;
+}

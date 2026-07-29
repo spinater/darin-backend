@@ -1,0 +1,210 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────── คน + สิทธิ์
+model Staff {
+  id           String  @id @default(cuid())
+  name         String
+  username     String  @unique
+  passwordHash String
+  role         String // owner | admin | counter | trainer
+  rank         String? // ST | CT | PT  (เฉพาะ trainer)
+  baseSalary   Int     @default(0)
+  classCredit  Int     @default(0)
+  active       Boolean @default(true)
+
+  sessions      Session[]
+  teachSessions TeachSession[]
+  classSessions ClassSession[]
+  attributions  SaleAttribution[]
+  otEntries     OtEntry[]
+  payslips      Payslip[]
+  aliases       TrainerAlias[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  staffId   String
+  expiresAt DateTime
+  staff     Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+}
+
+// ─────────────────────────────────────────── config (ห้าม hardcode)
+model TeachRate {
+  id       String @id @default(cuid())
+  activity String // pt | pilates | swim | yoga
+  rank     String // PT | CT | ST
+  rate     Int
+
+  @@unique([activity, rank])
+}
+
+model PayrollConfig {
+  key   String  @id
+  value String
+  note  String?
+}
+
+model ClassPrice {
+  id     String  @id @default(cuid())
+  name   String  @unique
+  price  Int
+  active Boolean @default(true)
+
+  classSessions ClassSession[]
+}
+
+/// สีพื้นในชีต → ความหมาย (§1.6) แก้ในหน้า admin
+model ColorRule {
+  hex     String  @id // "#b6d7a8"
+  meaning String // pay | skip | review
+  note    String?
+}
+
+// ─────────────────────────────────────────── Google Sheet sync
+model SheetSource {
+  id            String    @id @default(cuid())
+  spreadsheetId String
+  sheetName     String
+  activity      String // pt | pilates | swim | yoga
+  colMap        Json // {name,nickname,phone,signup,count,trainer,firstSession}
+  headerRows    Int       @default(1)
+  active        Boolean   @default(true)
+  lastSyncAt    DateTime?
+
+  rows     SheetRowRaw[]
+  sessions TeachSession[]
+
+  @@unique([spreadsheetId, sheetName])
+}
+
+model SheetRowRaw {
+  id       String      @id @default(cuid())
+  sourceId String
+  rowIndex Int
+  cells    Json // [{v,f,bg,note}]
+  syncedAt DateTime    @default(now())
+  source   SheetSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceId, rowIndex])
+}
+
+model TrainerAlias {
+  alias   String @id // normalize แล้ว
+  staffId String
+  staff   Staff  @relation(fields: [staffId], references: [id], onDelete: Cascade)
+}
+
+model TeachSession {
+  id            String    @id @default(cuid())
+  sourceId      String
+  rowIndex      Int
+  colIndex      Int
+  date          DateTime?
+  activity      String
+  staffId       String?
+  customerName  String?
+  customerPhone String?
+  rawValue      String
+  bgColor       String?
+  status        String    @default("ok") // ok | needs_review | ignored
+  reviewNote    String?
+  /// true = คนแก้ด้วยมือแล้ว sync ครั้งหน้าห้ามทับ
+  reviewed      Boolean   @default(false)
+
+  source SheetSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  staff  Staff?      @relation(fields: [staffId], references: [id])
+
+  @@unique([sourceId, rowIndex, colIndex])
+  @@index([date, staffId, status])
+}
+
+// ─────────────────────────────────────────── คีย์มือ
+model ClassSession {
+  id      String   @id @default(cuid())
+  date    DateTime
+  classId String
+  staffId String
+  booked  Int
+  noShow  Int      @default(0)
+
+  class ClassPrice @relation(fields: [classId], references: [id])
+  staff Staff      @relation(fields: [staffId], references: [id])
+
+  @@index([date, staffId])
+}
+
+model Sale {
+  id          String   @id @default(cuid())
+  date        DateTime
+  kind        String // pt | membership | course_ext | freeze
+  tier        String? // basic | premium | platinum | pilates
+  productName String
+  listPrice   Float?
+  netPrice    Float
+  note        String?
+
+  attributions SaleAttribution[]
+
+  @@index([date, kind])
+}
+
+model SaleAttribution {
+  id      String @id @default(cuid())
+  saleId  String
+  staffId String
+  role    String // closer | referrer | content_owner
+
+  sale  Sale  @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  staff Staff @relation(fields: [staffId], references: [id])
+
+  @@unique([saleId, staffId, role])
+}
+
+model OtEntry {
+  id      String   @id @default(cuid())
+  staffId String
+  date    DateTime
+  hours   Float
+  staff   Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@unique([staffId, date])
+}
+
+// ─────────────────────────────────────────── ผลลัพธ์
+model Payslip {
+  id         String   @id @default(cuid())
+  staffId    String
+  period     String // "2026-07"
+  base       Float
+  teachPay   Float
+  classPay   Float
+  commission Float
+  otPay      Float
+  net        Float
+  status     String   @default("draft") // draft | approved | paid
+  createdAt  DateTime @default(now())
+
+  staff Staff         @relation(fields: [staffId], references: [id])
+  lines PayslipLine[]
+
+  @@unique([staffId, period])
+}
+
+model PayslipLine {
+  id        String @id @default(cuid())
+  payslipId String
+  group     String // base | teach | class | commission | ot
+  label     String
+  qty       Float
+  rate      Float
+  amount    Float
+
+  payslip Payslip @relation(fields: [payslipId], references: [id], onDelete: Cascade)
+}

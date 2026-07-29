@@ -1,0 +1,11 @@
+node_modules
+.next
+generated
+.env
+*.tsbuildinfo
+next-env.d.ts
+
+# ข้อมูลลูกค้าจริง (ชื่อ+เบอร์โทร) — ห้ามขึ้น git
+docs/
+client_secret_*.json
+*.credentials.json
