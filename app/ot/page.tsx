@@ -2,6 +2,9 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { periodRange } from "@/lib/payroll-run";
+import { SubmitButton } from "@/app/_components/submit-button";
+import { ActionProgress } from "@/app/_components/action-progress";
+import { timed } from "@/lib/job-timing";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +17,7 @@ export default async function OtPage({
   const period = (await searchParams).period ?? new Date().toISOString().slice(0, 7);
   const { from, to } = periodRange(period);
 
-  const [rows, staff, cfg] = await Promise.all([
+  const [rows, staff, cfg, importTime] = await Promise.all([
     db.otEntry.findMany({
       where: { date: { gte: from, lt: to } },
       include: { staff: true },
@@ -22,6 +25,7 @@ export default async function OtPage({
     }),
     db.staff.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
     db.payrollConfig.findMany({ where: { key: { in: ["ot.thresholdHours", "ot.ratePerHour"] } } }),
+    db.jobDuration.findUnique({ where: { job: "ot-import" } }),
   ]);
 
   const threshold = Number(cfg.find((c) => c.key === "ot.thresholdHours")?.value ?? 9);
@@ -49,20 +53,23 @@ export default async function OtPage({
       (await db.staff.findMany()).map((s) => [s.username.trim().toLowerCase(), s.id]),
     );
     const errors: string[] = [];
-    for (const line of String(formData.get("bulk") ?? "").split("\n")) {
-      const [user, date, hours] = line.split(/\t|,/).map((x) => x?.trim());
-      if (!user || !date || !hours) continue;
-      const staffId = byUsername.get(user.toLowerCase());
-      if (!staffId) {
-        errors.push(user);
-        continue;
+    // เขียนทีละบรรทัด — วางมาทั้งเดือนก็หลายร้อยรอบ จดเวลาไว้ให้ผู้ใช้รู้ว่าต้องรอแค่ไหน
+    await timed("ot-import", async () => {
+      for (const line of String(formData.get("bulk") ?? "").split("\n")) {
+        const [user, date, hours] = line.split(/\t|,/).map((x) => x?.trim());
+        if (!user || !date || !hours) continue;
+        const staffId = byUsername.get(user.toLowerCase());
+        if (!staffId) {
+          errors.push(user);
+          continue;
+        }
+        await db.otEntry.upsert({
+          where: { staffId_date: { staffId, date: new Date(date + "T00:00:00Z") } },
+          update: { hours: Number(hours) },
+          create: { staffId, date: new Date(date + "T00:00:00Z"), hours: Number(hours) },
+        });
       }
-      await db.otEntry.upsert({
-        where: { staffId_date: { staffId, date: new Date(date + "T00:00:00Z") } },
-        update: { hours: Number(hours) },
-        create: { staffId, date: new Date(date + "T00:00:00Z"), hours: Number(hours) },
-      });
-    }
+    });
     revalidatePath("/ot");
   }
 
@@ -101,7 +108,9 @@ export default async function OtPage({
           ชั่วโมงทำงานวันนั้น
           <input name="hours" type="number" step="0.25" min={0} required className="input" />
         </label>
-        <button className="btn self-end">บันทึก</button>
+        <SubmitButton className="btn self-end" pendingLabel="กำลังบันทึก…">
+          บันทึก
+        </SubmitButton>
       </form>
 
       <form action={paste} className="card flex flex-col gap-2">
@@ -109,7 +118,12 @@ export default async function OtPage({
           หรือวางจากไฟล์สแกนนิ้ว — บรรทัดละ <code>ชื่อผู้ใช้ , วันที่(YYYY-MM-DD) , ชั่วโมง</code>
         </label>
         <textarea name="bulk" rows={4} className="input font-mono text-xs" />
-        <button className="btn-ghost self-start">นำเข้า</button>
+        <div className="flex items-center gap-3 self-start">
+          <SubmitButton className="btn-ghost" pendingLabel="กำลังนำเข้า…">
+            นำเข้า
+          </SubmitButton>
+          <ActionProgress baselineMs={importTime?.ms ?? null} />
+        </div>
       </form>
 
       <table className="card w-full">
@@ -133,7 +147,9 @@ export default async function OtPage({
               <td className="td">
                 <form action={del}>
                   <input type="hidden" name="id" value={r.id} />
-                  <button className="btn-ghost">ลบ</button>
+                  <SubmitButton className="btn-ghost" pendingLabel="กำลังลบ…">
+                    ลบ
+                  </SubmitButton>
                 </form>
               </td>
             </tr>

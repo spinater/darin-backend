@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { SubmitButton } from "@/app/_components/submit-button";
 
 export const dynamic = "force-dynamic";
 
@@ -132,7 +133,9 @@ export default async function SalesPage({
           หมายเหตุ
           <input name="note" className="input" />
         </label>
-        <button className="btn self-end">บันทึกบิล</button>
+        <SubmitButton className="btn self-end" pendingLabel="กำลังบันทึก…">
+          บันทึกบิล
+        </SubmitButton>
       </form>
 
       <p className="text-xs text-neutral-500">
@@ -166,7 +169,9 @@ export default async function SalesPage({
               <td className="td">
                 <form action={del}>
                   <input type="hidden" name="id" value={s.id} />
-                  <button className="btn-ghost">ลบ</button>
+                  <SubmitButton className="btn-ghost" pendingLabel="กำลังลบ…">
+                    ลบ
+                  </SubmitButton>
                 </form>
               </td>
             </tr>

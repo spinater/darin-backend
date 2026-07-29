@@ -101,6 +101,35 @@ model TrainerAlias {
   staff   Staff  @relation(fields: [staffId], references: [id], onDelete: Cascade)
 }
 
+/// เวลาที่งานหนัก (ที่ไม่ใช่ sync) ใช้จริงรอบล่าสุด — เอาไว้บอกผู้ใช้ล่วงหน้าว่าต้องรอนานแค่ไหน
+/// เก็บแค่ค่าล่าสุดพอ ไม่ต้องมีประวัติเหมือน SyncRun เพราะใช้แค่ตั้งต้นนับถอยหลัง
+model JobDuration {
+  job        String   @id // "payroll"
+  ms         Int
+  finishedAt DateTime @updatedAt
+}
+
+/// ประวัติการ sync — มีไว้บอกผู้ใช้ว่า "รอบนี้น่าจะใช้เวลาเท่าไร" จากเวลาที่วัดได้จริง
+/// ไม่ใช่ตัวเลขที่ hardcode ไว้ (เครื่องช้า/ชีตโตขึ้น ตัวเลขจะขยับตามเอง)
+model SyncRun {
+  id          String    @id @default(cuid())
+  startedAt   DateTime  @default(now())
+  finishedAt  DateTime?
+  /// เวลาช่วงดึงข้อมูลจาก Google Sheet (ms) — แยกจากช่วงประมวลผลเพราะคนละคอขวด
+  fetchMs     Int?
+  /// เวลาช่วงเขียนลง DB (ms)
+  processMs   Int?
+  /// จำนวนหน่วยงานที่เขียนจริง (แถวดิบ + คาบสอน) — ใช้คิด ms ต่อหน่วย
+  units       Int?
+  ok          Int?
+  needsReview Int?
+  ignored     Int?
+  /// null = สำเร็จ · มีค่า = พังกลางทาง (ไม่เอาไปคิดค่าประมาณ)
+  error       String?
+
+  @@index([startedAt])
+}
+
 model TeachSession {
   id            String    @id @default(cuid())
   sourceId      String

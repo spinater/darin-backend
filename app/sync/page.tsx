@@ -4,6 +4,7 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { syncSources } from "@/lib/sync";
+import { SyncRunner, type LastRun } from "./sync-runner";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,20 @@ export default async function SyncPage({
     by: ["sourceId", "status"],
     _count: { _all: true },
   });
+
+  // เอาเวลาจากรอบที่สำเร็จล่าสุดไปบอกผู้ใช้ว่ารอบนี้น่าจะนานแค่ไหน
+  // รอบที่พังไม่นับ เพราะมันจบเร็วผิดปกติแล้วจะทำให้ประมาณต่ำเกินจริง
+  const last = await db.syncRun.findFirst({
+    where: { error: null, finishedAt: { not: null }, processMs: { not: null } },
+    orderBy: { startedAt: "desc" },
+  });
+  const lastRun: LastRun = last
+    ? {
+        fetchMs: last.fetchMs ?? 0,
+        processMs: last.processMs ?? 0,
+        totalMs: (last.fetchMs ?? 0) + (last.processMs ?? 0),
+      }
+    : null;
 
   async function run(formData: FormData) {
     "use server";
@@ -39,18 +54,7 @@ export default async function SyncPage({
       <h1 className="text-xl font-semibold">Sync ตารางสอนจาก Google Sheet</h1>
 
       <div className="card flex flex-col gap-3">
-        <form action={run} className="flex flex-wrap items-end gap-3">
-          <button className="btn">Sync จาก Google Sheet</button>
-          <span className="pb-1.5 text-sm text-neutral-400">หรือ</span>
-          <label className="flex flex-col gap-1 text-xs text-neutral-500">
-            อ่านจากไฟล์ .xlsx ในเครื่อง (ใช้ตอนยังไม่ได้ตั้ง service account)
-            <input
-              name="xlsxPath"
-              className="input w-96"
-              placeholder="เว้นว่าง = ใช้ Google Sheet"
-            />
-          </label>
-        </form>
+        <SyncRunner lastRun={lastRun} fallbackAction={run} />
         <p className="text-xs text-neutral-500">
           ⚠️ ห้ามใช้ไฟล์ .csv — Google export CSV ทำ <b>ปีหาย</b> (serial 45405 → &quot;23/4&quot;)
           ข้อมูลคร่อม 2024–2026 จึงแยกปีไม่ออก

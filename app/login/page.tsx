@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { login } from "@/lib/auth";
+import { SubmitButton } from "@/app/_components/submit-button";
 
 export default async function LoginPage({
   searchParams,
@@ -23,7 +24,7 @@ export default async function LoginPage({
       <input name="username" placeholder="ชื่อผู้ใช้" className="input" required autoFocus />
       <input name="password" type="password" placeholder="รหัสผ่าน" className="input" required />
       {error && <p className="text-sm text-red-600">ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง</p>}
-      <button className="btn">เข้าสู่ระบบ</button>
+      <SubmitButton pendingLabel="กำลังเข้าสู่ระบบ…">เข้าสู่ระบบ</SubmitButton>
     </form>
   );
 }

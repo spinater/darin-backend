@@ -3,6 +3,9 @@ import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { normalizeTrainer } from "@/lib/normalize";
 import { hashPassword, MIN_PASSWORD_LEN } from "@/lib/password";
+import { SubmitButton } from "@/app/_components/submit-button";
+import { ActionProgress } from "@/app/_components/action-progress";
+import { timed } from "@/lib/job-timing";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +15,7 @@ const ROLES = ["trainer", "counter", "admin", "owner"];
 export default async function ConfigPage() {
   await requireAdmin();
 
-  const [configs, rates, classes, staff, aliases, sources, colors] = await Promise.all([
+  const [configs, rates, classes, staff, aliases, sources, colors, saveTime] = await Promise.all([
     db.payrollConfig.findMany({ orderBy: { key: "asc" } }),
     db.teachRate.findMany(),
     db.classPrice.findMany({ orderBy: { name: "asc" } }),
@@ -20,6 +23,7 @@ export default async function ConfigPage() {
     db.trainerAlias.findMany({ include: { staff: true }, orderBy: { alias: "asc" } }),
     db.sheetSource.findMany({ orderBy: { sheetName: "asc" } }),
     db.colorRule.findMany({ orderBy: { hex: "asc" } }),
+    db.jobDuration.findUnique({ where: { job: "config-save" } }),
   ]);
 
   const activities = [...new Set([...rates.map((r) => r.activity), "yoga"])].sort();
@@ -27,35 +31,39 @@ export default async function ConfigPage() {
   async function save(formData: FormData) {
     "use server";
     await requireAdmin();
+    // ฟอร์มนี้บันทึกทีเดียวหลายสิบช่อง = อัปเดต DB เรียงกันหลายสิบครั้ง
+    // จดเวลาไว้ ถ้าวันหลังพนักงาน/คลาสเยอะจนช้า ผู้ใช้จะได้เห็นเวลาโดยไม่ต้องแก้โค้ด
+    await timed("config-save", async () => {
+      for (const [k, v] of formData.entries()) {
+        const val = String(v).trim();
+        const [kind, ...rest] = k.split("|");
 
-    for (const [k, v] of formData.entries()) {
-      const val = String(v).trim();
-      const [kind, ...rest] = k.split("|");
-
-      if (kind === "cfg") await db.payrollConfig.update({ where: { key: rest[0] }, data: { value: val } });
-      else if (kind === "rate") {
-        const [activity, rank] = rest;
-        if (!val) await db.teachRate.deleteMany({ where: { activity, rank } });
-        else
-          await db.teachRate.upsert({
-            where: { activity_rank: { activity, rank } },
-            update: { rate: Number(val) },
-            create: { activity, rank, rate: Number(val) },
+        if (kind === "cfg")
+          await db.payrollConfig.update({ where: { key: rest[0] }, data: { value: val } });
+        else if (kind === "rate") {
+          const [activity, rank] = rest;
+          if (!val) await db.teachRate.deleteMany({ where: { activity, rank } });
+          else
+            await db.teachRate.upsert({
+              where: { activity_rank: { activity, rank } },
+              update: { rate: Number(val) },
+              create: { activity, rank, rate: Number(val) },
+            });
+        } else if (kind === "class")
+          await db.classPrice.update({ where: { id: rest[0] }, data: { price: Number(val) } });
+        else if (kind === "staff") {
+          const [id, field] = rest;
+          await db.staff.update({
+            where: { id },
+            data:
+              field === "rank"
+                ? { rank: val || null }
+                : { [field]: Number(val) },
           });
-      } else if (kind === "class")
-        await db.classPrice.update({ where: { id: rest[0] }, data: { price: Number(val) } });
-      else if (kind === "staff") {
-        const [id, field] = rest;
-        await db.staff.update({
-          where: { id },
-          data:
-            field === "rank"
-              ? { rank: val || null }
-              : { [field]: Number(val) },
-        });
-      } else if (kind === "sheet")
-        await db.sheetSource.update({ where: { id: rest[0] }, data: { spreadsheetId: val } });
-    }
+        } else if (kind === "sheet")
+          await db.sheetSource.update({ where: { id: rest[0] }, data: { spreadsheetId: val } });
+      }
+    });
     revalidatePath("/admin/config");
   }
 
@@ -238,14 +246,15 @@ export default async function ConfigPage() {
                     />
                   </td>
                   <td className="td">
-                    <button
+                    <SubmitButton
                       formAction={toggleActive}
                       name="id"
                       value={s.id}
                       className="btn-ghost text-xs"
+                      pendingLabel="กำลังเปลี่ยน…"
                     >
                       {s.active ? "ปิดใช้งาน" : "เปิดใช้งาน"}
-                    </button>
+                    </SubmitButton>
                   </td>
                 </tr>
               ))}
@@ -299,14 +308,22 @@ export default async function ConfigPage() {
           ))}
         </section>
 
-        <button className="btn self-start">บันทึกทั้งหมด</button>
+        {/* บันทึกทีเดียวหลายสิบช่อง = อัปเดต DB หลายสิบครั้ง กินเวลาพอให้ผู้ใช้สงสัยว่ากดติดไหม */}
+        <div className="flex items-center gap-3">
+          <SubmitButton className="btn" pendingLabel="กำลังบันทึกทั้งหมด…">
+            บันทึกทั้งหมด
+          </SubmitButton>
+          <ActionProgress baselineMs={saveTime?.ms ?? null} />
+        </div>
       </form>
 
       <section className="card">
         <h2 className="mb-2 font-medium">เพิ่มกิจกรรมใหม่</h2>
         <form action={addActivity} className="flex gap-2">
           <input name="activity" placeholder="เช่น boxing" className="input" />
-          <button className="btn-ghost">เพิ่ม</button>
+          <SubmitButton className="btn-ghost" pendingLabel="กำลังเพิ่ม…">
+            เพิ่ม
+          </SubmitButton>
         </form>
       </section>
 
@@ -363,7 +380,12 @@ export default async function ConfigPage() {
             ชื่อที่ใช้จดในชีต (เว้นว่าง = ใช้ชื่อด้านบน)
             <input name="sheetName" placeholder='เช่น "PT ต้น"' className="input" />
           </label>
-          <button className="btn md:col-span-4 md:justify-self-start">เพิ่มพนักงาน</button>
+          <SubmitButton
+            className="btn md:col-span-4 md:justify-self-start"
+            pendingLabel="กำลังเพิ่มพนักงาน…"
+          >
+            เพิ่มพนักงาน
+          </SubmitButton>
         </form>
       </section>
 
@@ -389,7 +411,9 @@ export default async function ConfigPage() {
               </option>
             ))}
           </select>
-          <button className="btn-ghost">เพิ่ม</button>
+          <SubmitButton className="btn-ghost" pendingLabel="กำลังเพิ่ม…">
+            เพิ่ม
+          </SubmitButton>
         </form>
       </section>
 
@@ -415,7 +439,9 @@ export default async function ConfigPage() {
             <option value="review">ให้คนตรวจ</option>
           </select>
           <input name="note" placeholder="หมายเหตุ" className="input" />
-          <button className="btn-ghost">เพิ่ม</button>
+          <SubmitButton className="btn-ghost" pendingLabel="กำลังเพิ่ม…">
+            เพิ่ม
+          </SubmitButton>
         </form>
       </section>
     </div>

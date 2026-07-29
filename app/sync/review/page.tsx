@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { NEEDS_ATTENTION } from "@/lib/payroll-run";
+import { SubmitButton } from "@/app/_components/submit-button";
 
 export const dynamic = "force-dynamic";
 
@@ -143,6 +144,9 @@ export default async function ReviewPage({
                   </select>
                 </td>
                 <td className="td whitespace-nowrap">
+                  {/* ปุ่มอยู่นอก <form> แล้วผูกด้วย form="…" — useFormStatus อ่านสถานะไม่ได้
+                      เพราะมันดูจาก form ที่ครอบอยู่จริง ไม่ใช่ที่ผูกด้วย attribute
+                      จึงต้องคงเป็นปุ่มธรรมดา (งานตรงนี้เป็น update แถวเดียว เร็วอยู่แล้ว) */}
                   <button form={`f-${r.id}`} name="action" value="ok" className="btn">
                     ยืนยัน
                   </button>{" "}
@@ -155,7 +159,9 @@ export default async function ReviewPage({
           </tbody>
         </table>
         {rows.length > 0 && (
-          <button className="btn-ghost mt-2">ข้ามรายการที่เลือกทั้งหมด</button>
+          <SubmitButton className="btn-ghost mt-2" pendingLabel="กำลังข้ามรายการที่เลือก…">
+            ข้ามรายการที่เลือกทั้งหมด
+          </SubmitButton>
         )}
       </form>
 

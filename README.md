@@ -47,6 +47,35 @@ GOOGLE_SHEET_LINK="https://docs.google.com/spreadsheets/d/<id>/edit"
 > ข้อมูลคร่อม 2024–2026 จึงแยกปีไม่ออก · โค้ดใช้ `spreadsheets.get?includeGridData=true`
 > ที่คืน serial + สีพื้น + note ครบ
 
+### ความคืบหน้าตอน sync (ผู้ใช้เห็นอะไรบ้าง)
+
+sync ใช้เวลาราว 15–20 วินาที นานเกินกว่าจะปล่อยให้หน้าจอเงียบ หน้า `/sync` จึงยิงไป
+`POST /api/sync` ที่ทยอย **stream ความคืบหน้ากลับมาเป็น NDJSON บรรทัดละ event**
+(`lib/sync.ts` รับ callback `onProgress`) แล้วแสดงเป็น 2 ช่วงตามงานจริง:
+
+| ช่วง | ที่ผู้ใช้เห็น | ประมาณเวลาจาก |
+|---|---|---|
+| `fetch` — ดาวน์โหลดจาก Google | วงหมุน + แถบวิ่งไปมา (ยังบอก % ไม่ได้ รอเน็ตอยู่) | เวลาช่วง fetch ของรอบที่แล้ว |
+| `process` — เขียนลง DB | ชื่อชีต, ชีตที่ n/ทั้งหมด, แถบ %, `x / y รายการ` | ความเร็วที่วัดได้จริงในรอบนั้นเอง |
+
+เวลาที่บอกทุกจุดมาจากการวัดจริง ไม่มีตัวเลข hardcode:
+
+- `SyncRun` เก็บ `fetchMs` / `processMs` / `units` ทุกรอบ → หน้า `/sync` เอารอบที่สำเร็จ
+  ล่าสุดมาขึ้นว่า "รอบที่แล้วใช้เวลา … วินาที" ตั้งแต่ก่อนกด (รอบที่ error ไม่ถูกนับ
+  เพราะมันจบเร็วผิดปกติแล้วจะทำให้ประมาณต่ำเกินจริง)
+- `JobDuration` เก็บเวลาล่าสุดของงานหนักอื่น (`payroll`, `config-save`, `ot-import`)
+  ผ่าน `timed()` ใน `lib/job-timing.ts` → `<ActionProgress>` เอาไปนับถอยหลังข้างปุ่ม
+
+`<ActionProgress>` จะ**เงียบเองถ้างานเร็วกว่า 1.5 วินาที** และโผล่มาเองเมื่อข้อมูลโต
+จนเริ่มช้า — ไม่ต้องมีใครกลับมาแก้ตัวเลขในโค้ด
+
+ปุ่ม submit ทุกหน้าใช้ `<SubmitButton>` (`useFormStatus`) — ขึ้นวงหมุน เปลี่ยนข้อความ
+และ **disable ตัวเองกันกดซ้ำ** ซึ่งสำคัญกับหน้ายอดขาย/OT ที่กดซ้ำ = ได้ข้อมูลซ้ำ
+
+> ⚠️ ถ้าวันหลังย้าย reverse proxy หรือเปลี่ยน CDN ต้องเช็คว่ามันไม่ buffer response:
+> ถ้า buffer ผู้ใช้จะเห็นวงหมุนค้างแล้วผลโผล่มาทีเดียวตอนจบ · ฝั่งเรากัน 2 ชั้นแล้วคือ
+> `X-Accel-Buffering: no` + `Cache-Control: no-transform` และ `proxy_buffering off` ใน vhost
+
 ## Deploy บน server (docker compose)
 
 ```bash
@@ -75,8 +104,20 @@ docker compose down                 # หยุด (ข้อมูลอยู�
 แต่ยังมีตัวตนในระบบเพื่อรับเงินและผูกชื่อในชีต ถ้าวันหลังอยากให้ใครเข้าเว็บได้
 ไปตั้งรหัสให้ที่หน้า **บัญชี → ตั้งรหัสใหม่ให้พนักงาน** (ขั้นต่ำ 12 ตัว)
 
-> ยังไม่ได้ทำ TLS ไว้ให้ — ถ้าเปิดออกอินเทอร์เน็ต ให้วาง reverse proxy (Caddy/nginx/Cloudflare Tunnel)
-> หน้า `app` เพราะ session cookie ตั้ง `secure` ใน production ต้องมี https ถึงจะล็อกอินได้
+### ที่ deploy จริงอยู่ตอนนี้
+
+| | |
+|---|---|
+| URL | https://darin.rocketlabth.com |
+| upstream | `127.0.0.1:30100` (`APP_PORT` ใน `.env`) — bind loopback เท่านั้น |
+| TLS | edge nginx กลางที่ `/root/app/nginx` (cert Let's Encrypt, ต่ออายุอัตโนมัติ) |
+| DNS | หลัง Cloudflare proxy — CF ต่อ origin ทาง port 80 แล้วส่ง `X-Forwarded-Proto: https` |
+
+vhost อยู่ที่ `/root/app/nginx/conf.d/darin.rocketlabth.com.conf` · แก้แล้ว reload ด้วย
+`docker exec edge-nginx nginx -s reload`
+
+Postgres **ไม่ publish port ออกจาก container เลย** — ต่อได้เฉพาะจาก compose network
+ของสแตกนี้ ไม่มีทางเข้าจากอินเทอร์เน็ต เวลาต้อง debug ใช้ `docker compose exec db psql ...`
 
 ## พนักงานใหม่เข้ามา / ลาออก
 

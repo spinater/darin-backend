@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { currentStaff, currentSessionId } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { hashPassword, MIN_PASSWORD_LEN, verifyPassword } from "@/lib/password";
+import { SubmitButton } from "@/app/_components/submit-button";
 
 export const dynamic = "force-dynamic";
 
@@ -106,7 +107,11 @@ export default async function AccountPage({
             autoComplete="new-password"
           />
         </label>
-        <button className="btn self-start">บันทึก</button>
+        {/* scrypt ตั้งใจให้ช้า (กัน brute-force) การกดแล้วเงียบ ~ครึ่งวินาทีจึงเป็นเรื่องปกติ
+            ต้องมีวงหมุนบอก ไม่งั้นผู้ใช้จะกดซ้ำ */}
+        <SubmitButton className="btn self-start" pendingLabel="กำลังบันทึก…">
+          บันทึก
+        </SubmitButton>
       </form>
 
       {isAdmin && (
@@ -130,7 +135,9 @@ export default async function AccountPage({
             รหัสผ่านใหม่ (อย่างน้อย {MIN_LEN} ตัว)
             <input name="next" type="password" required minLength={MIN_LEN} className="input" />
           </label>
-          <button className="btn self-start">ตั้งรหัสใหม่</button>
+          <SubmitButton className="btn self-start" pendingLabel="กำลังตั้งรหัสใหม่…">
+            ตั้งรหัสใหม่
+          </SubmitButton>
         </form>
       )}
     </div>

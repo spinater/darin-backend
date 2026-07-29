@@ -4,6 +4,9 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { runPayroll, pendingReviewInPeriod } from "@/lib/payroll-run";
+import { SubmitButton } from "@/app/_components/submit-button";
+import { ActionProgress } from "@/app/_components/action-progress";
+import { timed } from "@/lib/job-timing";
 
 export const dynamic = "force-dynamic";
 
@@ -22,20 +25,22 @@ export default async function PayslipsPage({
   await requireAdmin();
   const period = (await searchParams).period ?? thisPeriod();
 
-  const [slips, pending] = await Promise.all([
+  const [slips, pending, lastRun] = await Promise.all([
     db.payslip.findMany({
       where: { period },
       include: { staff: true },
       orderBy: { staff: { name: "asc" } },
     }),
     pendingReviewInPeriod(period),
+    db.jobDuration.findUnique({ where: { job: "payroll" } }),
   ]);
 
   async function compute(formData: FormData) {
     "use server";
     await requireAdmin();
     const p = String(formData.get("period"));
-    await runPayroll(p);
+    // จดเวลาที่ใช้จริงไว้บอกผู้ใช้รอบหน้า — พนักงานเยอะขึ้นตัวเลขก็ขยับตามเอง
+    await timed("payroll", () => runPayroll(p));
     revalidatePath("/payslips");
     redirect(`/payslips?period=${p}`);
   }
@@ -61,7 +66,8 @@ export default async function PayslipsPage({
           งวด
           <input name="period" defaultValue={period} className="input" pattern="\d{4}-\d{2}" />
         </label>
-        <button className="btn">คำนวณเงินเดือนงวดนี้</button>
+        <SubmitButton pendingLabel="กำลังคำนวณ…">คำนวณเงินเดือนงวดนี้</SubmitButton>
+        <ActionProgress baselineMs={lastRun?.ms ?? null} />
         <Link href={`/payslips?period=${period}`} className="btn-ghost">
           ดูงวดนี้
         </Link>
@@ -107,19 +113,19 @@ export default async function PayslipsPage({
                 <form action={setStatus} className="flex gap-1">
                   <input type="hidden" name="id" value={s.id} />
                   {s.status === "draft" && (
-                    <button name="status" value="approved" className="btn">
+                    <SubmitButton name="status" value="approved" pendingLabel="กำลังอนุมัติ…">
                       อนุมัติ
-                    </button>
+                    </SubmitButton>
                   )}
                   {s.status === "approved" && (
-                    <button name="status" value="paid" className="btn">
+                    <SubmitButton name="status" value="paid" pendingLabel="กำลังบันทึก…">
                       จ่ายแล้ว
-                    </button>
+                    </SubmitButton>
                   )}
                   {s.status !== "draft" && (
-                    <button name="status" value="draft" className="btn-ghost">
+                    <SubmitButton name="status" value="draft" className="btn-ghost" pendingLabel="กำลังย้อน…">
                       กลับเป็นร่าง
-                    </button>
+                    </SubmitButton>
                   )}
                 </form>
               </td>

@@ -1,6 +1,12 @@
+# โปรเจกต์นี้เป็น compose stack ของตัวเอง ไม่แชร์ network กับใคร
+# ขาออกสู่อินเทอร์เน็ตผ่าน edge nginx กลางที่ /root/app/nginx เท่านั้น
+#   darin.rocketlabth.com -> 127.0.0.1:${APP_PORT} -> app:3000
+name: darin
+
 services:
   db:
     image: postgres:18-alpine
+    container_name: darin-pg
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-darin}
@@ -26,6 +32,8 @@ services:
     environment:
       DATABASE_URL: &dburl postgresql://${POSTGRES_USER:-darin}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-darin_payroll}
       GOOGLE_SHEET_LINK: ${GOOGLE_SHEET_LINK:-}
+      # ว่าง = seed สุ่มรหัส owner ให้แล้วพิมพ์ใน log ครั้งเดียว
+      OWNER_PASSWORD: ${OWNER_PASSWORD:-}
     depends_on:
       db:
         condition: service_healthy
@@ -35,6 +43,7 @@ services:
     build:
       context: .
       target: runner
+    container_name: darin-web
     restart: unless-stopped
     environment:
       DATABASE_URL: *dburl
@@ -43,7 +52,8 @@ services:
       GOOGLE_SA_EMAIL: ${GOOGLE_SA_EMAIL:-}
       GOOGLE_SA_PRIVATE_KEY: ${GOOGLE_SA_PRIVATE_KEY:-}
     ports:
-      - "${APP_PORT:-3000}:3000"
+      # bind loopback เท่านั้น — เข้าจากอินเทอร์เน็ตตรง ๆ ไม่ได้ ต้องผ่าน edge nginx
+      - "127.0.0.1:${APP_PORT:-3000}:3000"
     depends_on:
       db:
         condition: service_healthy

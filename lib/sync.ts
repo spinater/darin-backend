@@ -13,12 +13,45 @@ export type SyncResult = {
 };
 
 /**
+ * ความคืบหน้าระหว่าง sync — ส่งให้หน้าเว็บแสดงผลตามจริง
+ *
+ * งานมี 2 ช่วงที่คอขวดคนละอย่าง จึงต้องแยกให้ผู้ใช้เห็น:
+ *   fetch   = ดาวน์โหลดจาก Google (รอเน็ต ไม่รู้ล่วงหน้าว่านานแค่ไหน)
+ *   process = เขียนลง DB (รู้จำนวนงานทั้งหมดแล้ว ประมาณเวลาที่เหลือได้)
+ */
+export type SyncProgress = {
+  phase: "fetch" | "process";
+  /** ชีตที่กำลังทำ (เฉพาะ process) */
+  sheetName?: string;
+  sheetIndex?: number;
+  sheetCount?: number;
+  /** หน่วยงานที่เขียนเสร็จแล้ว / ทั้งหมด (เฉพาะ process) */
+  done: number;
+  total: number;
+};
+
+/**
+ * เหตุการณ์ที่ /api/sync ส่งกลับหน้าเว็บ บรรทัดละ 1 JSON (NDJSON)
+ * อยู่ที่นี่เพื่อให้ทั้ง route และ component ฝั่ง client อ้างชนิดเดียวกัน
+ */
+export type SyncEvent =
+  | (SyncProgress & { elapsedMs: number })
+  | { phase: "done"; results: SyncResult[]; elapsedMs: number; fetchMs: number; processMs: number }
+  | { phase: "error"; message: string; elapsedMs: number };
+
+/** ส่ง progress ทุกกี่หน่วย — ถี่กว่านี้ก็ไม่ได้ช่วยให้คนอ่านทัน แต่ทำให้ stream หนักขึ้น */
+const PROGRESS_EVERY = 50;
+
+/**
  * ดึงข้อมูลจากชีต → เก็บดิบ → parse → upsert คาบสอน
  *
  * idempotent: key = (sourceId,rowIndex,colIndex) กดซ้ำกี่ครั้งก็ได้ผลเดิม
  * แถวที่คนตรวจแก้แล้ว (reviewed=true) จะไม่ถูกทับ
  */
-export async function syncSources(opts: { xlsxPath?: string } = {}): Promise<SyncResult[]> {
+export async function syncSources(
+  opts: { xlsxPath?: string } = {},
+  onProgress?: (p: SyncProgress) => void,
+): Promise<SyncResult[]> {
   const sources = await db.sheetSource.findMany({ where: { active: true } });
   if (!sources.length) return [];
 
@@ -28,6 +61,8 @@ export async function syncSources(opts: { xlsxPath?: string } = {}): Promise<Syn
   const colorRules = new Map(
     (await db.colorRule.findMany()).map((c) => [c.hex.toLowerCase(), c.meaning] as const),
   );
+
+  onProgress?.({ phase: "fetch", done: 0, total: 0 });
 
   const names = sources.map((s) => s.sheetName);
   let grids: RawGrid[];
@@ -45,11 +80,37 @@ export async function syncSources(opts: { xlsxPath?: string } = {}): Promise<Syn
     ).flat();
   }
 
+  // parse ทุกชีตให้จบก่อนเริ่มเขียน DB — เป็นงานในหน่วยความจำล้วน เร็วมาก
+  // แต่ทำให้รู้ "จำนวนงานทั้งหมด" ตั้งแต่ต้น ถ้า parse ไปเขียนไปจะบอก total ไม่ได้
+  // จนกว่าจะทำไปแล้วครึ่งทาง → progress bar กระโดดและประมาณเวลาไม่ได้
+  const plan = sources.flatMap((source) => {
+    const grid = grids.find((g) => g.sheetName === source.sheetName);
+    if (!grid) return [];
+    const parsed = parseGrid(grid, source.colMap as unknown as ColMap, source.headerRows, aliases);
+    return [{ source, grid, parsed }];
+  });
+
+  const total = plan.reduce((n, p) => n + p.grid.rows.length + p.parsed.length, 0);
+  let done = 0;
+  let lastEmit = 0;
+  const tick = (sheetName: string, sheetIndex: number) => {
+    if (done - lastEmit < PROGRESS_EVERY && done !== total) return;
+    lastEmit = done;
+    onProgress?.({
+      phase: "process",
+      sheetName,
+      sheetIndex,
+      sheetCount: plan.length,
+      done,
+      total,
+    });
+  };
+
   const results: SyncResult[] = [];
 
-  for (const source of sources) {
-    const grid = grids.find((g) => g.sheetName === source.sheetName);
-    if (!grid) continue;
+  for (const [sheetIndex, { source, grid, parsed }] of plan.entries()) {
+    lastEmit = -PROGRESS_EVERY; // บังคับให้ส่ง 1 ครั้งตอนขึ้นชีตใหม่ ชื่อชีตจะได้อัปเดตทันที
+    tick(source.sheetName, sheetIndex);
 
     await db.$transaction(
       grid.rows.map((cells, rowIndex) =>
@@ -60,8 +121,11 @@ export async function syncSources(opts: { xlsxPath?: string } = {}): Promise<Syn
         }),
       ),
     );
+    // ทั้งก้อนเป็น transaction เดียว รายงานได้ทีเดียวตอนจบ (จะแบ่งย่อยเพื่อให้แถบเดินสวย
+    // ไม่ได้ — เท่ากับยอมให้ข้อมูลดิบเขียนค้างครึ่งๆ กลางๆ ตอนพัง)
+    done += grid.rows.length;
+    tick(source.sheetName, sheetIndex);
 
-    const parsed = parseGrid(grid, source.colMap as unknown as ColMap, source.headerRows, aliases);
     const res: SyncResult = {
       sheetName: source.sheetName,
       created: 0,
@@ -109,6 +173,8 @@ export async function syncSources(opts: { xlsxPath?: string } = {}): Promise<Syn
             },
           });
         res.skippedReviewed++;
+        done++;
+        tick(source.sheetName, sheetIndex);
         continue;
       }
 
@@ -132,6 +198,8 @@ export async function syncSources(opts: { xlsxPath?: string } = {}): Promise<Syn
       if (status === "ok") res.ok++;
       else if (status === "ignored") res.ignored++;
       else res.needsReview++;
+      done++;
+      tick(source.sheetName, sheetIndex);
     }
 
     await db.sheetSource.update({ where: { id: source.id }, data: { lastSyncAt: new Date() } });

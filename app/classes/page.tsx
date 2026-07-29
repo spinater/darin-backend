@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { periodRange } from "@/lib/payroll-run";
+import { SubmitButton } from "@/app/_components/submit-button";
 
 export const dynamic = "force-dynamic";
 
@@ -96,7 +97,12 @@ export default async function ClassesPage({
           no-show
           <input name="noShow" type="number" min={0} defaultValue={0} className="input" />
         </label>
-        <button className="btn md:col-span-5 md:justify-self-start">บันทึก</button>
+        <SubmitButton
+          className="btn md:col-span-5 md:justify-self-start"
+          pendingLabel="กำลังบันทึก…"
+        >
+          บันทึก
+        </SubmitButton>
       </form>
 
       <table className="card w-full">
@@ -122,7 +128,9 @@ export default async function ClassesPage({
               <td className="td">
                 <form action={del}>
                   <input type="hidden" name="id" value={r.id} />
-                  <button className="btn-ghost">ลบ</button>
+                  <SubmitButton className="btn-ghost" pendingLabel="กำลังลบ…">
+                    ลบ
+                  </SubmitButton>
                 </form>
               </td>
             </tr>
