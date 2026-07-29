@@ -1,6 +1,14 @@
 import { db } from "./db";
 import { computePayslip, type PayslipResult } from "./payroll";
 
+/**
+ * คาบที่ยังจ่ายไม่ได้ — รวมเคส status=ok แต่ไม่มีผู้สอน (พนักงานถูกลบ)
+ * ไม่งั้นคาบพวกนี้จะหลุดทั้งจากสลิป (กรอง staffId != null) และจากคิวรอตรวจ = หายเงียบ
+ */
+export const NEEDS_ATTENTION = {
+  OR: [{ status: "needs_review" }, { status: "ok", staffId: null }],
+};
+
 export function periodRange(period: string): { from: Date; to: Date } {
   const [y, m] = period.split("-").map(Number);
   if (!y || !m || m < 1 || m > 12) throw new Error(`งวดไม่ถูกต้อง: ${period} (ต้องเป็น YYYY-MM)`);
@@ -98,8 +106,8 @@ export async function pendingReviewInPeriod(period: string) {
   const { from, to } = periodRange(period);
   return db.teachSession.count({
     where: {
-      status: "needs_review",
-      OR: [{ date: { gte: from, lt: to } }, { date: null }],
+      ...NEEDS_ATTENTION,
+      AND: [{ OR: [{ date: { gte: from, lt: to } }, { date: null }] }],
     },
   });
 }

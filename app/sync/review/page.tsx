@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { NEEDS_ATTENTION } from "@/lib/payroll-run";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ export default async function ReviewPage({
   const { page = "1", sheet } = await searchParams;
   const skip = (Number(page) - 1) * PAGE_SIZE;
 
-  const where = { status: "needs_review", ...(sheet ? { source: { sheetName: sheet } } : {}) };
+  const where = { ...NEEDS_ATTENTION, ...(sheet ? { source: { sheetName: sheet } } : {}) };
   const [rows, total, trainers, sources] = await Promise.all([
     db.teachSession.findMany({
       where,

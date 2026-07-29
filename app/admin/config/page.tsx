@@ -2,10 +2,12 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { normalizeTrainer } from "@/lib/normalize";
+import { hashPassword } from "@/lib/password";
 
 export const dynamic = "force-dynamic";
 
 const RANKS = ["PT", "CT", "ST"];
+const ROLES = ["trainer", "counter", "admin", "owner"];
 
 export default async function ConfigPage() {
   await requireAdmin();
@@ -14,7 +16,7 @@ export default async function ConfigPage() {
     db.payrollConfig.findMany({ orderBy: { key: "asc" } }),
     db.teachRate.findMany(),
     db.classPrice.findMany({ orderBy: { name: "asc" } }),
-    db.staff.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
+    db.staff.findMany({ orderBy: [{ active: "desc" }, { name: "asc" }] }),
     db.trainerAlias.findMany({ include: { staff: true }, orderBy: { alias: "asc" } }),
     db.sheetSource.findMany({ orderBy: { sheetName: "asc" } }),
     db.colorRule.findMany({ orderBy: { hex: "asc" } }),
@@ -68,6 +70,56 @@ export default async function ConfigPage() {
         update: {},
         create: { activity, rank, rate: 0 },
       });
+    revalidatePath("/admin/config");
+  }
+
+  /**
+   * เพิ่มพนักงานใหม่ + ผูกชื่อที่ใช้ในชีตให้เลย
+   * หลังเพิ่มแล้วกด Sync อีกครั้ง คาบเก่าที่ค้างเพราะ "ไม่รู้จักเทรนเนอร์" จะถูกจับคู่ให้อัตโนมัติ
+   */
+  async function addStaff(formData: FormData) {
+    "use server";
+    await requireAdmin();
+    const name = String(formData.get("name") ?? "").trim();
+    const username = String(formData.get("username") ?? "").trim();
+    const password = String(formData.get("password") ?? "");
+    const role = String(formData.get("role") ?? "trainer");
+    if (!name || !username || password.length < 8) return;
+
+    const created = await db.staff.create({
+      data: {
+        name,
+        username,
+        passwordHash: await hashPassword(password),
+        role,
+        rank: role === "trainer" ? String(formData.get("rank") ?? "PT") : null,
+        baseSalary: Number(formData.get("baseSalary") ?? 0),
+        classCredit: Number(formData.get("classCredit") ?? 0),
+      },
+    });
+
+    // ชื่อที่พนักงานใช้จดในชีต (เว้นว่าง = ใช้ชื่อพนักงาน)
+    const sheetNames = [String(formData.get("sheetName") ?? "").trim() || name];
+    for (const raw of sheetNames) {
+      const alias = normalizeTrainer(raw);
+      if (alias)
+        await db.trainerAlias.upsert({
+          where: { alias },
+          update: { staffId: created.id },
+          create: { alias, staffId: created.id },
+        });
+    }
+    revalidatePath("/admin/config");
+  }
+
+  async function toggleActive(formData: FormData) {
+    "use server";
+    await requireAdmin();
+    const id = String(formData.get("id"));
+    const target = await db.staff.findUniqueOrThrow({ where: { id } });
+    await db.staff.update({ where: { id }, data: { active: !target.active } });
+    // ลาออก/พักงาน → เตะออกจากระบบ แต่คาบสอนเก่ายังอยู่ครบ (สลิปย้อนหลังยังตรวจได้)
+    if (target.active) await db.session.deleteMany({ where: { staffId: id } });
     revalidatePath("/admin/config");
   }
 
@@ -145,7 +197,7 @@ export default async function ConfigPage() {
           <table className="w-full max-w-3xl">
             <thead>
               <tr>
-                {["ชื่อ", "บทบาท", "ระดับ", "ฐานเงินเดือน", "เครดิตสอนคลาส"].map((h) => (
+                {["ชื่อ", "บทบาท", "ระดับ", "ฐานเงินเดือน", "เครดิตสอนคลาส", ""].map((h) => (
                   <th key={h} className="th">
                     {h}
                   </th>
@@ -154,8 +206,12 @@ export default async function ConfigPage() {
             </thead>
             <tbody>
               {staff.map((s) => (
-                <tr key={s.id}>
-                  <td className="td">{s.name}</td>
+                <tr key={s.id} className={s.active ? "" : "opacity-40"}>
+                  <td className="td">
+                    {s.name}
+                    <span className="ml-1 font-mono text-xs text-neutral-400">{s.username}</span>
+                    {!s.active && <span className="ml-1 text-xs text-red-600">(ปิดใช้งาน)</span>}
+                  </td>
                   <td className="td text-xs text-neutral-500">{s.role}</td>
                   <td className="td">
                     <select name={`staff|${s.id}|rank`} defaultValue={s.rank ?? ""} className="input">
@@ -180,6 +236,16 @@ export default async function ConfigPage() {
                       defaultValue={s.classCredit}
                       className="input w-28"
                     />
+                  </td>
+                  <td className="td">
+                    <button
+                      formAction={toggleActive}
+                      name="id"
+                      value={s.id}
+                      className="btn-ghost text-xs"
+                    >
+                      {s.active ? "ปิดใช้งาน" : "เปิดใช้งาน"}
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -241,6 +307,57 @@ export default async function ConfigPage() {
         <form action={addActivity} className="flex gap-2">
           <input name="activity" placeholder="เช่น boxing" className="input" />
           <button className="btn-ghost">เพิ่ม</button>
+        </form>
+      </section>
+
+      <section className="card">
+        <h2 className="mb-2 font-medium">เพิ่มพนักงานใหม่</h2>
+        <p className="mb-2 text-xs text-neutral-500">
+          ใส่ <b>ชื่อที่ใช้จดในชีต</b> ให้ตรงด้วย แล้วกด Sync อีกครั้ง →
+          คาบเก่าที่ค้างอยู่เพราะ &quot;ไม่รู้จักเทรนเนอร์&quot; จะถูกจับคู่ให้อัตโนมัติ ไม่ต้องไล่แก้ทีละอัน
+        </p>
+        <form action={addStaff} className="grid gap-2 md:grid-cols-4">
+          <label className="flex flex-col gap-1 text-xs text-neutral-500">
+            ชื่อ
+            <input name="name" required className="input" />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-neutral-500">
+            ชื่อผู้ใช้ (ล็อกอิน)
+            <input name="username" required className="input" />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-neutral-500">
+            รหัสผ่านตั้งต้น (≥8 ตัว)
+            <input name="password" type="password" required minLength={8} className="input" />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-neutral-500">
+            บทบาท
+            <select name="role" className="input">
+              {ROLES.map((r) => (
+                <option key={r}>{r}</option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-neutral-500">
+            ระดับ (เฉพาะเทรนเนอร์)
+            <select name="rank" className="input">
+              {RANKS.map((r) => (
+                <option key={r}>{r}</option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-neutral-500">
+            ฐานเงินเดือน
+            <input name="baseSalary" type="number" defaultValue={10000} className="input" />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-neutral-500">
+            เครดิตสอนคลาส
+            <input name="classCredit" type="number" defaultValue={5000} className="input" />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-neutral-500">
+            ชื่อที่ใช้จดในชีต (เว้นว่าง = ใช้ชื่อด้านบน)
+            <input name="sheetName" placeholder='เช่น "PT ต้น"' className="input" />
+          </label>
+          <button className="btn md:col-span-4 md:justify-self-start">เพิ่มพนักงาน</button>
         </form>
       </section>
 

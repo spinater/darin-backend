@@ -119,7 +119,9 @@ model TeachSession {
   reviewed      Boolean   @default(false)
 
   source SheetSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
-  staff  Staff?      @relation(fields: [staffId], references: [id])
+  // Restrict: ห้ามลบพนักงานที่มีคาบสอนอยู่ (ให้ปิดใช้งานแทน)
+  // ถ้าเป็น SetNull คาบจะกลายเป็น status=ok แต่ไม่มีผู้สอน → หลุดทั้งจากสลิปและคิวรอตรวจ
+  staff  Staff?      @relation(fields: [staffId], references: [id], onDelete: Restrict)
 
   @@unique([sourceId, rowIndex, colIndex])
   @@index([date, staffId, status])
