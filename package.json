@@ -8,7 +8,11 @@
     "start": "next start",
     "db:push": "prisma db push",
     "db:seed": "bun run prisma/seed.ts",
-    "test": "bun test"
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "check:lines": "bun scripts/check-file-length.ts",
+    "check:knowledge": "bun scripts/check-knowledge.ts",
+    "verify": "bun run check:lines && bun run check:knowledge && bun run typecheck && bun test"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.1",

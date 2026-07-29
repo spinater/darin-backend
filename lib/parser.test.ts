@@ -103,7 +103,7 @@ describe("กฎการอ่านเซลล์", () => {
       {
         sheetName: "t",
         rows: [
-          ["h"],
+          [{ v: "h", f: "h" }],
           ["ลูกค้า", "เล่น", "0812345678", 45000, 10, "PT พลอย", ...cells].map((v) =>
             typeof v === "number" ? { v, f: String(v) } : { v: String(v), f: String(v) },
           ),
@@ -166,7 +166,7 @@ describe("กฎการอ่านเซลล์", () => {
       {
         sheetName: "t",
         rows: [
-          ["h"],
+          [{ v: "h", f: "h" }],
           ["ลูกค้า", "เล่น", "0812345678", 45000, 10, "PT มิกซ์", 45405].map((v) =>
             typeof v === "number" ? { v, f: String(v) } : { v: String(v), f: String(v) },
           ),

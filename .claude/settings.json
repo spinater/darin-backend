@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bun run verify)",
+      "Bash(bun run check:lines)",
+      "Bash(bun run check:knowledge)",
+      "Bash(bun run typecheck)",
+      "Bash(bun test *)",
+      "Bash(bunx tsc *)",
+      "Bash(bun scripts/check-file-length.ts *)",
+      "Bash(bun scripts/check-knowledge.ts *)",
+      "Bash(bunx --bun prisma validate)",
+      "Bash(bunx --bun prisma generate)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git show *)",
+      "Bash(git ls-files *)",
+      "Bash(git rev-parse *)",
+      "Bash(docker compose ps *)",
+      "Bash(docker compose logs *)",
+      "Bash(docker compose config *)"
+    ]
+  }
+}
