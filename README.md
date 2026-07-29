@@ -9,9 +9,9 @@
 bun install
 createdb darin_payroll                       # หรือชี้ DATABASE_URL ไปที่ Postgres ที่มีอยู่
 bunx --bun prisma db push
-bun run prisma/seed.ts                       # config §4 + เรท + คลาส 13 + เทรนเนอร์
-bun run dev                                  # http://localhost:3000  (owner / changeme)
-bun test                                     # 42 tests
+bun run prisma/seed.ts                       # ← จดรหัส owner ที่พิมพ์ออกมา (แสดงครั้งเดียว)
+bun run dev                                  # http://localhost:3000
+bun test                                     # 48 tests
 ```
 
 > คำสั่ง `prisma` ต้องใช้ `bunx --bun` เพื่อให้โหลด `.env` เข้า `prisma.config.ts`
@@ -56,7 +56,7 @@ docker compose up -d --build
 
 | service | ทำอะไร |
 |---|---|
-| `db` | Postgres 17 · เก็บลง volume `pgdata` · **ไม่ publish port ออกนอก** |
+| `db` | Postgres 18 · เก็บลง volume `pgdata` · **ไม่ publish port ออกนอก** |
 | `migrate` | รันครั้งเดียวตอนขึ้นระบบ: `prisma db push` + seed แล้วจบ |
 | `app` | Next.js standalone บน Node · เปิดที่ `${APP_PORT:-3000}` |
 
@@ -68,8 +68,12 @@ docker compose exec db psql -U darin darin_payroll   # เข้า DB
 docker compose down                 # หยุด (ข้อมูลอยู่ใน volume ไม่หาย)
 ```
 
-**ก่อนเปิดให้คนอื่นเข้า:** ล็อกอิน `owner` / `changeme` → ไปหน้า **บัญชี** เปลี่ยนรหัสทันที
-แล้วตั้งรหัสให้เทรนเนอร์ทุกคนจากหน้าเดียวกัน
+**บัญชีผู้ใช้:** มีคนเดียวคือ `owner` — รหัสสุ่มตอน seed พิมพ์ใน log ครั้งเดียว
+(กำหนดเองได้ด้วย `OWNER_PASSWORD` ใน `.env`) เปลี่ยนภายหลังที่หน้า **บัญชี**
+
+เทรนเนอร์ **ปิดการล็อกอินไว้ทั้งหมด** — ลงข้อมูลผ่าน Google Sheet เหมือนเดิม
+แต่ยังมีตัวตนในระบบเพื่อรับเงินและผูกชื่อในชีต ถ้าวันหลังอยากให้ใครเข้าเว็บได้
+ไปตั้งรหัสให้ที่หน้า **บัญชี → ตั้งรหัสใหม่ให้พนักงาน** (ขั้นต่ำ 12 ตัว)
 
 > ยังไม่ได้ทำ TLS ไว้ให้ — ถ้าเปิดออกอินเทอร์เน็ต ให้วาง reverse proxy (Caddy/nginx/Cloudflare Tunnel)
 > หน้า `app` เพราะ session cookie ตั้ง `secure` ใน production ต้องมี https ถึงจะล็อกอินได้
@@ -105,4 +109,4 @@ docker compose down                 # หยุด (ข้อมูลอยู�
 2. ใส่ **เรท Yoga** (สเปคยังไม่ให้)
 3. ตอบคำถาม §7 ใน REQUIREMENTS.md — โดยเฉพาะ **สีในชีตแปลว่าอะไร** และ **ว่ายน้ำใครสอน**
 4. เคลียร์ **คิวรอตรวจ** ให้หมดก่อนกดคำนวณ ไม่งั้นจ่ายขาด
-5. เปลี่ยนรหัสผ่านทุกคนที่หน้า **บัญชี** (seed = `changeme` เหมือนกันหมด)
+5. เก็บรหัส `owner` ที่ seed พิมพ์ออกมาใส่ password manager

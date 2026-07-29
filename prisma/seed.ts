@@ -2,7 +2,7 @@ import { db } from "../lib/db";
 import { CONFIG_DEFAULTS } from "../lib/config-keys";
 import { normalizeTrainer } from "../lib/normalize";
 import { sheetIdFromLink } from "../lib/sheets";
-import { hashPassword } from "../lib/password";
+import { generatePassword, hashPassword, LOGIN_DISABLED } from "../lib/password";
 
 // §1.2 ตารางเรท กิจกรรม × ระดับ — Yoga จงใจไม่ seed (สเปคยังไม่ให้เรท §7 ข้อ 10)
 const RATES: Record<string, Record<string, number>> = {
@@ -76,13 +76,17 @@ async function main() {
   for (const [name, price] of CLASSES)
     await db.classPrice.upsert({ where: { name }, update: {}, create: { name, price } });
 
+  // รหัส owner: ใช้ OWNER_PASSWORD ถ้ากำหนดมา ไม่งั้นสุ่มให้แล้วพิมพ์ครั้งเดียว
+  const ownerPassword = process.env.OWNER_PASSWORD || generatePassword();
+  const generated = !process.env.OWNER_PASSWORD;
+  const existingOwner = await db.staff.findUnique({ where: { username: "owner" } });
   const owner = await db.staff.upsert({
     where: { username: "owner" },
-    update: {},
+    update: {}, // ไม่ทับรหัสที่เปลี่ยนไปแล้ว
     create: {
       name: "เจ้าของยิม",
       username: "owner",
-      passwordHash: await hashPassword("changeme"),
+      passwordHash: await hashPassword(ownerPassword),
       role: "owner",
       baseSalary: 0,
     },
@@ -95,7 +99,9 @@ async function main() {
       create: {
         name,
         username: name,
-        passwordHash: await hashPassword("changeme"),
+        // เทรนเนอร์ลงข้อมูลผ่าน Google Sheet ไม่ต้องเข้าเว็บ → ปิดการล็อกอินไว้
+        // ยังต้องมีตัวตนในระบบเพื่อรับเงินและผูก alias ชื่อในชีต
+        passwordHash: LOGIN_DISABLED,
         role: "trainer",
         rank: "PT", // ⚠️ ต้องให้ admin ยืนยัน
         baseSalary: 10000,
@@ -118,12 +124,21 @@ async function main() {
       create: { spreadsheetId, ...s },
     });
 
-  console.log(`seed เสร็จ (owner=${owner.username} / changeme)`);
+  console.log("seed เสร็จ");
+  if (existingOwner) {
+    console.log(`บัญชี ${owner.username} มีอยู่แล้ว — ไม่แตะรหัสเดิม`);
+  } else if (generated) {
+    console.log("\n┌─ รหัสผ่าน owner (แสดงครั้งเดียว เก็บใส่ password manager ทันที) ─");
+    console.log(`│  ผู้ใช้ : owner`);
+    console.log(`│  รหัส  : ${ownerPassword}`);
+    console.log("└──────────────────────────────────────────────────────────────\n");
+  } else {
+    console.log("บัญชี owner ใช้รหัสจาก OWNER_PASSWORD");
+  }
+  console.log("เทรนเนอร์ทุกคน: ปิดการล็อกอินไว้ (ลงข้อมูลผ่าน Google Sheet เหมือนเดิม)");
   console.log("⚠️  ต้องทำต่อในหน้า /admin/config ก่อนคิดเงินเดือนจริง:");
   console.log("   1. ตั้ง rank (ST/CT/PT) ของเทรนเนอร์แต่ละคน — ตอนนี้ seed เป็น PT ทั้งหมด");
   console.log("   2. ใส่เรท Yoga (ยังไม่มีในสเปค §7 ข้อ 10)");
-  console.log("   3. ใส่ spreadsheetId จริง");
-  console.log("   4. เปลี่ยนรหัสผ่านทุกคน (seed = changeme)");
 }
 
 main().finally(() => db.$disconnect());

@@ -1,11 +1,11 @@
 import { redirect } from "next/navigation";
 import { currentStaff, currentSessionId } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { hashPassword, verifyPassword } from "@/lib/password";
+import { hashPassword, MIN_PASSWORD_LEN, verifyPassword } from "@/lib/password";
 
 export const dynamic = "force-dynamic";
 
-const MIN_LEN = 8;
+const MIN_LEN = MIN_PASSWORD_LEN;
 
 export default async function AccountPage({
   searchParams,

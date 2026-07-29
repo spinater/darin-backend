@@ -2,7 +2,7 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { normalizeTrainer } from "@/lib/normalize";
-import { hashPassword } from "@/lib/password";
+import { hashPassword, MIN_PASSWORD_LEN } from "@/lib/password";
 
 export const dynamic = "force-dynamic";
 
@@ -84,7 +84,7 @@ export default async function ConfigPage() {
     const username = String(formData.get("username") ?? "").trim();
     const password = String(formData.get("password") ?? "");
     const role = String(formData.get("role") ?? "trainer");
-    if (!name || !username || password.length < 8) return;
+    if (!name || !username || password.length < MIN_PASSWORD_LEN) return;
 
     const created = await db.staff.create({
       data: {
@@ -326,8 +326,14 @@ export default async function ConfigPage() {
             <input name="username" required className="input" />
           </label>
           <label className="flex flex-col gap-1 text-xs text-neutral-500">
-            รหัสผ่านตั้งต้น (≥8 ตัว)
-            <input name="password" type="password" required minLength={8} className="input" />
+            รหัสผ่านตั้งต้น (≥{MIN_PASSWORD_LEN} ตัว)
+            <input
+              name="password"
+              type="password"
+              required
+              minLength={MIN_PASSWORD_LEN}
+              className="input"
+            />
           </label>
           <label className="flex flex-col gap-1 text-xs text-neutral-500">
             บทบาท

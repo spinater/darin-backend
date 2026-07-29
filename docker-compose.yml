@@ -1,13 +1,15 @@
 services:
   db:
-    image: postgres:17-alpine
+    image: postgres:18-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-darin}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?ต้องตั้ง POSTGRES_PASSWORD ใน .env}
       POSTGRES_DB: ${POSTGRES_DB:-darin_payroll}
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      # PG18 ย้าย PGDATA ไป /var/lib/postgresql/18/docker และประกาศ VOLUME ที่ /var/lib/postgresql
+      # ถ้า mount ที่ .../data แบบเดิม (PG17) ข้อมูลจะไปลง anonymous volume แล้วหายตอน recreate
+      - pgdata:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-darin} -d ${POSTGRES_DB:-darin_payroll}"]
       interval: 5s
