@@ -14,6 +14,12 @@ Card ยาว 40–120 บรรทัด (**เตือนที่ 170 · �
 > (`cargo fmt` · sql-coverage · txn-discharge · authz) ไม่ได้พอร์ตมา และของที่มาแทนคือ
 > `scripts/check-code.sh` ฝั่ง TS กับ `scripts/check-bun-pin.sh` — เหตุผลอยู่ในการ์ด
 > [ops/gates.md](ops/gates.md)
+>
+> 📌 **Update (task 003): the formatter gate is back** — `cargo fmt --check` now has its TS
+> counterpart as the `format` stage of `scripts/check-code.sh` (`prettier --check`, config in
+> `.prettierrc`, scope `*.ts` / `*.tsx` only — **never Markdown**, because the `.md` in this repo is
+> Thai prose, CLAUDE.md §2.5). The three gates still missing are sql-coverage, txn-discharge and
+> authz. Details in [ops/gates.md](ops/gates.md).
 
 ## Ops cards
 

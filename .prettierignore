@@ -1,0 +1,24 @@
+# What the formatter must never touch (task 003).
+#
+# Two layers say what is in scope, on purpose: the gate stage passes the glob **/*.{ts,tsx}, and
+# this file holds the line even if someone widens that glob later. The glob alone is one edit away
+# from sweeping the whole repo.
+#
+# 🔴 MARKDOWN IS EXCLUDED ON PURPOSE — DO NOT "HELPFULLY" WIDEN THIS.
+# Nearly every .md in this repo is Thai prose written by hand: REQUIREMENTS.md, the task cards
+# under tasks/, the knowledge cards under .docs/knowledge/. CLAUDE.md §2.5 says existing Thai
+# content is not to be rewritten, and a markdown formatter rewrites it wholesale — it reflows
+# paragraphs, renormalises table pipes and moves list markers. On Thai text that is not a
+# formatting change anyone can review: Thai has no word spaces, so a reflowed line breaks in a
+# different place than the author chose, and the diff is unreadable. The cost is real and the
+# benefit is zero, because prose has no compiler that cares.
+*.md
+
+# Not ours to format / not source at all
+node_modules/
+.next/
+generated/
+graphify-out/
+.scratch/
+bun.lock
+.docs/

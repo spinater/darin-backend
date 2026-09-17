@@ -38,7 +38,8 @@ for c in check-shell-source.sh tests/check-shell-source-selftest.sh \
          tests/check-file-length-selftest.sh tests/check-text-bytes-selftest.sh \
          tests/check-path-bytes-selftest.sh tests/check-sort-locale-selftest.sh \
          tests/check-knowledge-selftest.sh tests/check-bun-pin-selftest.sh \
-         tests/check-code-junit-selftest.sh tests/check-verify-summary-selftest.sh \
+         tests/check-code-junit-selftest.sh tests/check-format-selftest.sh \
+         tests/check-verify-summary-selftest.sh \
          check-path-bytes.sh check-sort-locale.sh check-text-bytes.sh \
          check-file-length.sh check-knowledge.sh check-links.sh check-card-paths.sh \
          check-bun-pin.sh check-code.sh; do

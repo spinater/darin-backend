@@ -2,12 +2,15 @@
 # ด่านโค้ดของรีโปนี้ (CLAUDE.md §7) — คู่ขนานกับ `scripts/check-code.sh` ของ groove-clinic
 # แต่สแตกเป็น **TypeScript ล้วน** ⇒ ไม่มี stage rust; ชั้นที่เหลือเป็นชั้นเดียวกันทุกชั้น:
 #
-#   1. types   `tsc --noEmit`                     — เร็ว ไม่ต้องมี DB ⇒ แดงก่อนทุกอย่างที่ช้า
-#   2. schema  `prisma validate`                  — schema พังจับได้ในวินาที ไม่ใช่ตอน deploy
-#   3. tests   `bun test` + หมุด junit            — ดู `scripts/lib/check-code-junit.sh`
-#   4. db      postgres ใช้แล้วทิ้ง + `prisma db push` + seed
+#   1. format  `prettier --check`                 — fastest, needs no DB and no generated client
+#                                                    ⇒ goes red before anything slow runs
+#                                                    (task 003 — see `scripts/lib/check-code-format.sh`)
+#   2. types   `tsc --noEmit`                     — เร็ว ไม่ต้องมี DB ⇒ แดงก่อนทุกอย่างที่ช้า
+#   3. schema  `prisma validate`                  — schema พังจับได้ในวินาที ไม่ใช่ตอน deploy
+#   4. tests   `bun test` + หมุด junit            — ดู `scripts/lib/check-code-junit.sh`
+#   5. db      postgres ใช้แล้วทิ้ง + `prisma db push` + seed
 #
-# ## ทำไม stage 4 ถึงต้องมีทั้งที่ยังไม่มีเทสที่ใช้ DB
+# ## ทำไม stage 5 ถึงต้องมีทั้งที่ยังไม่มีเทสที่ใช้ DB
 # `prisma db push` กับ seed คือสิ่งที่ **รันจริงตอน deploy** (compose service `migrate`) และ
 # ก่อนมีด่านนี้ ไม่มีอะไรในรีโปพิสูจน์มันเลยสักชั้นจนกว่าคอนเทนเนอร์จะขึ้นบนคลาวด์ ⇒ schema
 # ที่ push ไม่ผ่านจะถูกจับ **หลัง** push ไป develop เสมอ (คลาสเดียวกับใบ 159 ของ groove-clinic
@@ -86,6 +89,11 @@ bun_run() { # $1 = คำสั่ง sh
 }
 
 deps='[ -d node_modules ] || bun install --frozen-lockfile'
+
+# Formatter stage first (task 003) — it is the cheapest red in this file. Sourced with `.` for the
+# same reason the junit layer is: it reads `$deps`/`$RUN_ID`/`$GATE_ENGINE`/`$BUN_IMAGE` and the
+# `bun_run` function from this shell, and travels back through `fail`.
+. scripts/lib/check-code-format.sh
 
 echo "check-code: types (tsc --noEmit)"
 # `prisma generate` มาก่อน tsc เสมอ — ไคลเอนต์ที่ generate แล้วคือ *ที่มาของ type* ของ

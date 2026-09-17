@@ -26,5 +26,5 @@ linus (2026-09-17): ให้ darin-payroll-system ใช้ rule ในกา�
 ## ที่ **ไม่ได้** พอร์ตมา — และทำไม (อย่าอ่านว่า "ลืม")
 
 `check-sql-coverage.sh` · `check-txn-discharge.sh` · `check-authz.sh` · `cargo fmt`
-— สามใบแรกตัดสินจากรูปของ Rust/sqlx ที่ไม่มีอยู่ในรีโปนี้ · ใบที่สี่รอ [003](../todo/003-formatter-gate.md)
+— สามใบแรกตัดสินจากรูปของ Rust/sqlx ที่ไม่มีอยู่ในรีโปนี้ · ใบที่สี่รอ [003](003-formatter-gate.md)
 ช่องที่เปิดอยู่จริงบันทึกไว้ที่ [.docs/knowledge/ops/gates.md](../../.docs/knowledge/ops/gates.md)
