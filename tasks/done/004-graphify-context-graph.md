@@ -1,7 +1,7 @@
 # Code graph: make §8 "ask the graph before reading files" real
 
 - status: done
-- commit:
+- commit: 76a6f71
 
 ## Goal
 
