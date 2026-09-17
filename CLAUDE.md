@@ -25,7 +25,7 @@ docs are in Thai.
 - **Product overview for humans:** [README.md](README.md) · [darin-payroll-system.md](darin-payroll-system.md)
 - **Tasks:** [tasks/README.md](tasks/README.md) — `tasks/todo/` → `tasks/done/`, blocked-on-a-human in `tasks/todo-human/`
 - **Verify gate:** `scripts/verify.sh` — the one entry point. Nothing ships without it exiting 0.
-- **Deploy (dev):** `docker-compose.yml` → `https://darin-dev.rocketlabth.com` — see
+- **Deploy (dev):** `docker-compose.yml` → `https://darin.rocketlabth.com` — see
   [.docs/knowledge/ops/deploy.md](.docs/knowledge/ops/deploy.md)
 - **Sub-agents:** `.claude/agents/`
 

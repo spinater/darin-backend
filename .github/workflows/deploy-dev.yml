@@ -3,15 +3,20 @@ name: deploy-dev
 # push develop → ssh เข้าเครื่องคลาวด์ → git pull + docker compose up -d --build
 #
 # ที่นี่ **ไม่มี actions/checkout**: งานนี้ไม่ได้ใช้ไฟล์ในรันเนอร์เลย มันสั่งงานกับ working copy
-# ที่ /root/app/lim/darin-payroll-system ซึ่งเป็นตัวที่ compose รันอยู่จริง
+# ที่ /root/app/lim/darin-backend ซึ่งเป็นตัวที่ compose รันอยู่จริง
 #
 # คำสั่ง deploy อยู่ที่ /root/app/deploy-darin.sh **บนเซิร์ฟเวอร์ นอก repo**
 # (git pull เขียนทับสคริปต์ตัวเองกลางคันไม่ได้) และกุญแจถูกล็อกด้วย
 # `restrict,command="…"` ใน authorized_keys ⇒ secret หลุดก็สั่งได้แค่ redeploy ไม่ได้ shell
 # ⇒ workflow นี้จึงมีแค่ `ssh` เปล่า ๆ ไม่ต้องส่งคำสั่งไปเอง
 #
-# 🔴 เครื่องเดียวกับ groove-clinic (157.85.104.171) — คนละ compose project คนละ vhost
-#    รายละเอียดฝั่งเซิร์ฟเวอร์ที่ต้องมีคนลงมือ: tasks/todo-human/002-deploy-host-setup.md
+# 🔴 เครื่องเดียวกับ groove-clinic + franchise (157.85.104.171) — คนละ compose project คนละ vhost
+#    ปลายทางคือ https://darin.rocketlabth.com (upstream 127.0.0.1:30100)
+#
+# ⚠️ **วันนี้ workflow นี้ยังล้มที่ ssh** — บนเครื่องยังไม่มี deploy-darin.sh, ไม่มีกุญแจใน
+#    authorized_keys, และ repo ยังไม่มี secret DEPLOY_SSH_KEY ⇒ ของที่วิ่งอยู่ถูก deploy ด้วยมือ
+#    · และ working copy บนเครื่องยังอยู่คนละ branch กับ develop พร้อมของที่ยังไม่ push
+#    ⇒ **อย่าเพิ่งเปิดใช้จนกว่าจะปิด** tasks/todo-human/002-deploy-host-setup.md ข้อ 1
 
 on:
   push:

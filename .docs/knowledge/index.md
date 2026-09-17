@@ -19,7 +19,7 @@ Card ยาว 40–120 บรรทัด (**เตือนที่ 170 · �
 
 | Card | ครอบคลุม |
 |---|---|
-| [ops/deploy.md](ops/deploy.md) | ปลายทาง dev (`darin-dev.rocketlabth.com`), compose, CI, กับดักที่กัดจริง |
+| [ops/deploy.md](ops/deploy.md) | ปลายทาง (`darin.rocketlabth.com`), compose, CI, กับดักที่กัดจริง |
 | [ops/gates.md](ops/gates.md) | เกตทั้งชุดของรีโปนี้: ใครเฝ้าอะไร · อะไรไม่ได้พอร์ตมาและทำไม |
 
 ## Domain cards
