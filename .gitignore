@@ -12,3 +12,6 @@ client_secret_*.json
 
 # ที่ทำงานชั่วคราวของ agent/เกต (CLAUDE.md §6 rule 5: ห้ามใช้ /tmp)
 .scratch/
+
+# graphify context graph — machine-written and rebuildable (CLAUDE.md §8)
+graphify-out/

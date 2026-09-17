@@ -28,6 +28,7 @@ docs are in Thai.
 - **Deploy (dev):** `docker-compose.yml` → `https://darin.rocketlabth.com` — see
   [.docs/knowledge/ops/deploy.md](.docs/knowledge/ops/deploy.md)
 - **Sub-agents:** `.claude/agents/`
+- **Code graph:** `graphify-out/GRAPH_REPORT.md` — ask the graph before reading files wholesale (§8)
 
 ---
 
@@ -251,10 +252,28 @@ A stage that is skipped silently is a stage nobody knows did not run.
 
 ---
 
-## 8. Context management
+## 8. Context management (knowledge cards → graphify → files)
 
-Read the knowledge card for your area first; grep second; read whole files last. `.scratch/` is
-yours and is gitignored — put intermediate output there, never in `/tmp` (§6 rule 5).
+Read the knowledge card for your area first; **ask the graph second**; grep third; read whole files
+last. `.scratch/` is yours and is gitignored — put intermediate output there, never in `/tmp`
+(§6 rule 5).
+
+`graphify-out/` is generated and **gitignored** (built 2026-09-17, `graphify 0.9.51`, scope: the
+repo minus everything `.gitignore` already hides — 90 code files, 625 nodes, 938 edges). Read
+`graphify-out/GRAPH_REPORT.md` first, then ask it instead of reading files wholesale:
+
+```bash
+graphify query "how is a payslip computed" --budget 1500   # BFS from the symbols that match
+graphify affected "computePayslip()"                       # what breaks if this changes
+graphify path "runPayroll()" "requireAdmin()"              # shortest path between two symbols
+graphify god-nodes --top 10                                # the hubs — where a change spreads
+```
+
+Refresh after every commit that touched code — `graphify update .` re-extracts by AST, no API key
+and no LLM cost. Two things in the graph are **deliberately absent**, so do not report them as
+breakage: `.docs/**` is not in it (semantic doc extraction needs an LLM backend), and the
+communities are named after their dominant symbol rather than in prose. Both need
+`ANTHROPIC_API_KEY` set — `graphify extract .` for the docs, `graphify label .` for the names.
 
 ## 9. Sub-agent development loop
 
