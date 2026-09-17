@@ -25,6 +25,10 @@ project คนละ vhost) · ตรวจสดเมื่อ 2026-09-17: `/l
 🔴 **`darin-dev.rocketlabth.com` ไม่ใช้แล้ว** (linus 2026-09-17) — ชื่อนั้นมี DNS ชี้มาที่ origin
 แต่ไม่เคยมี vhost ⇒ ตกไปที่ server block แรกตามลำดับไฟล์ (`api-franchise…`) แล้วโผล่หน้า
 **Franchise Management** · ห้ามเข้าใจว่า darin เคย deploy ผิดที่ — มันไม่เคยถูก deploy ไปที่ชื่อนั้นเลย
+· **ปิดรูนั้นแล้ววันเดียวกัน**: เครื่องมี `conf.d/00-default-catchall.conf` (80 → `return 444`,
+443 → `ssl_reject_handshake on`) ⇒ Host ที่ไม่มีใครรับจะไม่ไปโผล่แอปของคนอื่นอีก
+(ก่อนหน้านั้นใครชี้โดเมนอะไรมาที่ IP นี้ ก็ได้ UI ของ franchise ฟรี ๆ) · DNS ของ `darin-dev`
+ยังค้างอยู่ที่ Cloudflare รอลบ — ใบ [002](../../../tasks/todo-human/002-deploy-host-setup.md) ข้อ 6
 
 ## กระบวนการ
 

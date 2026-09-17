@@ -5,18 +5,24 @@ name: deploy-dev
 # ที่นี่ **ไม่มี actions/checkout**: งานนี้ไม่ได้ใช้ไฟล์ในรันเนอร์เลย มันสั่งงานกับ working copy
 # ที่ /root/app/lim/darin-backend ซึ่งเป็นตัวที่ compose รันอยู่จริง
 #
-# คำสั่ง deploy อยู่ที่ /root/app/deploy-darin.sh **บนเซิร์ฟเวอร์ นอก repo**
-# (git pull เขียนทับสคริปต์ตัวเองกลางคันไม่ได้) และกุญแจถูกล็อกด้วย
-# `restrict,command="…"` ใน authorized_keys ⇒ secret หลุดก็สั่งได้แค่ redeploy ไม่ได้ shell
-# ⇒ workflow นี้จึงมีแค่ `ssh` เปล่า ๆ ไม่ต้องส่งคำสั่งไปเอง
+# **คำสั่ง deploy ถูกส่งไปจากที่นี่** (linus 2026-09-17) — ไม่ได้เรียกสคริปต์ที่ฝังอยู่บนเครื่อง
+# ⇒ ขั้นตอน deploy อยู่ในรีโป: อ่านได้ รีวิวได้ ย้อนดูประวัติได้ว่าเคยเปลี่ยนอะไรเมื่อไร
+#
+# 🔴 **ราคาของการทำแบบนี้ เขียนไว้ให้คนที่มาอ่านทีหลังรู้**: กุญแจ deploy จึง **ต้อง**
+#    รันคำสั่งอะไรก็ได้ (ไม่มี `command="…"` ใน authorized_keys บังคับอีกแล้ว มีแต่ `restrict`
+#    ที่ปิด port-forward/agent/pty) ⇒ **`DEPLOY_SSH_KEY` หลุด = สิทธิ์ root บนเครื่องที่มีแอป
+#    ของคนอื่นอยู่ด้วย** · ของเดิมหลุดแล้วสั่งได้แค่ redeploy
+#    ⇒ ถ้าวันหนึ่งอยากได้ความปลอดภัยชั้นนั้นคืน: เอา `restrict,command="/root/app/deploy-darin.sh"`
+#    กลับมา แล้วให้ step ข้างล่างเหลือ `ssh` เปล่า ๆ (สคริปต์ยังอยู่บนเครื่อง ไม่ได้ลบทิ้ง)
 #
 # 🔴 เครื่องเดียวกับ groove-clinic + franchise (157.85.104.171) — คนละ compose project คนละ vhost
 #    ปลายทางคือ https://darin.rocketlabth.com (upstream 127.0.0.1:30100)
 #
-# ⚠️ **วันนี้ workflow นี้ยังล้มที่ ssh** — บนเครื่องยังไม่มี deploy-darin.sh, ไม่มีกุญแจใน
-#    authorized_keys, และ repo ยังไม่มี secret DEPLOY_SSH_KEY ⇒ ของที่วิ่งอยู่ถูก deploy ด้วยมือ
-#    · และ working copy บนเครื่องยังอยู่คนละ branch กับ develop พร้อมของที่ยังไม่ push
-#    ⇒ **อย่าเพิ่งเปิดใช้จนกว่าจะปิด** tasks/todo-human/002-deploy-host-setup.md ข้อ 1
+# ⚠️ **ยังขาดชิ้นเดียว**: repo ยังไม่มี secret `DEPLOY_SSH_KEY` ⇒ workflow ยังล้มที่ ssh
+#    (ฝั่งเครื่องพร้อมแล้ว: กุญแจอยู่ใน authorized_keys และทดสอบยิงคำสั่งนี้ผ่านแล้ว 2026-09-17)
+# ⚠️ **`git pull` ดึง branch ที่ working copy ยืนอยู่ ไม่ใช่ `develop` เสมอไป** — วันนี้เครื่อง
+#    ยืนอยู่บน `feat/sync-progress-ui` ⇒ push develop แล้ว CI จะ rebuild โค้ดของ branch นั้น
+#    ⇒ ต้องตัดสินใจก่อนเปิดใช้ (tasks/todo-human/002-deploy-host-setup.md ข้อ 1)
 
 on:
   push:
@@ -43,4 +49,23 @@ jobs:
           chmod 600 ~/.ssh/known_hosts
 
       - name: deploy
-        run: ssh -o BatchMode=yes -o ConnectTimeout=15 root@157.85.104.171
+        # 🔑 คำสั่งทั้งชุดส่งไปจากที่นี่ · ข้อที่ห้ามพลาดในนี้:
+        # · `bash -s` + heredoc ⇒ คำสั่งเดินทางไปทาง **stdin** ไม่ใช่ argv ⇒ ไม่ต้องหนี quote ซ้อนชั้น
+        # · `set -euo pipefail` **บนเครื่องปลายทาง** ⇒ pull ที่ล้มแล้วจะไม่ไหลไป build ต่อ
+        #   (ไม่มีบรรทัดนี้ = `git pull` แดงแต่ job เขียว ซึ่งคือ deploy ที่โกหกว่าสำเร็จ)
+        # · `flock -n` ⇒ กันรอบที่ซ้อนกัน (`concurrency` ข้างบนกันแค่ CI ชนกันเอง ไม่ได้กันคน
+        #   ที่ ssh เข้าไปสั่งมือพร้อมกัน) · ได้ล็อกไม่ทัน = ออกด้วย exit 1 ให้ job แดง ไม่ใช่เงียบ
+        # · `--ff-only` ⇒ ฐานที่ diverge ต้องล้ม ไม่ใช่ merge ให้เองกลางดึก
+        # · พิมพ์ SHA ก่อน/หลัง ⇒ อ่าน log ย้อนหลังได้ว่ารอบนั้นเปลี่ยนโค้ดจริงไหม
+        run: |
+          ssh -o BatchMode=yes -o ConnectTimeout=15 root@157.85.104.171 bash -s <<'REMOTE'
+          set -euo pipefail
+          exec 9>/run/deploy-darin.lock
+          flock -n 9 || { echo "มีรอบ deploy อื่นทำอยู่ — ออกแบบแดงเพื่อให้เห็นว่าไม่ได้ทำ"; exit 1; }
+          cd /root/app/lim/darin-backend
+          echo "--- ก่อน: $(git rev-parse --short HEAD) บน $(git rev-parse --abbrev-ref HEAD)"
+          git pull --ff-only
+          echo "--- หลัง: $(git rev-parse --short HEAD)"
+          docker compose up -d --build
+          docker compose ps
+          REMOTE

@@ -38,27 +38,21 @@ working copy `/root/app/lim/darin-backend` · **แต่มันถูก depl
 ## ค้างอยู่อีกสองเรื่องบนเครื่อง (คนละเรื่องกับ deploy แต่เจอพร้อมกัน)
 
 6. **ลบ DNS `darin-dev.rocketlabth.com` ที่ Cloudflare** — เลิกใช้แล้ว (linus 2026-09-17)
-7. **ปิดรู catch-all ของ edge nginx** — ทั้งเครื่อง **ไม่มี `default_server` เลยสักบล็อก** ⇒ Host
-   ที่ไม่มีใครรับจะตกไปที่ server block แรกตามลำดับไฟล์ (`api-franchise…` → franchise-management)
-   ⇒ ใครชี้โดเมนอะไรมาที่ IP นี้ ก็ได้แอปของ franchise ฟรี ๆ · วางไฟล์
-   `/root/app/nginx/conf.d/00-default-catchall.conf`:
+7. ~~**ปิดรู catch-all ของ edge nginx**~~ ✅ **ทำแล้ว 2026-09-17** —
+   `/root/app/nginx/conf.d/00-default-catchall.conf` (80 → `return 444` · 443 →
+   `ssl_reject_handshake on`) · `nginx -t` ผ่าน · reload แล้ว
+   **วัดหลัง reload ทั้งจาก origin และผ่าน Cloudflare:**
 
-   ```nginx
-   server {
-       listen 80 default_server;
-       listen [::]:80 default_server;
-       server_name _;
-       return 444;
-   }
-   server {
-       listen 443 ssl default_server;
-       listen [::]:443 ssl default_server;
-       ssl_reject_handshake on;   # nginx 1.31.2 บนเครื่องรองรับ
-   }
-   ```
+   | Host | ก่อน | หลัง |
+   |---|---|---|
+   | `darin-dev.rocketlabth.com` | 200 Franchise Management | origin ปิดการเชื่อมต่อ · CF ตอบ 520 |
+   | ชื่อที่ไม่มีใครรับ (ทดสอบด้วยชื่อมั่ว) | 200 Franchise Management | origin ปิดการเชื่อมต่อ |
+   | `darin.rocketlabth.com` | 200 Darin Payroll | **เท่าเดิม** |
+   | `franchise` / `api-franchise` | 200 Franchise Management | **เท่าเดิม** |
+   | `groove-dev` · `dockerhand` | ปกติ | **เท่าเดิม** |
 
-   แล้ว `docker exec edge-nginx nginx -t && docker exec edge-nginx nginx -s reload`
-   · vhost ที่มี `server_name` ของตัวเองทุกตัวไม่กระทบ
+   ⚠️ **ห้ามมีบล็อกอื่นประกาศ `default_server` ซ้ำบนพอร์ตเดียวกัน** — nginx จะไม่ยอมโหลด
+   · เหตุผลเต็มอยู่ในหัวไฟล์นั้น (ไฟล์อยู่นอกรีโป ⇒ อ่านที่เครื่อง)
 
 ## Notes
 
