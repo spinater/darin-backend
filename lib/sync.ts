@@ -70,7 +70,8 @@ export async function syncSources(
     grids = await loadXlsxGrids(opts.xlsxPath, names);
   } else {
     const byId = new Map<string, string[]>();
-    for (const s of sources) byId.set(s.spreadsheetId, [...(byId.get(s.spreadsheetId) ?? []), s.sheetName]);
+    for (const s of sources)
+      byId.set(s.spreadsheetId, [...(byId.get(s.spreadsheetId) ?? []), s.sheetName]);
     // มี service account → ใช้ API (ได้ note ด้วย) · ไม่มี → export endpoint สาธารณะ (ได้ serial + สี)
     const hasSA = !!(process.env.GOOGLE_SA_EMAIL && process.env.GOOGLE_SA_PRIVATE_KEY);
     grids = (
@@ -165,7 +166,13 @@ export async function syncSources(
         // คนแก้แล้ว — ทับไม่ได้ แต่ถ้าค่าดิบในชีตเปลี่ยน ต้องบอกให้รู้
         if (prev.rawValue !== p.rawValue)
           await db.teachSession.update({
-            where: { sourceId_rowIndex_colIndex: { sourceId: source.id, rowIndex: p.rowIndex, colIndex: p.colIndex } },
+            where: {
+              sourceId_rowIndex_colIndex: {
+                sourceId: source.id,
+                rowIndex: p.rowIndex,
+                colIndex: p.colIndex,
+              },
+            },
             data: {
               status: "needs_review",
               reviewed: false,
@@ -190,7 +197,13 @@ export async function syncSources(
         reviewNote: reviewNote ?? null,
       };
       await db.teachSession.upsert({
-        where: { sourceId_rowIndex_colIndex: { sourceId: source.id, rowIndex: p.rowIndex, colIndex: p.colIndex } },
+        where: {
+          sourceId_rowIndex_colIndex: {
+            sourceId: source.id,
+            rowIndex: p.rowIndex,
+            colIndex: p.colIndex,
+          },
+        },
         update: data,
         create: { sourceId: source.id, rowIndex: p.rowIndex, colIndex: p.colIndex, ...data },
       });

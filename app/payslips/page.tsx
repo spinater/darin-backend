@@ -75,8 +75,11 @@ export default async function PayslipsPage({
 
       {pending > 0 && (
         <p className="card border-amber-300 bg-amber-50 text-sm text-amber-800">
-          ⚠️ ยังมี <b>{pending}</b> คาบค้าง<Link href="/sync/review" className="underline">คิวรอตรวจ</Link>
-          {" "}— คำนวณตอนนี้จะ<b>จ่ายขาด</b> เคลียร์ให้หมดก่อน
+          ⚠️ ยังมี <b>{pending}</b> คาบค้าง
+          <Link href="/sync/review" className="underline">
+            คิวรอตรวจ
+          </Link>{" "}
+          — คำนวณตอนนี้จะ<b>จ่ายขาด</b> เคลียร์ให้หมดก่อน
         </p>
       )}
 

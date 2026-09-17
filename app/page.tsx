@@ -68,20 +68,27 @@ export default async function Dashboard({
           <ul className="list-inside list-disc space-y-1">
             {pending > 0 && (
               <li>
-                มี {pending} คาบใน<Link href="/sync/review" className="underline">คิวรอตรวจ</Link>{" "}
+                มี {pending} คาบใน
+                <Link href="/sync/review" className="underline">
+                  คิวรอตรวจ
+                </Link>{" "}
                 — คำนวณตอนนี้จะจ่ายขาด
               </li>
             )}
             {missingRank > 0 && (
               <li>
                 เทรนเนอร์ {missingRank} คนยังไม่ได้ตั้งระดับ (ST/CT/PT) →{" "}
-                <Link href="/admin/config" className="underline">ตั้งค่า</Link>
+                <Link href="/admin/config" className="underline">
+                  ตั้งค่า
+                </Link>
               </li>
             )}
             {activitiesWithoutRate.length > 0 && (
               <li>
                 ยังไม่มีเรทค่าสอนของกิจกรรม: {activitiesWithoutRate.join(", ")} →{" "}
-                <Link href="/admin/config" className="underline">ตั้งค่า</Link>
+                <Link href="/admin/config" className="underline">
+                  ตั้งค่า
+                </Link>
               </li>
             )}
           </ul>
@@ -89,8 +96,12 @@ export default async function Dashboard({
       )}
 
       <div className="flex gap-2">
-        <Link href="/sync" className="btn-ghost">Sync ตารางสอน</Link>
-        <Link href={`/payslips?period=${period}`} className="btn">ไปหน้าคำนวณเงินเดือน</Link>
+        <Link href="/sync" className="btn-ghost">
+          Sync ตารางสอน
+        </Link>
+        <Link href={`/payslips?period=${period}`} className="btn">
+          ไปหน้าคำนวณเงินเดือน
+        </Link>
       </div>
     </div>
   );

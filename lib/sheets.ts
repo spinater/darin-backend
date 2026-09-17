@@ -65,14 +65,12 @@ export async function fetchGrids(spreadsheetId: string, sheetNames: string[]): P
   return (json.sheets ?? []).map((sheet: any) => ({
     sheetName: sheet.properties.title,
     rows: (sheet.data?.[0]?.rowData ?? []).map((row: any) =>
-      (row.values ?? []).map(
-        (c: any): RawCell => ({
-          v: c.effectiveValue?.numberValue ?? c.effectiveValue?.stringValue ?? null,
-          f: c.formattedValue ?? "",
-          bg: rgbToHex(c.effectiveFormat?.backgroundColor),
-          note: c.note,
-        }),
-      ),
+      (row.values ?? []).map((c: any): RawCell => ({
+        v: c.effectiveValue?.numberValue ?? c.effectiveValue?.stringValue ?? null,
+        f: c.formattedValue ?? "",
+        bg: rgbToHex(c.effectiveFormat?.backgroundColor),
+        note: c.note,
+      })),
     ),
   }));
 }
@@ -95,7 +93,8 @@ export async function fetchPublicGrids(
     `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=xlsx`,
     { redirect: "follow" },
   );
-  if (!res.ok) throw new Error(`โหลดชีตไม่สำเร็จ (HTTP ${res.status}) — ชีตอาจไม่ได้แชร์แบบสาธารณะ`);
+  if (!res.ok)
+    throw new Error(`โหลดชีตไม่สำเร็จ (HTTP ${res.status}) — ชีตอาจไม่ได้แชร์แบบสาธารณะ`);
   const buf = await res.arrayBuffer();
   const ct = res.headers.get("content-type") ?? "";
   if (!ct.includes("spreadsheetml"))
@@ -109,7 +108,10 @@ export async function fetchPublicGrids(
  */
 export async function loadXlsxGrids(path: string, sheetNames?: string[]): Promise<RawGrid[]> {
   const buf = await readFile(path);
-  return gridsFromXlsx(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer, sheetNames);
+  return gridsFromXlsx(
+    buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer,
+    sheetNames,
+  );
 }
 
 async function gridsFromXlsx(buf: ArrayBuffer, sheetNames?: string[]): Promise<RawGrid[]> {

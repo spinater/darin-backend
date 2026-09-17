@@ -1,0 +1,22 @@
+# Formatter config for the TypeScript surface (task 003). YAML, because a decision this cheap to
+# get wrong deserves its reasoning next to it, and JSON has nowhere to put a comment.
+#
+# Only printWidth departs from prettier's defaults, and it was **measured on this tree**, not
+# picked by taste. Reformatting the 31 TS files git holds today costs, per width:
+#
+#     80 (prettier default) -> 26 files / 1331 changed lines
+#     90                    -> 24 files /  754
+#    100  <= chosen         -> 15 files /  249
+#    110                    -> 19 files /  278
+#    120                    -> 22 files /  326
+#
+# 100 is the minimum of that curve in the band a human would ever pick, and it is where the code
+# was already being written by hand. A formatter config that churns the whole tree for no reason
+# is a worse trade than one that agrees with what is already there: every line it rewrites is a
+# line that no longer says who last changed it for a real reason.
+#
+# Everything else prettier decides (double quotes, semicolons, trailing commas "all",
+# arrowParens "always", 2-space indent) is BOTH the repo's existing style AND prettier's default
+# -> deliberately not repeated here. A re-stated default is a second home for a decision that
+# already has one, which is the disease CLAUDE.md §4 is about.
+printWidth: 100

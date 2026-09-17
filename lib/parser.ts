@@ -68,8 +68,11 @@ function readCell(c: RawCell): Attempt {
   if (m) {
     const d = +m[1];
     const mo = +m[2];
-    if (d < 1 || d > 31 || mo < 1 || mo > 12) return { kind: "bad", why: `วันที่ไม่ถูกต้อง "${text}"` };
-    const extra = (text.slice(0, m.index) + text.slice(m.index + m[0].length)).replace(/\s+/g, " ").trim();
+    if (d < 1 || d > 31 || mo < 1 || mo > 12)
+      return { kind: "bad", why: `วันที่ไม่ถูกต้อง "${text}"` };
+    const extra = (text.slice(0, m.index) + text.slice(m.index + m[0].length))
+      .replace(/\s+/g, " ")
+      .trim();
     if (m[3]) {
       let y = +m[3];
       if (y < 100) y += 2000;
@@ -243,11 +246,12 @@ export function parseGrid(
       // ไม่มีคอลัมน์ครู หรือ จับคู่ชื่อครูไม่ได้ → ไม่เดา
       if (s.status === "ok" && !s.staffId) {
         s.status = "needs_review";
-        s.reviewNote = colMap.trainer == null
-          ? "ชีตนี้ไม่มีคอลัมน์ครู — ต้องระบุผู้สอนเอง"
-          : ctx.trainerRaw
-            ? `ไม่รู้จักเทรนเนอร์ "${ctx.trainerRaw}"`
-            : "ไม่ได้ระบุเทรนเนอร์";
+        s.reviewNote =
+          colMap.trainer == null
+            ? "ชีตนี้ไม่มีคอลัมน์ครู — ต้องระบุผู้สอนเอง"
+            : ctx.trainerRaw
+              ? `ไม่รู้จักเทรนเนอร์ "${ctx.trainerRaw}"`
+              : "ไม่ได้ระบุเทรนเนอร์";
       }
 
       out.push(s);

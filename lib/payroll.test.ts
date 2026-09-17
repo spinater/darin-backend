@@ -2,9 +2,7 @@ import { expect, test, describe } from "bun:test";
 import { computePayslip, type SaleInput, type StaffInput } from "./payroll";
 import { CONFIG_DEFAULTS } from "./config-keys";
 
-const config = Object.fromEntries(
-  Object.entries(CONFIG_DEFAULTS).map(([k, v]) => [k, v.value]),
-);
+const config = Object.fromEntries(Object.entries(CONFIG_DEFAULTS).map(([k, v]) => [k, v.value]));
 
 const teachRates = {
   pt: { PT: 200, CT: 300, ST: 400 },
@@ -181,7 +179,13 @@ describe("Incentive (§1.6)", () => {
 });
 
 describe("ค่าคอมสมาชิก (§2.2)", () => {
-  const counter = trainer({ id: "c1", role: "counter", rank: null, baseSalary: 15000, classCredit: 0 });
+  const counter = trainer({
+    id: "c1",
+    role: "counter",
+    rank: null,
+    baseSalary: 15000,
+    classCredit: 0,
+  });
   const sale = (over: Partial<SaleInput>): SaleInput => ({
     id: "m1",
     kind: "membership",

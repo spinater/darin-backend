@@ -1,0 +1,17 @@
+# จุดเรียก git ที่ **กิน stdout** แต่ `-z` ช่วยอะไรไม่ได้ — ตัวข้ามของ scripts/check-path-bytes.sh (ใบ 314)
+#
+# รูปแถว:  <พาธเทียบรากรีโป><TAB><subcommand><TAB><จำนวนจุด><TAB># ใบ NNN · เหตุผล
+#
+# · **ไม่มีเลขบรรทัด** — เลขบรรทัดเน่าทุกครั้งที่มีใครแก้ข้างบน (§2 rule 3: อ้างสัญลักษณ์ ห้ามอ้างเลข)
+# · **มี `<จำนวนจุด>` และมันคือหัวใจของแถว** — คีย์ `พาธ+subcommand` เฉย ๆ เป็นแถวที่ *กว้างเกิน*:
+#   วันที่มีใครเพิ่ม `git show --name-only` ลงไฟล์เดียวกัน แถวเดิมจะยกเว้นให้ฟรีโดยไม่มีใครเห็น
+#   ⇒ ปักจำนวนไว้แล้วเทียบเป๊ะ (บทเรียนหมุด junit ใบ 298) · สองทิศ สองทางแก้ สองข้อความ
+# · เทียบเป็น **สตริงตรงตัว ห้าม `case`** — `web/src/app/[locale]/(app)/…` เป็นไดเรกทอรีจริง (ใบ 190)
+# · `-` ในช่อง subcommand = จุดที่เกต **อ่าน subcommand ไม่ออก** (คำสั่งถูกเก็บในอาเรย์/`"$@"`)
+scripts/check-knowledge.sh	status	1	# ใบ 314 · `[ -n "$(git status --porcelain -- "$p")" ]` ใช้แค่ "ว่างหรือไม่ว่าง" — พาธที่ถูก quote ก็ยังไม่ว่าง ⇒ คำตัดสินเท่าเดิมทุกทาง
+scripts/check-knowledge.sh	log	1	# ใบ 314 · `log -1 --format=%ct` คายเวลา unix ไม่ใช่พาธ · ใส่ `-z` จะเปลี่ยนค่าที่จับได้
+scripts/verify.sh	rev-list	1	# ใบ 314 · `rev-list --count` คายจำนวน ไม่ใช่พาธ (⚠️ `rev-list --objects` คายพาธ — แถวนี้จึงผูกกับไฟล์นี้ไฟล์เดียว ไม่ใช่กับ subcommand ทั้งตัว)
+scripts/tests/check-links-selftest.sh	archive	1	# ใบ 314 · `archive HEAD | tar -x` คายสตรีม tar · เชลล์ไม่เคยแตะชื่อไฟล์เลยสักตัว
+scripts/tests/check-links-selftest/cases-task-move.sh	diff	1	# ใบ 314 · `diff --stat` คายตารางให้คนอ่าน (ตัดท้ายด้วย `tail -5` ลงข้อความวินิจฉัย) — `-z` เป็น no-op กับ `--stat` ⇒ เติมไปก็เขียวโดยไม่ได้พิสูจน์อะไร
+scripts/tests/check-links-selftest/cases-task-move.sh	show	4	# ใบ 314 · `git show ":พาธ"` คาย **เนื้อไฟล์** พาธเป็นขาเข้า
+scripts/tests/check-code-junit-selftest/cases-sensitivity.sh	-	1	# ใบ 314 · `g=(git -C … )` เก็บคำสั่งไว้ในอาเรย์แล้วเรียก `"${g[@]}" <subcmd>` ทีหลัง ⇒ เกตมองไม่ทะลุ · ทุกจุดที่เรียกผ่านมันโยน stdout ทิ้งหมด (ตรวจด้วยตา 2026-09-15)

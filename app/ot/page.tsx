@@ -86,7 +86,8 @@ export default async function OtPage({
     <div className="flex flex-col gap-4">
       <h1 className="text-xl font-semibold">OT — งวด {period}</h1>
       <p className="text-xs text-neutral-500">
-        คิดรายวัน: (ชั่วโมงในวันนั้น − {threshold}) × {rate} บาท · เกิน {threshold} ชม. เท่านั้นถึงนับ
+        คิดรายวัน: (ชั่วโมงในวันนั้น − {threshold}) × {rate} บาท · เกิน {threshold} ชม.
+        เท่านั้นถึงนับ
       </p>
 
       <form action={add} className="card grid gap-2 md:grid-cols-4">
