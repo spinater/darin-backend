@@ -1,0 +1,41 @@
+name: deploy-dev
+
+# push develop → ssh เข้าเครื่องคลาวด์ → git pull + docker compose up -d --build
+#
+# ที่นี่ **ไม่มี actions/checkout**: งานนี้ไม่ได้ใช้ไฟล์ในรันเนอร์เลย มันสั่งงานกับ working copy
+# ที่ /root/app/lim/darin-payroll-system ซึ่งเป็นตัวที่ compose รันอยู่จริง
+#
+# คำสั่ง deploy อยู่ที่ /root/app/deploy-darin.sh **บนเซิร์ฟเวอร์ นอก repo**
+# (git pull เขียนทับสคริปต์ตัวเองกลางคันไม่ได้) และกุญแจถูกล็อกด้วย
+# `restrict,command="…"` ใน authorized_keys ⇒ secret หลุดก็สั่งได้แค่ redeploy ไม่ได้ shell
+# ⇒ workflow นี้จึงมีแค่ `ssh` เปล่า ๆ ไม่ต้องส่งคำสั่งไปเอง
+#
+# 🔴 เครื่องเดียวกับ groove-clinic (157.85.104.171) — คนละ compose project คนละ vhost
+#    รายละเอียดฝั่งเซิร์ฟเวอร์ที่ต้องมีคนลงมือ: tasks/todo-human/002-deploy-host-setup.md
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: false   # deploy ซ้อนกัน = build ค้างครึ่งทาง · ต่อคิวแทนการตัดทิ้ง
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: ตั้งกุญแจ + ปักหมุด host key
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          # ปักหมุดไว้ตรง ๆ แทน StrictHostKeyChecking=no — ตัวนั้นรับกุญแจอะไรก็ได้ = เปิดทาง MITM
+          echo '157.85.104.171 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJ3+i1dZexFBV4p1NYCpniSFZ8SNKZQMigc3ue3djIGB' > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: deploy
+        run: ssh -o BatchMode=yes -o ConnectTimeout=15 root@157.85.104.171

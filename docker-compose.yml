@@ -43,7 +43,11 @@ services:
       GOOGLE_SA_EMAIL: ${GOOGLE_SA_EMAIL:-}
       GOOGLE_SA_PRIVATE_KEY: ${GOOGLE_SA_PRIVATE_KEY:-}
     ports:
-      - "${APP_PORT:-3000}:3000"
+      # 🔴 **ผูกกับ loopback เท่านั้น** — เครื่องคลาวด์ตัวนี้ใช้ร่วมกับโปรเจกต์อื่น และ edge nginx
+      # (`/root/app/nginx`, นอกรีโปนี้) เป็นตัวเดียวที่ควรรับ request จากภายนอก · publish
+      # บน 0.0.0.0 = เปิดแอปตรงออกอินเทอร์เน็ตข้าม Cloudflare ⇒ ทั้ง TLS และ WAF ถูกข้ามเงียบ ๆ
+      # · บนเครื่อง dev ที่ไม่มี edge ให้ตั้ง APP_PORT แล้วเข้า 127.0.0.1:<port> ตรง ๆ
+      - "127.0.0.1:${APP_PORT:-3000}:3000"
     depends_on:
       db:
         condition: service_healthy
