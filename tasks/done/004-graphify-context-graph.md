@@ -1,6 +1,6 @@
 # Code graph: make §8 "ask the graph before reading files" real
 
-- status: todo
+- status: done
 - commit:
 
 ## Goal
@@ -34,6 +34,6 @@ symbols a question touches, so the file reads that follow are the few that matte
 
 ## Not in this card
 
-Card [007](007-knowledge-code-cards.md) uses the graph's hubs (`requireAdmin()`, `db`,
+Card [007](../todo/007-knowledge-code-cards.md) uses the graph's hubs (`requireAdmin()`, `db`,
 `periodRange()`, `currentStaff()`) to pick the boundaries of the `code/` knowledge cards — the
 graph is the input to that card, not a substitute for it.
