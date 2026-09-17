@@ -126,7 +126,12 @@ export default async function PayslipsPage({
                     </SubmitButton>
                   )}
                   {s.status !== "draft" && (
-                    <SubmitButton name="status" value="draft" className="btn-ghost" pendingLabel="กำลังย้อน…">
+                    <SubmitButton
+                      name="status"
+                      value="draft"
+                      className="btn-ghost"
+                      pendingLabel="กำลังย้อน…"
+                    >
                       กลับเป็นร่าง
                     </SubmitButton>
                   )}

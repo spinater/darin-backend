@@ -102,11 +102,13 @@ export default async function ReviewPage({
         <table className="card w-full">
           <thead>
             <tr>
-              {["", "ชีต", "แถว", "ค่าในชีต", "ลูกค้า", "เหตุผล", "วันที่", "ผู้สอน", ""].map((h, i) => (
-                <th key={i} className="th">
-                  {h}
-                </th>
-              ))}
+              {["", "ชีต", "แถว", "ค่าในชีต", "ลูกค้า", "เหตุผล", "วันที่", "ผู้สอน", ""].map(
+                (h, i) => (
+                  <th key={i} className="th">
+                    {h}
+                  </th>
+                ),
+              )}
             </tr>
           </thead>
           <tbody>
@@ -134,7 +136,12 @@ export default async function ReviewPage({
                   />
                 </td>
                 <td className="td">
-                  <select form={`f-${r.id}`} name="staffId" defaultValue={r.staffId ?? ""} className="input">
+                  <select
+                    form={`f-${r.id}`}
+                    name="staffId"
+                    defaultValue={r.staffId ?? ""}
+                    className="input"
+                  >
                     <option value="">— เลือก —</option>
                     {trainers.map((t) => (
                       <option key={t.id} value={t.id}>
@@ -173,12 +180,18 @@ export default async function ReviewPage({
 
       <div className="flex gap-2">
         {Number(page) > 1 && (
-          <a href={`?page=${Number(page) - 1}${sheet ? `&sheet=${sheet}` : ""}`} className="btn-ghost">
+          <a
+            href={`?page=${Number(page) - 1}${sheet ? `&sheet=${sheet}` : ""}`}
+            className="btn-ghost"
+          >
             ก่อนหน้า
           </a>
         )}
         {skip + PAGE_SIZE < total && (
-          <a href={`?page=${Number(page) + 1}${sheet ? `&sheet=${sheet}` : ""}`} className="btn-ghost">
+          <a
+            href={`?page=${Number(page) + 1}${sheet ? `&sheet=${sheet}` : ""}`}
+            className="btn-ghost"
+          >
             ถัดไป ({skip + PAGE_SIZE}/{total})
           </a>
         )}

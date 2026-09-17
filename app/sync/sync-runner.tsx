@@ -12,7 +12,14 @@ export type LastRun = { fetchMs: number; processMs: number; totalMs: number } | 
 type State =
   | { phase: "idle" }
   | { phase: "fetch" }
-  | { phase: "process"; sheetName: string; sheetIndex: number; sheetCount: number; done: number; total: number }
+  | {
+      phase: "process";
+      sheetName: string;
+      sheetIndex: number;
+      sheetCount: number;
+      done: number;
+      total: number;
+    }
   | { phase: "done"; results: SyncResult[]; totalMs: number }
   | { phase: "error"; message: string };
 
@@ -233,7 +240,9 @@ export function SyncRunner({
                 {pct !== null && ` (${pct}%)`}
               </span>
             )}
-            {state.phase === "fetch" && !lastRun && <span>ยังไม่เคย sync — ยังประมาณเวลาไม่ได้</span>}
+            {state.phase === "fetch" && !lastRun && (
+              <span>ยังไม่เคย sync — ยังประมาณเวลาไม่ได้</span>
+            )}
           </div>
         </div>
       )}
