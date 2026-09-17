@@ -43,10 +43,23 @@ project คนละ vhost) · ตรวจสดเมื่อ 2026-09-17: `/l
 
 ## กับดักที่กัดจริง
 
-- 🔴 **working copy บนเครื่องอยู่คนละ branch กับ develop** (วัด 2026-09-17: `feat/sync-progress-ui`
-  และมี **2 คอมมิตที่ไม่เคย push** + `docker-compose.yml` แก้ค้างไว้ที่ใส่ `mem_limit`) ⇒ สคริปต์
-  deploy ที่ `git pull --ff-only` จะล้มทันที และการ "แก้ให้ผ่าน" แบบผิดวิธีจะกลืนงานนั้นหาย
-  **ต้องเคลียร์เรื่องนี้ก่อนเปิด deploy อัตโนมัติ**
+- 🔴 **`name: darin` ใน `docker-compose.yml` ห้ามหาย** — compose หาชื่อโปรเจกต์ตามลำดับ
+  `-p` > `COMPOSE_PROJECT_NAME` > `name:` > **ชื่อไดเรกทอรี** · working copy บนเครื่องคือ
+  `/root/app/lim/darin-backend` และ `.env` ไม่มี `COMPOSE_PROJECT_NAME` (วัด 2026-09-17)
+  ⇒ บรรทัดนี้หายเมื่อไร รอบ deploy ถัดไปรันเป็นโปรเจกต์ `darin-backend` สร้าง volume
+  `darin-backend_pgdata` ใหม่ แล้ว seed ลง**ฐานเปล่า** ขณะที่ `darin_pgdata` ของจริงค้างอยู่
+  · อาการที่เห็นก่อนคือ bind `127.0.0.1:30100` ไม่ได้เพราะ `darin-web` ตัวเก่ายังถือพอร์ตอยู่
+  — และวิธีแก้ที่คนมักคว้าก่อน ("ดับตัวเก่าแล้วขึ้นใหม่") พาไปลงฐานเปล่าพอดี
+  · **ของจริงวันนี้:** `docker compose ls` → `darin` · `docker volume ls` → `darin_pgdata`
+  · เช็คก่อน deploy ทุกครั้งที่ไฟล์นี้ถูกแก้: `docker compose config --format json | jq .name`
+- 🔴 **`OWNER_PASSWORD` ต้องถูกส่งเข้า service `migrate`** — `prisma/seed.ts` อ่านตัวนี้ และ
+  `.env.example`/`README.md` บอกให้ตั้ง · ถ้าไม่ส่งเข้า container ค่าที่ตั้งไว้จะเงียบหาย
+  แล้ว seed สุ่มรหัสให้แทน โดยไม่มีอะไรแดง
+- 🔴 **working copy บนเครื่องยังอยู่คนละ branch กับ develop** (วัด 2026-09-17:
+  `feat/sync-progress-ui` + `docker-compose.yml` แก้ค้าง) ⇒ `git pull --ff-only` จะล้ม
+  · **2 คอมมิตที่เคยไม่ได้ push ตอนนี้อยู่บน origin แล้ว** และเนื้อ `mem_limit`/`memswap_limit`
+  เข้ารีโปแล้ว ⇒ `git checkout -- docker-compose.yml` บนเครื่องปลอดภัยแล้ว (ก่อนหน้านี้ไม่ใช่)
+  **ยังต้องเคลียร์ข้อนี้ก่อนเปิด deploy อัตโนมัติ**
 - 🔴 **"HEAD บนเซิร์ฟเวอร์ตรง" ไม่ได้แปลว่า deploy แล้ว** — `git pull` จบก่อน `docker compose up -d --build`
   เสมอ ⇒ ต้องดูสามอย่าง: HEAD ตรง · ไม่มี `docker compose up` ค้าง · คอนเทนเนอร์ web เพิ่งขึ้นใหม่
   และเปิดหน้าได้ (คอมมิตที่ไม่แตะของที่เข้าอิมเมจ ⇒ image id เดิม ⇒ ไม่ restart คือถูกต้อง)

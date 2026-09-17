@@ -1,7 +1,24 @@
+# โปรเจกต์นี้เป็น compose stack ของตัวเอง ไม่แชร์ network กับใคร
+# ขาออกสู่อินเทอร์เน็ตผ่าน edge nginx กลางที่ /root/app/nginx เท่านั้น
+#   darin.rocketlabth.com -> 127.0.0.1:${APP_PORT} -> app:3000
+#
+# 🔴 **`name:` ห้ามหาย** — compose หาชื่อโปรเจกต์ตามลำดับ `-p` > COMPOSE_PROJECT_NAME >
+#    `name:` > **ชื่อไดเรกทอรี** · working copy บนเครื่องคือ /root/app/lim/darin-backend
+#    และ COMPOSE_PROJECT_NAME ไม่ได้ตั้งไว้ (วัดเอง 2026-09-17) ⇒ ถ้าบรรทัดนี้หาย
+#    รอบ deploy ถัดไปจะรันเป็นโปรเจกต์ `darin-backend` สร้าง volume `darin-backend_pgdata`
+#    ใหม่ แล้ว seed ลงฐานเปล่า ขณะที่ `darin_pgdata` ของจริงถูกทิ้งค้างไว้
+#    (§2 ข้อ 8: ไม่มีทางถอยกลับ) · ของจริงวันนี้: project `darin` · volume `darin_pgdata`
+name: darin
+
 services:
   db:
     image: postgres:18-alpine
+    container_name: darin-pg
     restart: unless-stopped
+    # เพดานแรม: กันคอนเทนเนอร์เดียวลากทั้งเครื่องค้าง (เหตุการณ์ 2026-08-14)
+    # แก้ไว้บนเครื่องตั้งแต่วันนั้นแต่ไม่เคยเข้ารีโป — เอาเข้ามาที่นี่ (ใบ 008)
+    mem_limit: 512m
+    memswap_limit: 768m
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-darin}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?ต้องตั้ง POSTGRES_PASSWORD ใน .env}
@@ -26,6 +43,9 @@ services:
     environment:
       DATABASE_URL: &dburl postgresql://${POSTGRES_USER:-darin}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-darin_payroll}
       GOOGLE_SHEET_LINK: ${GOOGLE_SHEET_LINK:-}
+      # ว่าง = seed สุ่มรหัส owner ให้แล้วพิมพ์ใน log ครั้งเดียว
+      # ถ้าตัวนี้ไม่ถูกส่งเข้า container ค่าที่ตั้งใน .env จะเงียบหายและ seed สุ่มให้แทน
+      OWNER_PASSWORD: ${OWNER_PASSWORD:-}
     depends_on:
       db:
         condition: service_healthy
@@ -35,7 +55,10 @@ services:
     build:
       context: .
       target: runner
+    container_name: darin-web
     restart: unless-stopped
+    mem_limit: 768m
+    memswap_limit: 1g
     environment:
       DATABASE_URL: *dburl
       SESSION_TTL_DAYS: ${SESSION_TTL_DAYS:-30}

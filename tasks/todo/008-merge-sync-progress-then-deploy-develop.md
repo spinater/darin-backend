@@ -42,8 +42,33 @@ M app/globals.css  M lib/sync.ts  M prisma/schema.prisma  M package.json  M bun.
 | `.claude/settings.json` | เอาของ develop |
 | `.claude/agents/code-reviewer.md` | เอาของ develop |
 | `tasks/README.md` | เอาของ develop |
-| `docker-compose.yml` | เอาของ develop — **เนื้อบรรทัดเหมือนกัน ต่างแค่คอมเมนต์** (ทั้งสองฝั่ง bind `127.0.0.1` อยู่แล้ว) |
+| `docker-compose.yml` | 🔴 **บรรทัดเดิมของใบนี้ผิด — อย่าเชื่อ** ดูหัวข้อ "คำที่ใบนี้เขียนผิด" ข้างล่าง |
 | `.env.example` | รวมมือ: เก็บคำอธิบายผังพอร์ตของฝั่ง branch + ชื่อ vhost `darin.rocketlabth.com` ของฝั่ง develop |
+
+## 🔴 คำที่ใบนี้เขียนผิด — `docker-compose.yml` ไม่ได้ต่างแค่คอมเมนต์ (แก้แล้ว 2026-09-17)
+
+ใบนี้เคยเขียนว่า "เอาของ develop — เนื้อบรรทัดเหมือนกัน ต่างแค่คอมเมนต์ (ทั้งสองฝั่ง bind
+`127.0.0.1` อยู่แล้ว)" · **เป็นการสรุปจากบรรทัด `ports:` บรรทัดเดียวแล้วเหมาว่าทั้งไฟล์เหมือนกัน**
+ของจริงฝั่ง branch มีอีก **สี่บรรทัดที่ทำงาน** ซึ่งฝั่ง develop ไม่มี · `code-reviewer` จับได้
+ตอนรีวิวขา merge ก่อน fast-forward:
+
+| บรรทัดที่หายไป | ถ้าปล่อยไว้จะเกิดอะไร |
+|---|---|
+| `name: darin` | 🔴 compose หาชื่อโปรเจกต์ตามลำดับ `-p` > `COMPOSE_PROJECT_NAME` > `name:` > **ชื่อไดเรกทอรี** · working copy บนเครื่องคือ `/root/app/lim/darin-backend` และ `COMPOSE_PROJECT_NAME` ไม่ได้ตั้ง (วัดเอง) ⇒ deploy รอบหน้ารันเป็นโปรเจกต์ `darin-backend` สร้าง volume `darin-backend_pgdata` ใหม่ แล้ว seed ลง**ฐานเปล่า** ส่วน `darin_pgdata` ของจริงถูกทิ้งค้าง · §2 ข้อ 8 = ไม่มีทางถอย |
+| `OWNER_PASSWORD` ใน `migrate` | `prisma/seed.ts` ยังอ่านตัวนี้ · ตั้งใน `.env` ตามที่ `.env.example` กับ `README.md` บอก แล้วค่าไม่ถึง container ⇒ seed สุ่มรหัสให้เงียบ ๆ ไม่มีอะไรแดง |
+| `container_name: darin-pg` / `darin-web` | ชื่อคอนเทนเนอร์เปลี่ยน ⇒ `docker logs darin-web` ที่คนใช้อยู่ใช้ไม่ได้ |
+
+**ของจริงที่วัดจากเครื่อง 2026-09-17:** `docker compose ls` → project ชื่อ `darin` ·
+`docker volume ls` → `darin_pgdata` · `.env` บนเครื่องไม่มี `COMPOSE_PROJECT_NAME`
+
+📌 **บทเรียน: "ต่างแค่คอมเมนต์" ต้องมาจากการอ่าน diff ทั้งไฟล์ ไม่ใช่จากการเช็คบรรทัดที่
+เป็นห่วงแล้วเหมาที่เหลือ** — ทิศของความผิดพลาดข้อนี้เงียบและแพงที่สุดในใบนี้
+
+**เก็บ `mem_limit`/`memswap_limit` ของเครื่องเข้ารีโปในคอมมิตเดียวกันแล้ว** (db 512m/768m ·
+web 768m/1g อ้างเหตุการณ์ 2026-08-14) ⇒ ของที่เคยอยู่ที่เดียวบนดิสก์เครื่อง ไม่ได้อยู่ที่เดียวแล้ว
+⚠️ ผลพลอยได้: working copy บนเครื่องยังถือ `docker-compose.yml` ที่แก้ค้างอยู่ ⇒ `git pull`
+จะไม่ยอมเขียนทับ · ตอนนี้ `git checkout -- docker-compose.yml` บนเครื่อง **ปลอดภัยแล้ว**
+เพราะเนื้อหาเข้ารีโปครบ (ก่อนหน้านี้คำสั่งเดียวกันนี้คือการทำของหาย)
 
 ## 🔴 กติกาชุดเก่าที่ติดมากับ branch — linus สั่งว่า "เอาออก ไม่ต้องใช้ งานนานแล้ว"
 
