@@ -30,6 +30,29 @@ docs are in Thai.
 - **Sub-agents:** `.claude/agents/`
 - **Code graph:** `graphify-out/GRAPH_REPORT.md` — ask the graph before reading files wholesale (§8)
 
+### Local design skills (`.claude/skills/`)
+
+UI work goes through these instead of being improvised. `/design-review` is a **merge gate**, same
+standing as code review (§9) — the rest are called by hand when the stage they cover comes up.
+
+| Skill | Use for |
+|---|---|
+| `design-review` | **Gate.** UX-UI audit of a screen, component, flow, or a doc under `.docs/design/` |
+| `no-code-app-plan` | Screen inventory, per-screen flow, screen→entity map — before any new area is built |
+| `style-tile` | Visual direction (typography / colour / UI feel) → `.docs/design/brand/` |
+| `color-palette-generator` | Palette with hex + WCAG ratings → becomes `@theme` tokens in `app/globals.css` |
+| `data-dashboard-design` | Payroll report and dashboard wireframes, chart selection |
+| `icon-set-brief` | Icon direction and delivery spec, so icons stop arriving one-off |
+| `saas-onboarding-flow` | First-login flow for a new staff account — activation steps, empty states |
+| `microcopy-writer` | Thai UI copy: buttons, errors, empty states (run at implementation time) |
+| `content-style-guide` | The Thai payroll glossary — one word per concept across every screen |
+| `workflow-mapper` | Map a real payroll process (sync → review → run → payslip) with its bottlenecks |
+| `sop-builder` | Staff-facing SOP documents → `.docs/design/sop/` |
+
+⚠️ The design system is **`app/globals.css` alone** — `@theme` tokens plus the `.btn` / `.input` /
+`.card` / `.th` / `.td` classes. Every one of these skills ends by changing *that file*, never by
+scattering hex values and one-off class chains through `app/**`.
+
 ---
 
 ## 1. Technology Stack
@@ -281,6 +304,11 @@ Claude is the **orchestrator**: it delegates every stage and never implements, d
 directly. Never advance past a `VERDICT: BLOCK` or a failing gate — route findings back to the
 agent that produced the work.
 
+**UI is reviewed, not eyeballed.** Any change under `app/**` or `app/globals.css` goes through
+`uxui-designer` — in design mode *before* it is written, and in review mode *after* — which is what
+`/design-review` runs. It returns the same `VERDICT: BLOCK | APPROVE-WITH-NITS | APPROVE` as code
+review and blocks the same way. The skills it works from are listed in Quick Reference.
+
 ### Which model each agent runs on (linus order 2026-09-17 — token cost)
 
 **Opus writes the plan and decides who executes it**; the executing agent is chosen by *what it
@@ -289,7 +317,7 @@ costs to be wrong*, not by what feels safer.
 | Agent | Model | Why |
 |---|---|---|
 | `architect` · `backend-dev` · `security-reviewer` · `code-reviewer` | **opus** | schema decisions · money and domain invariants · auth · the review that is the last thing between a defect and `develop` |
-| `frontend-dev` · `qa-tester` · `sa-requirements` | **sonnet** | well-trodden ground (App Router, test writing, reading requirement docs); a mistake here is caught by `tsc`, `bun test`, or a human reading the screen |
+| `frontend-dev` · `qa-tester` · `sa-requirements` · `uxui-designer` | **sonnet** | well-trodden ground (App Router, test writing, reading requirement docs, screen layout); a mistake here is caught by `tsc`, `bun test`, or a human reading the screen |
 | `translator` | **sonnet** | pure translation of linus's Thai prompts into an English brief — no judgment to buy |
 | `watchdog` | **haiku** | stall detection — no judgment to buy |
 
