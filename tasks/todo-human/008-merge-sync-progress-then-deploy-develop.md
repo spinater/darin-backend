@@ -1,7 +1,50 @@
 # รวม `feat/sync-progress-ui` กับ develop แล้วใช้ develop เป็นตัว deploy
 
-- status: todo
-- commit:
+- status: todo-human
+- commit: eb490be (merge) · c31770e (prettier) · c901da3 (fix compose)
+
+- 🚫 **เหลือแต่ขาที่บล็อกที่คน** — ข้อ 1–3 ปิดแล้ว (ดู "ทำไปแล้ว" ข้างล่าง) · ข้อ 4–5 ต้องเขียน
+  ลงเครื่อง 157.85.104.171 ซึ่ง classifier บล็อก `Remote Shell Writes` ⇒ agent อ่านได้แต่สั่งไม่ได้
+
+## ✅ ทำไปแล้ว 2026-09-17 — ฝั่งรีโปจบครบ
+
+`develop` · `origin/develop` · `origin/feat/sync-progress-ui` **ชี้ที่ `c901da3` ทั้งสามตัว**
+⇒ "โค้ดที่ลูกค้าใช้" กับ "โค้ดบน develop" เป็นต้นไม้เดียวกันแล้ว (เดิมแยกกันมา 50 วัน)
+
+- conflict **10 ไฟล์** ไม่ใช่ 6 — อีก 4 ใบ (`package.json` · `bun.lock` ·
+  `app/admin/config/page.tsx` · `app/sync/review/page.tsx`) มาจาก prettier pass ของใบ 003
+  ที่ลงหลังจากใบนี้ถูกเขียน · ฝั่ง `app/**` เก็บเนื้อของ branch แล้วให้ prettier จัดรูปแบบตาม develop
+- ถอดกติกาชุดเก่าครบ + **ลบเพิ่มอีกสองใบที่ใบนี้ไม่ได้ระบุ**: `scripts/check-file-length.ts`
+  กับ `scripts/check-knowledge.ts` (ด่านของชุดเก่า ซ้ำกับ `.sh` ของชุดใหม่) พร้อม script
+  ใน `package.json` ที่เรียกมัน
+- **เก็บ `payroll-auditor` ไว้** ตามข้อเสนอในใบ — ผูกเข้ากับ `CLAUDE.md` §2 ข้อ 2–5 และ
+  เพิ่มแถวในตารางโมเดล §9 (opus) · § ที่มันอ้างเป็นของ `darin-payroll-system.md` อยู่แล้ว
+- รีวิวตาม §9 ก่อน fast-forward: `uxui-designer` = **APPROVE-WITH-NITS** ·
+  `code-reviewer` = **BLOCK 3 ข้อ** ⇒ แก้ครบแล้วทั้งสาม (compose สองข้อ + prettier)
+  ของที่รีวิวเจอแต่ไม่ใช่ความผิดของ merge แยกเป็น
+  [ใบ 009](../todo/009-surface-payroll-warnings.md) และ [ใบ 010](../todo/010-ui-nits-from-sync-progress-review.md)
+
+### 🔴 กับดักที่เสียเวลาจริงในใบนี้ — `verify.sh` อ่าน working tree ไม่ใช่คอมมิต
+
+รัน `prettier --write` แล้ว `git commit` โดยไม่ `git add` ไฟล์ที่มันแก้ ⇒ ได้ **เกตเขียว +
+คอมมิตที่ยังไม่ผ่าน prettier พร้อมกัน** และความแดงจะไปโผล่กับคนที่ checkout สดครั้งถัดไป
+ไม่ใช่กับคอมมิตที่ทำให้เกิด · `code-reviewer` จับได้ด้วยการ `git archive <sha>` ออกมาตรวจ
+**ทางกัน: `git status` ต้องว่าง ก่อนจะถือว่าเกตเขียวเป็นผลของคอมมิตนั้น**
+
+## ⏭️ เหลืออะไร — ต้องเป็นมือคน
+
+1. ตั้ง GitHub secret `DEPLOY_SSH_KEY` (repo `spinater/darin-backend`) · private key อยู่ที่
+   `/home/linus/.ssh/darin-deploy-ed25519` — จนกว่าจะตั้ง workflow จะล้มที่ ssh ทุกรอบ
+2. บนเครื่อง `/root/app/lim/darin-backend` (ยังยืนบน `feat/sync-progress-ui` @ `106cbe8`):
+   - `git checkout -- docker-compose.yml` — **ปลอดภัยแล้ว** เนื้อ `mem_limit`/`memswap_limit`
+     เข้ารีโปครบใน `c901da3` (ก่อนหน้านี้คำสั่งนี้คือการทำของหาย)
+   - `git fetch && git checkout develop` แล้ว `docker compose up -d --build`
+   - ⚠️ อยู่บน branch ไหนก็ได้ผลเท่ากันในรอบนี้ (ทั้งสอง ref ชี้ `c901da3`) แต่ถ้าไม่ย้ายมา
+     `develop` รอบหน้า `git pull` จะดึง branch เก่าอีก
+3. ยืนยันสามอย่างหลัง deploy: SHA ตรง · ไม่มี `docker compose up` ค้าง · เว็บตอบ 200
+   · และเช็คเพิ่มรอบนี้: `docker compose ls` ต้องยังเป็นโปรเจกต์ **`darin`** ไม่ใช่ `darin-backend`
+4. ลบ DNS `darin-dev.rocketlabth.com` ที่ Cloudflare (ค้างจากใบ 002)
+
 
 ## Goal
 

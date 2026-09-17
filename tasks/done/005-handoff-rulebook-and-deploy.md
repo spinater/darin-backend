@@ -17,7 +17,7 @@
 **ข้อ 2 (เกตแดงที่ `check-card-paths.sh`) หายไปเอง** — `.docs/design/**` มีไฟล์จริงแล้ว
 (`README.md` + `.gitkeep.md` ห้าใบ) ⇒ พาธในร้อยแก้วมีรากจริง ไม่ต้องใช้ allowlist
 
-**ข้อ 3 และ 4 ย้ายไปอยู่ [ใบ 008](../todo/008-merge-sync-progress-then-deploy-develop.md)** ซึ่ง
+**ข้อ 3 และ 4 ย้ายไปอยู่ [ใบ 008](../todo-human/008-merge-sync-progress-then-deploy-develop.md)** ซึ่ง
 เป็นใบที่ลงมือ merge จริง (ชุด B push ขึ้น origin แล้ว — `origin/feat/sync-progress-ui` มี
 `edf0a11` + `106cbe8` ครบ ⇒ ของที่เคยอยู่ที่เดียวบนดิสก์เครื่องคลาวด์ ไม่ได้อยู่ที่เดียวแล้ว)
 
