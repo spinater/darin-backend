@@ -10,7 +10,12 @@ export type StaffInput = {
 };
 
 export type SessionInput = { date: Date; activity: string };
-export type ClassSessionInput = { className: string; price: number; booked: number; noShow: number };
+export type ClassSessionInput = {
+  className: string;
+  price: number;
+  booked: number;
+  noShow: number;
+};
 export type SaleInput = {
   id: string;
   kind: string; // pt | membership | course_ext | freeze
@@ -155,7 +160,11 @@ export function computePayslip(input: {
       if (sale.kind === "pt") {
         if (role === "closer") {
           const rate = isSelfClosed(sale) ? selfPct : pct(config, "comm.pt.leadTrainer");
-          addComm(`คอม PT ${isSelfClosed(sale) ? "ปิดเอง" : "ปิดจากลีด"} — ${sale.productName}`, sale.netPrice, rate);
+          addComm(
+            `คอม PT ${isSelfClosed(sale) ? "ปิดเอง" : "ปิดจากลีด"} — ${sale.productName}`,
+            sale.netPrice,
+            rate,
+          );
         } else {
           addComm(
             `คอม PT ${role === "content_owner" ? "เจ้าของคลิป" : "ส่งลีด"} — ${sale.productName}`,
@@ -187,7 +196,9 @@ export function computePayslip(input: {
         continue;
       }
 
-      warnings.push(`บิล ${sale.productName}: ไม่รู้จักประเภทการขาย "${sale.kind}" — ยังไม่จ่ายคอม`);
+      warnings.push(
+        `บิล ${sale.productName}: ไม่รู้จักประเภทการขาย "${sale.kind}" — ยังไม่จ่ายคอม`,
+      );
     }
   }
 

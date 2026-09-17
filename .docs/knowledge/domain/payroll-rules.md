@@ -44,3 +44,11 @@ sources:
 
 `payday.base` = วันจ่ายเงินเดือนฐาน · `payday.variable` = วันจ่ายค่าสอน+คอม+OT **ของเดือนก่อน**
 ⇒ งวดของสองก้อนนี้ไม่ตรงกันโดยตั้งใจ — อย่า "แก้" ให้ตรงกันเองโดยไม่ถามเจ้าของ
+
+## Formatting (task 003)
+
+`lib/payroll.ts` and `lib/payroll-run.ts` went through the first `prettier --write` pass when the
+formatter gate opened. **Shape only — no rule, rate or branch changed**; the pass is in the diff
+but not in the behaviour, and `lib/payroll.test.ts` ran the same 21 tests before and after.
+From now on `prettier --check` is the first stage of `scripts/check-code.sh`, so a hand-formatted
+edit to these files goes red before `tsc` even starts — see [../ops/gates.md](../ops/gates.md).

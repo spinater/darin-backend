@@ -41,7 +41,16 @@ describe("serialToDate", () => {
 
 describe("normalizeTrainer — 21 การสะกดในชีต PT ยุบเหลือ 5 คน", () => {
   test("ทุกแบบของ แพท ยุบเป็นค่าเดียว", () => {
-    const forms = ["pt แพท", "PT แพท", "PTแพท", "PT พี่แพท", "pt พี่แพท", "แพท", "Pt แพท", "พี่แพท"];
+    const forms = [
+      "pt แพท",
+      "PT แพท",
+      "PTแพท",
+      "PT พี่แพท",
+      "pt พี่แพท",
+      "แพท",
+      "Pt แพท",
+      "พี่แพท",
+    ];
     expect(new Set(forms.map(normalizeTrainer)).size).toBe(1);
   });
   test("คนละคนไม่ยุบรวมกัน", () => {
@@ -52,7 +61,10 @@ describe("normalizeTrainer — 21 การสะกดในชีต PT ยุ
 
 describe.if(HAS_FIXTURE)("parseGrid กับไฟล์จริง", () => {
   test("อ่านทุกชีตแล้วไม่มีเซลล์หายเงียบ", async () => {
-    const grids = await loadXlsxGrids(XLSX_PATH, SOURCES.map((s) => s.sheet));
+    const grids = await loadXlsxGrids(
+      XLSX_PATH,
+      SOURCES.map((s) => s.sheet),
+    );
     let totalOk = 0;
     let totalReview = 0;
 
@@ -90,9 +102,7 @@ describe.if(HAS_FIXTURE)("parseGrid กับไฟล์จริง", () => {
     const src = SOURCES.find((s) => s.sheet === "PT")!;
     const sessions = parseGrid(grid, src.colMap, 1, ALIASES);
     // มีแถวที่ไม่มีชื่อในชีต แต่ session ที่ออกมาต้องมีชื่อลูกค้าครบ
-    const rowsWithName = new Set(
-      sessions.filter((s) => s.customerName).map((s) => s.rowIndex),
-    );
+    const rowsWithName = new Set(sessions.filter((s) => s.customerName).map((s) => s.rowIndex));
     expect(rowsWithName.size).toBeGreaterThan(200);
   });
 });

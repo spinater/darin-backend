@@ -66,7 +66,10 @@ export default async function AccountPage({
     if (next.length < MIN_LEN) redirect(`/account?err=รหัสใหม่ต้องยาวอย่างน้อย ${MIN_LEN} ตัว`);
 
     const target = await db.staff.findUniqueOrThrow({ where: { id: staffId } });
-    await db.staff.update({ where: { id: staffId }, data: { passwordHash: await hashPassword(next) } });
+    await db.staff.update({
+      where: { id: staffId },
+      data: { passwordHash: await hashPassword(next) },
+    });
     await db.session.deleteMany({ where: { staffId } });
     redirect(`/account?msg=ตั้งรหัสใหม่ให้ ${target.name} แล้ว`);
   }
@@ -82,7 +85,13 @@ export default async function AccountPage({
         <h2 className="font-medium">เปลี่ยนรหัสผ่านของฉัน</h2>
         <label className="flex flex-col gap-1 text-xs text-neutral-500">
           รหัสผ่านเดิม
-          <input name="current" type="password" required className="input" autoComplete="current-password" />
+          <input
+            name="current"
+            type="password"
+            required
+            className="input"
+            autoComplete="current-password"
+          />
         </label>
         <label className="flex flex-col gap-1 text-xs text-neutral-500">
           รหัสผ่านใหม่ (อย่างน้อย {MIN_LEN} ตัว)

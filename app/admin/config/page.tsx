@@ -32,7 +32,8 @@ export default async function ConfigPage() {
       const val = String(v).trim();
       const [kind, ...rest] = k.split("|");
 
-      if (kind === "cfg") await db.payrollConfig.update({ where: { key: rest[0] }, data: { value: val } });
+      if (kind === "cfg")
+        await db.payrollConfig.update({ where: { key: rest[0] }, data: { value: val } });
       else if (kind === "rate") {
         const [activity, rank] = rest;
         if (!val) await db.teachRate.deleteMany({ where: { activity, rank } });
@@ -48,10 +49,7 @@ export default async function ConfigPage() {
         const [id, field] = rest;
         await db.staff.update({
           where: { id },
-          data:
-            field === "rank"
-              ? { rank: val || null }
-              : { [field]: Number(val) },
+          data: field === "rank" ? { rank: val || null } : { [field]: Number(val) },
         });
       } else if (kind === "sheet")
         await db.sheetSource.update({ where: { id: rest[0] }, data: { spreadsheetId: val } });
@@ -129,14 +127,20 @@ export default async function ConfigPage() {
     const alias = normalizeTrainer(String(formData.get("alias") ?? ""));
     const staffId = String(formData.get("staffId") ?? "");
     if (!alias || !staffId) return;
-    await db.trainerAlias.upsert({ where: { alias }, update: { staffId }, create: { alias, staffId } });
+    await db.trainerAlias.upsert({
+      where: { alias },
+      update: { staffId },
+      create: { alias, staffId },
+    });
     revalidatePath("/admin/config");
   }
 
   async function addColor(formData: FormData) {
     "use server";
     await requireAdmin();
-    const hex = String(formData.get("hex") ?? "").trim().toLowerCase();
+    const hex = String(formData.get("hex") ?? "")
+      .trim()
+      .toLowerCase();
     const meaning = String(formData.get("meaning") ?? "");
     if (!hex) return;
     await db.colorRule.upsert({
@@ -177,7 +181,9 @@ export default async function ConfigPage() {
                       <input
                         name={`rate|${a}|${r}`}
                         type="number"
-                        defaultValue={rates.find((x) => x.activity === a && x.rank === r)?.rate ?? ""}
+                        defaultValue={
+                          rates.find((x) => x.activity === a && x.rank === r)?.rate ?? ""
+                        }
                         placeholder="ยังไม่ตั้ง"
                         className="input w-24"
                       />
@@ -214,7 +220,11 @@ export default async function ConfigPage() {
                   </td>
                   <td className="td text-xs text-neutral-500">{s.role}</td>
                   <td className="td">
-                    <select name={`staff|${s.id}|rank`} defaultValue={s.rank ?? ""} className="input">
+                    <select
+                      name={`staff|${s.id}|rank`}
+                      defaultValue={s.rank ?? ""}
+                      className="input"
+                    >
                       <option value="">—</option>
                       {RANKS.map((r) => (
                         <option key={r}>{r}</option>
@@ -313,8 +323,8 @@ export default async function ConfigPage() {
       <section className="card">
         <h2 className="mb-2 font-medium">เพิ่มพนักงานใหม่</h2>
         <p className="mb-2 text-xs text-neutral-500">
-          ใส่ <b>ชื่อที่ใช้จดในชีต</b> ให้ตรงด้วย แล้วกด Sync อีกครั้ง →
-          คาบเก่าที่ค้างอยู่เพราะ &quot;ไม่รู้จักเทรนเนอร์&quot; จะถูกจับคู่ให้อัตโนมัติ ไม่ต้องไล่แก้ทีละอัน
+          ใส่ <b>ชื่อที่ใช้จดในชีต</b> ให้ตรงด้วย แล้วกด Sync อีกครั้ง → คาบเก่าที่ค้างอยู่เพราะ
+          &quot;ไม่รู้จักเทรนเนอร์&quot; จะถูกจับคู่ให้อัตโนมัติ ไม่ต้องไล่แก้ทีละอัน
         </p>
         <form action={addStaff} className="grid gap-2 md:grid-cols-4">
           <label className="flex flex-col gap-1 text-xs text-neutral-500">
@@ -370,7 +380,8 @@ export default async function ConfigPage() {
       <section className="card">
         <h2 className="mb-2 font-medium">ชื่อเทรนเนอร์ในชีต → พนักงาน</h2>
         <p className="mb-2 text-xs text-neutral-500">
-          ชีต PT สะกดชื่อ 21 แบบสำหรับคน ~5 คน — ระบบ normalize (ตัดช่องว่าง/prefix PT/พี่) แล้วจับคู่ที่นี่
+          ชีต PT สะกดชื่อ 21 แบบสำหรับคน ~5 คน — ระบบ normalize (ตัดช่องว่าง/prefix PT/พี่)
+          แล้วจับคู่ที่นี่
         </p>
         <div className="mb-2 flex flex-wrap gap-1">
           {aliases.map((a) => (
@@ -401,7 +412,10 @@ export default async function ConfigPage() {
         </p>
         <div className="mb-2 flex flex-wrap gap-1">
           {colors.map((c) => (
-            <span key={c.hex} className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-0.5 text-xs">
+            <span
+              key={c.hex}
+              className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-0.5 text-xs"
+            >
               <span className="size-3 rounded-sm border" style={{ background: c.hex }} />
               {c.hex} → {c.meaning}
             </span>

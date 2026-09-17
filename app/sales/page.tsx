@@ -23,15 +23,18 @@ export default async function SalesPage({
   searchParams: Promise<{ period?: string }>;
 }) {
   await requireRole("owner", "admin", "counter");
-  const period =
-    (await searchParams).period ?? new Date().toISOString().slice(0, 7);
+  const period = (await searchParams).period ?? new Date().toISOString().slice(0, 7);
 
   const [sales, staff] = await Promise.all([
     db.sale.findMany({
       where: {
         date: {
           gte: new Date(`${period}-01T00:00:00Z`),
-          lt: new Date(new Date(`${period}-01T00:00:00Z`).setUTCMonth(new Date(`${period}-01T00:00:00Z`).getUTCMonth() + 1)),
+          lt: new Date(
+            new Date(`${period}-01T00:00:00Z`).setUTCMonth(
+              new Date(`${period}-01T00:00:00Z`).getUTCMonth() + 1,
+            ),
+          ),
         },
       },
       include: { attributions: { include: { staff: true } } },
@@ -136,7 +139,8 @@ export default async function SalesPage({
       </form>
 
       <p className="text-xs text-neutral-500">
-        จ่ายจริง &lt; ราคาเต็ม = ระบบถือว่าเป็นราคาโปรฯ (คอม 5%) · ไม่ใส่ราคาเต็ม = ถือว่าขายเต็มราคา
+        จ่ายจริง &lt; ราคาเต็ม = ระบบถือว่าเป็นราคาโปรฯ (คอม 5%) · ไม่ใส่ราคาเต็ม =
+        ถือว่าขายเต็มราคา
       </p>
 
       <table className="card w-full">

@@ -22,7 +22,9 @@ export default async function ClassesPage({
     }),
     db.classPrice.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
     db.staff.findMany({ where: { role: "trainer", active: true }, orderBy: { name: "asc" } }),
-    db.payrollConfig.findMany({ where: { key: { in: ["class.minAttendees", "class.halfRatio"] } } }),
+    db.payrollConfig.findMany({
+      where: { key: { in: ["class.minAttendees", "class.halfRatio"] } },
+    }),
   ]);
 
   const minAtt = Number(cfg.find((c) => c.key === "class.minAttendees")?.value ?? 3);
@@ -59,8 +61,8 @@ export default async function ClassesPage({
     <div className="flex flex-col gap-4">
       <h1 className="text-xl font-semibold">คาบสอนคลาส Group</h1>
       <p className="text-xs text-neutral-500">
-        ตารางสอนใน Sheet เป็น 1-on-1 ทั้งหมด — คาบคลาสต้องคีย์ที่นี่ ·
-        คนเข้าจริง 0 = 0 บาท · 1–{minAtt - 1} คน = ×{halfRatio} · ≥{minAtt} คน = เต็มราคา
+        ตารางสอนใน Sheet เป็น 1-on-1 ทั้งหมด — คาบคลาสต้องคีย์ที่นี่ · คนเข้าจริง 0 = 0 บาท · 1–
+        {minAtt - 1} คน = ×{halfRatio} · ≥{minAtt} คน = เต็มราคา
       </p>
 
       <form action={add} className="card grid gap-2 md:grid-cols-5">

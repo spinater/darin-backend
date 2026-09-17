@@ -79,7 +79,9 @@ export async function runPayroll(period: string) {
           netPrice: s.netPrice,
           attributions: s.attributions.map((a) => ({ staffId: a.staffId, role: a.role })),
         })),
-      otEntries: ot.filter((o) => o.staffId === staff.id).map((o) => ({ date: o.date, hours: o.hours })),
+      otEntries: ot
+        .filter((o) => o.staffId === staff.id)
+        .map((o) => ({ date: o.date, hours: o.hours })),
       config: cfg,
       teachRates,
     });
