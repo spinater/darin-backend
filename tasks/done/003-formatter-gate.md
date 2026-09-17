@@ -1,7 +1,7 @@
 # เปิดเกต formatter ฝั่ง TypeScript
 
 - status: done
-- commit: 02b7d4c (reformat) · gate commit recorded in the follow-up
+- commit: 02b7d4c (reformat) · 18c1482 (gate)
 
 ## Goal
 
