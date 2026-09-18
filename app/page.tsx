@@ -63,7 +63,7 @@ export default async function Dashboard({
       </div>
 
       {(pending > 0 || missingRank > 0 || activitiesWithoutRate.length > 0) && (
-        <div className="card border-amber-300 bg-amber-50 text-sm text-amber-900">
+        <div className="card-warn text-sm">
           <p className="mb-1 font-medium">ต้องเคลียร์ก่อนจ่ายจริง</p>
           <ul className="list-inside list-disc space-y-1">
             {pending > 0 && (

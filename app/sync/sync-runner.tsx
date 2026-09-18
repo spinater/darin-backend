@@ -199,14 +199,21 @@ export function SyncRunner({
         </p>
       )}
 
+      {/* Announce only on phase change (idle → fetch → process → done/error) — not on every
+          clock tick, otherwise the screen reader would try to re-read it 4 times/second,
+          making this page unusable for the whole sync (WCAG 4.1.3). The running number below
+          is therefore not inside this region. */}
+      <p className="sr-only" role="status" aria-live="polite">
+        {state.phase === "fetch" && "กำลังโหลดข้อมูลจาก Google Sheet"}
+        {state.phase === "process" && `กำลังประมวลผลชีต ${state.sheetName}`}
+        {state.phase === "done" && `Sync เสร็จใน ${thaiDuration(state.totalMs)}`}
+        {state.phase === "error" && state.message}
+      </p>
+
       {running && (
-        <div
-          className="flex flex-col gap-2 rounded-lg border border-neutral-200 bg-neutral-50 p-3"
-          role="status"
-          aria-live="polite"
-        >
-          <div className="flex items-center gap-2 text-sm font-medium">
-            <Spinner className="size-4 text-neutral-500" />
+        <div className="flex flex-col gap-2 rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+          <div className="flex items-start gap-2 text-sm font-medium">
+            <Spinner className="size-4 mt-0.5 shrink-0 text-neutral-500" />
             {state.phase === "fetch" ? (
               <span>กำลังโหลดข้อมูลจาก Google Sheet…</span>
             ) : (
@@ -248,29 +255,27 @@ export function SyncRunner({
       )}
 
       {state.phase === "done" && (
-        <div className="flex flex-col gap-2 rounded-lg border border-green-300 bg-green-50 p-3">
-          <p className="text-sm font-medium text-green-900">
-            ✓ Sync เสร็จใน {thaiDuration(state.totalMs)}
-          </p>
+        <div className="card-ok flex flex-col gap-2">
+          <p className="text-sm font-medium">✓ Sync เสร็จใน {thaiDuration(state.totalMs)}</p>
           {state.results.length > 0 && (
-            <table className="w-full text-xs">
+            <table className="-mx-2 w-full text-xs">
               <thead>
-                <tr className="text-left text-green-800/70">
-                  <th className="py-1 pr-3 font-medium">ชีต</th>
-                  <th className="py-1 pr-3 font-medium">เพิ่มใหม่</th>
-                  <th className="py-1 pr-3 font-medium">อัปเดต</th>
-                  <th className="py-1 pr-3 font-medium">ข้ามเพราะตรวจแล้ว</th>
-                  <th className="py-1 pr-3 font-medium">รอตรวจ</th>
+                <tr>
+                  <th className="th">ชีต</th>
+                  <th className="th">เพิ่มใหม่</th>
+                  <th className="th">อัปเดต</th>
+                  <th className="th">ข้ามเพราะตรวจแล้ว</th>
+                  <th className="th">รอตรวจ</th>
                 </tr>
               </thead>
-              <tbody className="text-green-900">
+              <tbody>
                 {state.results.map((r) => (
                   <tr key={r.sheetName}>
-                    <td className="py-0.5 pr-3">{r.sheetName}</td>
-                    <td className="py-0.5 pr-3">{r.created.toLocaleString("th-TH")}</td>
-                    <td className="py-0.5 pr-3">{r.updated.toLocaleString("th-TH")}</td>
-                    <td className="py-0.5 pr-3">{r.skippedReviewed.toLocaleString("th-TH")}</td>
-                    <td className="py-0.5 pr-3">{r.needsReview.toLocaleString("th-TH")}</td>
+                    <td className="td">{r.sheetName}</td>
+                    <td className="td">{r.created.toLocaleString("th-TH")}</td>
+                    <td className="td">{r.updated.toLocaleString("th-TH")}</td>
+                    <td className="td">{r.skippedReviewed.toLocaleString("th-TH")}</td>
+                    <td className="td">{r.needsReview.toLocaleString("th-TH")}</td>
                   </tr>
                 ))}
               </tbody>
@@ -279,11 +284,7 @@ export function SyncRunner({
         </div>
       )}
 
-      {state.phase === "error" && (
-        <p className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
-          {state.message}
-        </p>
-      )}
+      {state.phase === "error" && <p className="card-error text-sm">{state.message}</p>}
     </div>
   );
 }

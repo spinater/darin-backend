@@ -79,8 +79,8 @@ export default async function AccountPage({
     <div className="flex max-w-lg flex-col gap-4">
       <h1 className="text-xl font-semibold">บัญชีของ {me.name}</h1>
 
-      {msg && <p className="card border-green-300 bg-green-50 text-sm text-green-800">{msg}</p>}
-      {err && <p className="card border-red-300 bg-red-50 text-sm text-red-700">{err}</p>}
+      {msg && <p className="card-ok text-sm">{msg}</p>}
+      {err && <p className="card-error text-sm">{err}</p>}
 
       <form action={changeOwn} className="card flex flex-col gap-3">
         <h2 className="font-medium">เปลี่ยนรหัสผ่านของฉัน</h2>

@@ -30,6 +30,7 @@ export function ActionProgress({ baselineMs }: { baselineMs: number | null }) {
   const { pending } = useFormStatus();
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [now, setNow] = useState(0);
+  const [ran, setRan] = useState(false);
 
   const worthShowing = baselineMs !== null && baselineMs >= SLOW_ENOUGH_MS;
 
@@ -38,6 +39,7 @@ export function ActionProgress({ baselineMs }: { baselineMs: number | null }) {
       setStartedAt(null);
       return;
     }
+    setRan(true);
     const t0 = Date.now();
     const show = setTimeout(() => {
       setStartedAt(t0);
@@ -50,23 +52,42 @@ export function ActionProgress({ baselineMs }: { baselineMs: number | null }) {
     };
   }, [pending]);
 
-  if (!pending)
-    return worthShowing ? (
-      <span className="pb-1.5 text-xs text-neutral-400">
-        ปกติใช้เวลาประมาณ {thaiDuration(baselineMs)}
+  // Announce only on phase change (idle → pending), not on every clock tick — the original
+  // role="status" was bound to the number that updates every 250ms, which made the screen
+  // reader try to re-read it 4 times/second, making this page unusable for the whole time the
+  // action was pending (WCAG 4.1.3).
+  const phaseAnnouncement = pending ? "กำลังทำงาน" : ran ? "เสร็จแล้ว" : "";
+
+  let visible: React.ReactNode = null;
+  if (!pending) {
+    if (worthShowing)
+      visible = (
+        <span className="pb-1.5 text-xs text-neutral-400">
+          ปกติใช้เวลาประมาณ {thaiDuration(baselineMs)}
+        </span>
+      );
+  } else if (startedAt !== null) {
+    // Not yet past SHOW_AFTER_MS (startedAt is null) — the action might even finish before
+    // that, so nothing is shown.
+    const elapsed = Math.max(0, now - startedAt);
+    const remaining = worthShowing ? Math.max(0, baselineMs - elapsed) : null;
+    visible = (
+      <span className="pb-1.5 text-xs text-neutral-500">
+        ผ่านไป {thaiDuration(elapsed)}
+        {remaining !== null &&
+          (remaining > 0 ? ` · เหลืออีกประมาณ ${thaiDuration(remaining)}` : " · ใกล้เสร็จแล้ว")}
       </span>
-    ) : null;
-
-  if (startedAt === null) return null; // ยังไม่ถึง SHOW_AFTER_MS — งานอาจจบก่อนด้วยซ้ำ
-
-  const elapsed = Math.max(0, now - startedAt);
-  const remaining = worthShowing ? Math.max(0, baselineMs - elapsed) : null;
+    );
+  }
 
   return (
-    <span className="pb-1.5 text-xs text-neutral-500" role="status" aria-live="polite">
-      ผ่านไป {thaiDuration(elapsed)}
-      {remaining !== null &&
-        (remaining > 0 ? ` · เหลืออีกประมาณ ${thaiDuration(remaining)}` : " · ใกล้เสร็จแล้ว")}
-    </span>
+    <>
+      {/* The running number (visible below) is not inside this region — this region only
+          changes when pending flips true/false. */}
+      <span className="sr-only" role="status" aria-live="polite">
+        {phaseAnnouncement}
+      </span>
+      {visible}
+    </>
   );
 }
