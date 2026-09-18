@@ -1,6 +1,6 @@
 ---
 name: security-reviewer
-description: Security reviewer for Darin Payroll. MUST be used on changes touching auth, sessions, passwords, the Google Sheets credentials, or anything that reaches the deploy host. Read-only.
+description: Security reviewer for Darin Payroll. Call by hand (not a merge gate since task 017) when a change reworks the auth surface itself, moves the Google Sheets credential, or touches anything that reaches the deploy host. For an ordinary change, `code-reviewer` owns the route-level role check. Read-only.
 tools: Read, Grep, Glob, Bash
 model: opus
 ---

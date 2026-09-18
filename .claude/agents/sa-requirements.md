@@ -1,6 +1,6 @@
 ---
 name: sa-requirements
-description: Requirements analyst for Darin Payroll. Use at the start of any feature to check what the business actually needs, whether REQUIREMENTS.md covers it, and what open questions exist. Read-only.
+description: Requirements analyst for Darin Payroll. Call by hand (not a mandatory step since task 017) when it is unclear what the business actually needs, whether REQUIREMENTS.md covers it, or what open questions exist — skip it for work whose requirement is already written down. Read-only.
 tools: Read, Grep, Glob
 model: sonnet
 ---

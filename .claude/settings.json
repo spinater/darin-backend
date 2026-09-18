@@ -1,6 +1,5 @@
 {
   "model": "opus",
-  "ultracode": true,
   "hooks": {
     "PostToolUse": [
       {

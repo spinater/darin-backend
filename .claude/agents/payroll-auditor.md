@@ -1,6 +1,6 @@
 ---
 name: payroll-auditor
-description: Focused money-correctness pass for the payroll engine. Use on any change that could move a baht figure — lib/payroll*.ts, lib/config-keys.ts, lib/sync.ts, prisma/schema.prisma, or any page writing Sale, SaleAttribution, ClassSession, OtEntry or Payslip.status. Read-only — reports risks, does not fix.
+description: Focused money-correctness pass for the payroll engine. MUST be used — the second of the two review lanes in CLAUDE.md §9, and the one that is never dropped for speed — on any change that could move a baht figure — lib/payroll*.ts, lib/config-keys.ts, lib/sync.ts, prisma/schema.prisma, or any page writing Sale, SaleAttribution, ClassSession, OtEntry or Payslip.status. Read-only — reports risks, does not fix.
 tools: Read, Grep, Glob, Bash
 model: opus
 ---

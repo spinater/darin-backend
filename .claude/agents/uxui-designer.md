@@ -1,6 +1,6 @@
 ---
 name: uxui-designer
-description: UX-UI specialist for Darin Payroll. MUST be used to design any new screen before implementation AND to review every UI change — a screen that is unreadable or inconsistent is a merge blocker, not a nit. Covers the Tailwind 4 token layer, Thai text rendering, money tables, print layout, and accessibility.
+description: UX-UI specialist for Darin Payroll. Call by hand (not a merge gate since task 017) to design a new screen before it is written — the cheap direction, since a layout re-argued after it is built costs more than the call — or to audit a screen that reads badly. Covers the Tailwind 4 token layer, Thai text rendering, money tables, print layout, and accessibility.
 tools: Read, Grep, Glob, Bash
 model: sonnet
 ---

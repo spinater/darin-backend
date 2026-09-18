@@ -25,6 +25,7 @@ docs are in Thai.
 - **Product overview for humans:** [README.md](README.md) · [darin-payroll-system.md](darin-payroll-system.md)
 - **Tasks:** [tasks/README.md](tasks/README.md) — `tasks/todo/` → `tasks/done/`, blocked-on-a-human in `tasks/todo-human/`
 - **Verify gate:** `scripts/verify.sh` — the one entry point. Nothing ships without it exiting 0.
+  Two tiers since ใบ 017: the gates' gates run only when `scripts/**` moved (§7).
 - **Deploy (dev):** `docker-compose.yml` → `https://darin.rocketlabth.com` — see
   [.docs/knowledge/ops/deploy.md](.docs/knowledge/ops/deploy.md)
 - **Sub-agents:** `.claude/agents/`
@@ -32,12 +33,13 @@ docs are in Thai.
 
 ### Local design skills (`.claude/skills/`)
 
-UI work goes through these instead of being improvised. `/design-review` is a **merge gate**, same
-standing as code review (§9) — the rest are called by hand when the stage they cover comes up.
+UI work goes through these instead of being improvised. All of them — `/design-review` included,
+since task 017 stopped it being a merge gate (§9) — are called by hand when the stage they cover
+comes up.
 
 | Skill | Use for |
 |---|---|
-| `design-review` | **Gate.** UX-UI audit of a screen, component, flow, or a doc under `.docs/design/` |
+| `design-review` | UX-UI audit of a screen, component, flow, or a doc under `.docs/design/` |
 | `no-code-app-plan` | Screen inventory, per-screen flow, screen→entity map — before any new area is built |
 | `style-tile` | Visual direction (typography / colour / UI feel) → `.docs/design/brand/` |
 | `color-palette-generator` | Palette with hex + WCAG ratings → becomes `@theme` tokens in `app/globals.css` |
@@ -242,13 +244,29 @@ unpushed commit is a commit that exists in one place only.
 precondition for**, not by importance — see [.docs/knowledge/ops/gates.md](.docs/knowledge/ops/gates.md)
 for the table of who watches what.
 
-| Group | Stages |
-|---|---|
-| The condition every other result rests on | `check-shell-source.sh` + its selftest |
-| The gates' gates (seconds, no toolchain) | every `tests/check-*-selftest.sh` |
-| "Is the corpus of the other gates complete?" | `check-path-bytes.sh` · `check-text-bytes.sh` |
-| Content gates | `check-sort-locale.sh` · `check-file-length.sh` · `check-knowledge.sh` · `check-links.sh` · `check-card-paths.sh` · `check-bun-pin.sh` |
-| Code (slowest, needs bun or docker) | `check-code.sh` = `tsc --noEmit` → `prisma validate` → `bun test` + junit pins → throwaway postgres + `prisma db push` + seed |
+**Two tiers since task 017** — this is one branch and a handful of staff, and the gate was sized for
+groove-clinic. Measured before cutting (§7 "measure first"): the whole gate cost **81s**, of which
+**~41s was the 15 selftests** and only **2.3s** was the content gates; the 63 domain tests run in
+244ms. So the selftests defer and nothing in `check-code.sh` was touched.
+
+| Tier | When | Stages |
+|---|---|---|
+| Core | **every run** | `check-shell-source.sh` (the condition every other result rests on) · `check-file-length.sh` · `check-knowledge.sh` · `check-links.sh` · `check-bun-pin.sh` |
+| Code (slowest, needs bun or docker) | **every run** | `check-code.sh` = `tsc --noEmit` → `prisma validate` → `bun test` + junit pins → throwaway postgres + `prisma db push` + seed |
+| The gates' gates | **only when `scripts/**` moved** | every `tests/check-*-selftest.sh` |
+
+`verify.sh` decides the third tier itself — `git status` **and** `git diff` against both `develop`
+and `origin/develop`, no `fetch` — and **says on the summary line when it skipped them**.
+`VERIFY_GATES=1` forces them on, `VERIFY_GATES=0` off.
+
+🔴 **Four gates came out in task 017 and their holes are open, not closed** —
+`check-card-paths.sh` (backticked paths with no real root: markdown links are still covered by
+`check-links.sh`, paths inside code comments are now covered by nothing) ·
+`check-path-bytes.sh` (a non-ASCII path that `core.quotePath` quotes, which the remaining gates
+then skip **before their own counter moves** — zero such paths today, so this is latent, not
+gone) · `check-text-bytes.sh` · `check-sort-locale.sh`.
+The record of what each one watched is `tasks/todo/017-shrink-gate-and-review-lanes.md` — read it
+before concluding a class of bug "cannot happen here".
 
 **The junit pin layer** (`scripts/lib/check-code-junit.sh` + `scripts/junit-pins.txt`): every test
 file must be **run** and must run **exactly** the pinned number of tests. Lowering a number is
@@ -258,8 +276,10 @@ allowed but is a declaration that coverage was removed — it needs a reason in 
 ⚠️ **No gate here builds `Dockerfile`.** The only real image build anywhere in the pipeline is
 `docker compose up -d --build` at deploy time ⇒ never write that a green gate proves the image builds.
 
-**Skips must be loud.** `SKIP_CODE_CHECKS=1` is the only skip and must be used out in the open.
-A stage that is skipped silently is a stage nobody knows did not run.
+**Skips must be loud.** There are two: `SKIP_CODE_CHECKS=1` and the deferred selftest tier above —
+and **both announce themselves on the `verify:` summary line**, which is the only reason the second
+one is allowed to be automatic. A stage that is skipped silently is a stage nobody knows did not run,
+so a skip that does not reach that line is a bug in the gate, not a convenience.
 
 ### The price of the gate — measure before cutting, never cut by feel
 
@@ -304,10 +324,31 @@ Claude is the **orchestrator**: it delegates every stage and never implements, d
 directly. Never advance past a `VERDICT: BLOCK` or a failing gate — route findings back to the
 agent that produced the work.
 
-**UI is reviewed, not eyeballed.** Any change under `app/**` or `app/globals.css` goes through
-`uxui-designer` — in design mode *before* it is written, and in review mode *after* — which is what
-`/design-review` runs. It returns the same `VERDICT: BLOCK | APPROVE-WITH-NITS | APPROVE` as code
-review and blocks the same way. The skills it works from are listed in Quick Reference.
+### How many reviewers a change needs — **one, or two when money moves** (linus order 2026-09-18, ใบ 017)
+
+An app this size cannot pay four opus reviewers per change. The count is decided by **what it costs
+to be wrong**, the same principle as the model table below:
+
+| Reviewers | When |
+|---|---|
+| `code-reviewer` alone | every change — it owns correctness, the role checks, file size, and whether the screen is readable enough to ship |
+| `code-reviewer` **+ `payroll-auditor`** | the diff touches money: `lib/payroll*.ts` · `lib/config-keys.ts` · `lib/payroll-run.ts` · `lib/sync.ts` · `lib/sync-run.ts` · `lib/ot-import.ts` · `prisma/schema.prisma` · or any page writing `Sale`, `SaleAttribution`, `ClassSession`, `OtEntry` or `Payslip.status` |
+
+🔑 **`payroll-auditor` is the one that never gets dropped for speed.** A wrong screen is noticed the
+day it ships; a wrong baht figure is noticed at payday, months later, by the person underpaid. That
+asymmetry is why the second lane exists at all and why it is triggered by a path list rather than by
+judgment in the moment.
+
+**Call by hand, no longer mandatory:** `security-reviewer` (auth surface, the Sheets service-account
+credential, anything reaching the deploy host) · `uxui-designer` / `/design-review` (a new screen, or
+a change to `app/globals.css`) · `architect` (schema and module boundaries) · `sa-requirements`
+(is this even what the business asked for). They are unchanged and still worth the call — what
+changed is that they no longer block every merge, so **naming one is a decision you make, not a
+step you inherit.**
+
+⚠️ `/design-review` **is no longer a merge gate.** Calling `uxui-designer` before writing a new
+screen is still the cheap direction — a layout re-argued after it is built costs more than the call —
+but shipping a small UI change without it is now allowed.
 
 ### Which model each agent runs on (linus order 2026-09-17 — token cost)
 

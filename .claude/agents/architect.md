@@ -1,6 +1,6 @@
 ---
 name: architect
-description: System designer for Darin Payroll. Use to design the Prisma schema, server-action contracts, and module boundaries before implementation. Enforces domain invariants and plans sub-module splits so no file hits the 500-line cap. Read-only.
+description: System designer for Darin Payroll. Call by hand (not a mandatory step since task 017) when a change actually moves the Prisma schema, a server-action contract, or a module boundary — a one-screen or one-function change does not need it. Enforces domain invariants and plans sub-module splits so no file hits the 500-line cap. Read-only.
 tools: Read, Grep, Glob
 model: opus
 ---

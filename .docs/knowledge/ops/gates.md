@@ -1,6 +1,7 @@
 ---
 sources:
   - scripts/verify.sh
+  - scripts/tests/check-verify-summary-selftest.sh
   - scripts/check-code.sh
   - scripts/check-bun-pin.sh
   - scripts/lib/bun-image.sh
@@ -18,14 +19,38 @@ sources:
 | ด่าน | เฝ้าอะไร |
 |---|---|
 | `scripts/check-shell-source.sh` | สคริปต์ที่ `.` ไฟล์ของรีโปโดยไม่อ่าน `rc` — ถ้าไฟล์ที่ source พัง มันจะ **เดินต่อจนจบ exit 0 พร้อมแต้มที่น้อยลง** ⇒ เงื่อนไขที่ทำให้ selftest ทุกใบพูดความจริงได้ |
-| `scripts/check-path-bytes.sh` | จุดเรียก git ที่กิน stdout แต่ไม่มี `-z` — `core.quotePath` ทำให้พาธไม่ใช่ ASCII ถูก quote ⇒ ลูปข้ามไฟล์นั้นเงียบ ๆ **ก่อนตัวนับของตัวเองจะขยับ** (รีโปนี้ชื่อไฟล์/เนื้อไฟล์เป็นไทยเยอะ ⇒ ไม่ใช่ฉากสมมติ) |
-| `scripts/check-sort-locale.sh` | `sort` ที่ไม่ประกาศ locale — uutils ใต้ `en_US.UTF-8` ให้เครื่องหมายวรรคตอนน้ำหนักศูนย์ ⇒ `sort -u` ยุบชื่อที่ต่างกันจริง |
-| `scripts/check-text-bytes.sh` | ไฟล์ที่ตั้งใจให้เป็น text แต่ไบต์อ่านว่า binary ⇒ เกตอื่น **ข้ามมันทั้งหมดโดยไม่มีใครรู้** |
 | `scripts/check-file-length.sh` | §4 เพดาน 500 บรรทัด · ขอบเขตอยู่บ้านเดียวที่ `scripts/lib/file-length-scope.sh` ซึ่ง hook ของ Claude อ่านตัวเดียวกัน |
 | `scripts/check-links.sh` | ลิงก์ md ที่เน่า · ใบงานที่มีสองบ้าน · หัวใบที่อ้างสถานะขัดกับบ้านของตัวเอง |
-| `scripts/check-card-paths.sh` | พาธในเครื่องหมาย backtick **ทุกไฟล์ที่ git ถือ** ที่ไม่มีรากจริง |
 | `scripts/check-knowledge.sh` | §5 — การ์ดที่ `sources:` ขยับแล้วการ์ดไม่ขยับตาม (STALE) · เพดานการ์ด · การ์ดที่ไม่มีแถวใน index |
-| selftest ของแต่ละด่าน | **เกตของเกต** — ด่านที่โกหกได้ ทำให้ผลของด่านอื่นในรอบเดียวกันไม่มีความหมาย |
+| selftest ของแต่ละด่าน | **เกตของเกต** — ด่านที่โกหกได้ ทำให้ผลของด่านอื่นในรอบเดียวกันไม่มีความหมาย · **ใบ 017: รันเมื่อ `scripts/**` ขยับเท่านั้น** (ดูหัวข้อถัดไป) |
+
+Four rows that used to sit in this table came out in ใบ 017 — `check-path-bytes.sh` ·
+`check-sort-locale.sh` · `check-text-bytes.sh` · `check-card-paths.sh`. What each one watched, and
+what is therefore no longer watched, is written out in
+[ใบ 017](../../../tasks/todo/017-shrink-gate-and-review-lanes.md) under "What stops being watched".
+It is also item 6 of the open-holes list at the bottom of this card.
+
+## ใบ 017 — สองชั้น: ด่านที่รันทุกรอบ กับ selftest ที่รันเมื่อแตะ `scripts/**`
+
+วัดก่อนตัด (§7 "measure first", 2026-09-18): เกตทั้งก้อน **81 วินาที** · ในนั้น **~41 วินาที**
+คือ selftest 15 ใบ · ด่านเนื้อหาทั้งแปดใบรวมกัน **2.3 วินาที** · `check-code.sh` **5.2 วินาที**
+· เทสโดเมนทั้ง 63 ใบ (รวมเงิน) **244 มิลลิวินาที**
+
+🔑 **ราคาไม่ได้อยู่ที่เทสของสินค้า มันอยู่ที่เทสของสคริปต์เกต** ⇒ ชั้นที่เลื่อนออกไปคือ selftest
+ไม่ใช่ coverage: `check-code.sh` และทุกข้อใน §2 ไม่ถูกแตะเลยในใบนี้ (§7 ข้อ 4 — จ่ายด้วยเครื่อง
+และ I/O ก่อน ค่อยจ่ายด้วย coverage)
+
+- **`core_gates`** รันทุกรอบ · **`gate_selftests`** รันเมื่อ `scripts/**` ขยับ
+- `verify.sh` ตัดสินเองด้วย `git status` **และ** `git diff` เทียบ **สอง ref** (`develop` กับ
+  `origin/develop`) · **ไม่ fetch** — เกตต้องรันได้ตอนไม่มีเน็ต · ทิศที่พลาดแล้วเงียบคือ
+  "สคริปต์เกตที่แก้แล้วยังไม่ commit" ซึ่ง `git diff <ref>...HEAD` มองไม่เห็น ⇒ ต้องมี `status` ด้วย
+- **ข้ามแล้วต้องดัง** — บรรทัด `verify: ` บอกเองว่าข้าม selftest ไปกี่ใบและบังคับรันยังไง
+  (`VERIFY_GATES=1` เปิด · `VERIFY_GATES=0` ปิด) · นี่คือเหตุผลเดียวที่การข้ามแบบอัตโนมัติยอมได้
+- `check-shell-source.sh` **อยู่ชั้นที่รันทุกรอบ** แม้ selftest ของมันจะเลื่อน — มันคือเงื่อนไขที่
+  ผลของด่านอื่นวางอยู่บน และมันใช้ 0.7 วินาที · ส่วน selftest ของมันตอบแค่ว่า "ด่านนั้นยังทำงานไหม"
+  ซึ่งเปลี่ยนไม่ได้ตอน `scripts/**` ไม่ขยับ
+- `scripts/tests/check-verify-summary-selftest.sh` อ่านรายชื่อด่าน **ออกจาก `verify.sh` ตัวจริง**
+  ⇒ มันอ่านทั้งสองอาร์เรย์ และตั้ง `VERIFY_GATES=1` ให้สนามจำลองรันครบทั้งลิสต์
 
 ## ที่ต่างจาก groove-clinic — และเหตุผล
 
@@ -91,3 +116,8 @@ sourced with `.` like the junit layer): fastest red, needs no DB and no generate
 3. **`verify.sh` ยังไม่อยู่ใน CI** — push develop แล้ว deploy เลยโดยไม่มีเกตขวาง
 4. **The formatter watches shape, never content** — `prettier --check` is green on code that is
    wrong, and it does not look at shell, SQL, YAML or Markdown at all.
+6. **สี่ช่องที่ใบ 017 เปิดคืน** — พาธที่ไม่ใช่ ASCII ที่ `core.quotePath` quote แล้วเกตที่เหลือ
+   ข้ามไปเงียบ ๆ **ก่อนตัวนับของตัวเองจะขยับ** (วันนี้ยังไม่มีพาธแบบนั้นในรีโป ⇒ แฝงอยู่ ไม่ได้ปิด) ·
+   ไฟล์ที่ตั้งใจเป็น text แต่ไบต์อ่านว่า binary ⇒ ด่านเนื้อหาข้ามทั้งไฟล์ · พาธในเครื่องหมาย
+   backtick และในคอมเมนต์โค้ดที่ไม่มีรากจริง (ลิงก์ md ยังมี `check-links.sh` เฝ้า) · `sort`
+   ที่ไม่ประกาศ locale
