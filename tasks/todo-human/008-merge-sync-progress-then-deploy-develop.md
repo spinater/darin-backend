@@ -22,7 +22,7 @@
 - รีวิวตาม §9 ก่อน fast-forward: `uxui-designer` = **APPROVE-WITH-NITS** ·
   `code-reviewer` = **BLOCK 3 ข้อ** ⇒ แก้ครบแล้วทั้งสาม (compose สองข้อ + prettier)
   ของที่รีวิวเจอแต่ไม่ใช่ความผิดของ merge แยกเป็น
-  [ใบ 009](../todo/009-surface-payroll-warnings.md) และ [ใบ 010](../todo/010-ui-nits-from-sync-progress-review.md)
+  [ใบ 009](../todo/009-surface-payroll-warnings.md) และ [ใบ 010](../done/010-ui-nits-from-sync-progress-review.md)
 
 ### 🔴 กับดักที่เสียเวลาจริงในใบนี้ — `verify.sh` อ่าน working tree ไม่ใช่คอมมิต
 
