@@ -86,7 +86,7 @@ answered is how that happens. One token (`|| hours < 0`) plus a test when this c
 
 ---
 
-## Round 1 (2026-09-18): items 1 and 3 shipped, items 2 and 4 still open
+## Round 1 (2026-09-18): items 1 and 3 shipped in `1bc770a`, items 2 and 4 still open
 
 Implemented by `backend-dev`, reviewed by `code-reviewer` **and** `payroll-auditor` (§9 — the diff
 moves money). Both returned `BLOCK` on the first pass and the findings are recorded here rather than
