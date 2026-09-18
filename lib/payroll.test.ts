@@ -143,6 +143,16 @@ describe("ค่าคอม PT (§1.5)", () => {
     ];
     expect(run({ sales }).commission).toBe(0);
   });
+
+  // §2 rule 4: an unrecognised sale kind is undecidable, so it must warn — not pay 0 in silence.
+  // course_ext/freeze above pay 0 *by rule* and correctly stay quiet; these two cases differ.
+  test("unknown sale.kind → warning AND zero commission, never a silent 0", () => {
+    const r = run({ sales: [ptSale({ kind: "seminar" })] });
+    expect(r.commission).toBe(0);
+    expect(r.warnings).toHaveLength(1);
+    expect(r.warnings[0]).toContain("ไม่รู้จักประเภทการขาย");
+    expect(r.warnings[0]).toContain("seminar");
+  });
 });
 
 describe("Incentive (§1.6)", () => {
@@ -212,6 +222,26 @@ describe("ค่าคอมสมาชิก (§2.2)", () => {
     });
     expect(r.commission).toBe(150);
   });
+
+  // §7 item 8 is still open: there is no membership commission rule for a non-closer role.
+  // Routing it to warnings is the CORRECT behaviour — do not invent a config default to silence it.
+  test("membership attributed to a non-closer → warning AND zero commission", () => {
+    const r = run({
+      staff: counter,
+      sales: [
+        sale({
+          attributions: [
+            { staffId: "x", role: "closer" },
+            { staffId: "c1", role: "referrer" },
+          ],
+        }),
+      ],
+    });
+    expect(r.commission).toBe(0);
+    expect(r.warnings).toHaveLength(1);
+    expect(r.warnings[0]).toContain("referrer");
+    expect(r.warnings[0]).toContain("ยังไม่มีกฎคอมสำหรับบทบาท");
+  });
 });
 
 describe("OT (§2.4)", () => {
@@ -229,6 +259,26 @@ describe("OT (§2.4)", () => {
   test("ทำไม่ถึงเกณฑ์ → ไม่มี OT ติดลบ", () => {
     const r = run({ otEntries: [{ date: new Date(), hours: 5 }] });
     expect(r.otPay).toBe(0);
+  });
+
+  // 🔴 The engine's own answer for hours a fingerprint export really produces: 9:20 arrives as
+  // 9.333333333333334, not as 9.33. Written down here because `/ot` previews the same figure and
+  // had started rounding the *hours* before multiplying — `money(money(0.3333…) × 40)` = 13.20
+  // against the 13.33 below (§2 rule 5: round once, at the end). With clean 2-dp hours the two
+  // agree, which is why only a >2-decimal value pins it. The qty line rounds for display only.
+  test("ชั่วโมงทศนิยมยาว (9:20 = 9.333…) — ปัดครั้งเดียวตอนท้าย ไม่ปัดชั่วโมงก่อนคูณ", () => {
+    const r = run({ otEntries: [{ date: new Date("2026-07-01"), hours: 9.333333333333334 }] });
+    expect(r.otPay).toBe(13.33);
+    const ot = r.lines.find((l) => l.group === "ot");
+    expect(ot).toMatchObject({ qty: 0.33, rate: 40, amount: 13.33 });
+    // 20 such days: the whole month lands on the engine's figure, not on 20 × 13.20 = 264.
+    const month = run({
+      otEntries: Array.from({ length: 20 }, () => ({
+        date: new Date("2026-07-01"),
+        hours: 9.333333333333334,
+      })),
+    });
+    expect(month.otPay).toBe(266.67);
   });
 });
 

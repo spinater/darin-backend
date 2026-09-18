@@ -108,6 +108,49 @@ sourced with `.` like the junit layer): fastest red, needs no DB and no generate
   sandbox goes green; the docker form is asserted as text only, and only the native cases run at all
   when the host bun is off the pin.
 
+## The junit pin layer — and why no test in this repo can touch a database (task 009)
+
+`scripts/lib/check-code-junit.sh` + `scripts/junit-pins.txt`: every test file must be **run** and
+must run **exactly** the pinned number of tests. Current rows and what each is worth are in that
+file's own header; task 009 raised `lib/payroll.test.ts` 21 → **24** and added
+`lib/ot-import.test.ts` at **6** and `lib/next-errors.test.ts` at **6**. What each raise bought:
+
+| Pin | Raise | What it is worth |
+| --- | --- | --- |
+| `lib/payroll.test.ts` | 21 → 23 | two §2-rule-4 cases — a membership sale attributed to a non-`closer`, and an unknown `sale.kind`; each asserts a warning **and** a zero commission |
+| `lib/payroll.test.ts` | 23 → 24 | the OT >2-decimal case: 9:20 arrives as `9.333333333333334`, the engine pays 13.33 and 266.67 over 20 days (§2 rule 5, round once) |
+| `lib/ot-import.test.ts` | new at 5 | usernames from a fingerprint paste that match nobody reach the screen instead of the floor |
+| `lib/ot-import.test.ts` | 5 → 6 | `invalidHours` — a non-finite hours value is rejected by the parser, because `OtEntry.hours` is a `Float` ⇒ `double precision`, which **accepts `NaN`** |
+| `lib/next-errors.test.ts` | new at 6 | telling a thrown `redirect()` apart from a real error, so the `/ot` action's `catch` cannot swallow navigation |
+
+**Every row is a raise**; only a lowering needs a reason in the task card.
+
+⚠️ **A pin is worth exactly what its test asserts — read the 23 → 24 row before quoting one as
+proof.** It asserts `computePayslip`, whose OT block never had the defect (that was in
+`app/ot/page.tsx`), so it would have gone green against the pre-fix tree: it writes the engine's
+figure down **outside** the screen, making a future disagreement provable, but it does not fence
+the screen. Pinning a screen needs a seam outside the component (task 011) and a lane that can
+render one (task 015).
+
+🔴 **Structural finding, not a task-local one: stage 4 has no database.** `check-code.sh` runs
+`bun test` *before* `db_stage` creates the throwaway postgres, and with no `DATABASE_URL` in the
+environment. `lib/db.ts` builds its `PrismaClient` at module scope, so **any test file that
+transitively imports it fails at import time.** Every way around it is closed on purpose:
+
+| attempt | why it fails |
+|---|---|
+| a DB-backed `*.test.ts` | runs in stage 4 with no DB ⇒ red |
+| `test.skipIf(!process.env.DATABASE_URL)` | the pin counts `tests - skipped`; an env-conditional count makes the pin meaningless, and layer 2 rejects it |
+| a second junit report inside `db_stage` | slips past the layer-2 corpus filter into an **unpinned** report — a gate that can vanish in silence, the exact class §7 exists to prevent |
+
+⇒ **Consequence to plan around, not to work around:** domain logic that must be tested has to be
+reachable *without* `lib/db.ts`. That is why task 009 extracted `lib/ot-import.ts` as a pure
+function instead of testing the server action, and why 009 has **no** test proving warnings reach
+the database — stage 5's `prisma db push` + seed proves the schema, and nothing proves the write.
+Closing that needs a **second pinned `bun test` pass inside `db_stage`** after push+seed, with
+`check-code-junit.sh` extended to read a second junit file — task
+[015](../../../tasks/todo/015-db-test-lane.md).
+
 ## 🔴 ช่องที่รู้ตัวว่าเปิดอยู่ — อย่าอ่านตารางข้างบนว่า "ครบแล้ว"
 
 1. **ไม่มีเกตฝั่งสิทธิ์** — หน้าใหม่ที่ลืมเรียก `requireRole()` วันนี้ไม่มีอะไรแดง
@@ -116,6 +159,8 @@ sourced with `.` like the junit layer): fastest red, needs no DB and no generate
 3. **`verify.sh` ยังไม่อยู่ใน CI** — push develop แล้ว deploy เลยโดยไม่มีเกตขวาง
 4. **The formatter watches shape, never content** — `prettier --check` is green on code that is
    wrong, and it does not look at shell, SQL, YAML or Markdown at all.
+5. **No test in this repo reaches a database** — see the junit-pin section above. Stage 5 proves
+   the schema pushes and seeds; **no gate proves any write against it is correct.**
 6. **สี่ช่องที่ใบ 017 เปิดคืน** — พาธที่ไม่ใช่ ASCII ที่ `core.quotePath` quote แล้วเกตที่เหลือ
    ข้ามไปเงียบ ๆ **ก่อนตัวนับของตัวเองจะขยับ** (วันนี้ยังไม่มีพาธแบบนั้นในรีโป ⇒ แฝงอยู่ ไม่ได้ปิด) ·
    ไฟล์ที่ตั้งใจเป็น text แต่ไบต์อ่านว่า binary ⇒ ด่านเนื้อหาข้ามทั้งไฟล์ · พาธในเครื่องหมาย

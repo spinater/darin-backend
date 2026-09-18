@@ -269,15 +269,24 @@ export function SyncRunner({
                 </tr>
               </thead>
               <tbody>
-                {state.results.map((r) => (
-                  <tr key={r.sheetName}>
-                    <td className="td">{r.sheetName}</td>
-                    <td className="td">{r.created.toLocaleString("th-TH")}</td>
-                    <td className="td">{r.updated.toLocaleString("th-TH")}</td>
-                    <td className="td">{r.skippedReviewed.toLocaleString("th-TH")}</td>
-                    <td className="td">{r.needsReview.toLocaleString("th-TH")}</td>
-                  </tr>
-                ))}
+                {state.results.map((r) =>
+                  r.missingGrid ? (
+                    <tr key={r.sheetName} className="bg-amber-50">
+                      <td className="td font-medium text-amber-800">{r.sheetName}</td>
+                      <td className="td text-amber-800" colSpan={4}>
+                        ⚠️ ไม่ได้ข้อมูลจากชีตนี้ — รอบนี้ไม่ได้ sync
+                      </td>
+                    </tr>
+                  ) : (
+                    <tr key={r.sheetName}>
+                      <td className="td">{r.sheetName}</td>
+                      <td className="td">{r.created.toLocaleString("th-TH")}</td>
+                      <td className="td">{r.updated.toLocaleString("th-TH")}</td>
+                      <td className="td">{r.skippedReviewed.toLocaleString("th-TH")}</td>
+                      <td className="td">{r.needsReview.toLocaleString("th-TH")}</td>
+                    </tr>
+                  ),
+                )}
               </tbody>
             </table>
           )}

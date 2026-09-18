@@ -222,8 +222,9 @@ model Payslip {
   status     String   @default("draft") // draft | approved | paid
   createdAt  DateTime @default(now())
 
-  staff Staff         @relation(fields: [staffId], references: [id])
-  lines PayslipLine[]
+  staff    Staff            @relation(fields: [staffId], references: [id])
+  lines    PayslipLine[]
+  warnings PayslipWarning[]
 
   @@unique([staffId, period])
 }
@@ -238,4 +239,22 @@ model PayslipLine {
   amount    Float
 
   payslip Payslip @relation(fields: [payslipId], references: [id], onDelete: Cascade)
+}
+
+/// What the engine could not decide for this payslip (CLAUDE.md §2 rule 4).
+/// Produced only by computePayslip() and rewritten whole on every recompute, exactly like
+/// PayslipLine. Deliberately NOT a workflow: no severity, no acknowledgedAt, no resolvedBy —
+/// task 009 shows the undecided cases, it does not decide them.
+model PayslipWarning {
+  id        String @id @default(cuid())
+  payslipId String
+  /// Emission order from computePayslip(). A table has no implicit order; this column is what
+  /// makes it equal to the string[] the engine returns, and the unique below turns a missing
+  /// deleteMany into a loud insert failure instead of a silently doubled list.
+  seq       Int
+  message   String
+
+  payslip Payslip @relation(fields: [payslipId], references: [id], onDelete: Cascade)
+
+  @@unique([payslipId, seq])
 }

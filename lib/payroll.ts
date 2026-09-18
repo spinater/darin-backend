@@ -42,7 +42,15 @@ export type PayslipResult = {
   warnings: string[];
 };
 
-const money = (n: number) => Math.round(n * 100) / 100;
+/**
+ * ปัดเงินครั้งเดียว ทศนิยม 2 ตำแหน่ง (§2 rule 5)
+ *
+ * Exported so a screen that previews the same figure — `/ot` prints ชม. OT and เป็นเงิน next to
+ * the payslip they must agree with — rounds with *this* rule instead of printing raw float noise
+ * (`0.6999999999999993`). It does not license computing money elsewhere: §2 rule 2 still says
+ * `computePayslip` is the only thing that turns raw input into an amount.
+ */
+export const money = (n: number) => Math.round(n * 100) / 100;
 
 /**
  * คิดเงินเดือน 1 คน 1 งวด (§1.7 / §2.5)

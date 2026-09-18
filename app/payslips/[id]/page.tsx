@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { periodRange } from "@/lib/payroll-run";
+import { WarningCard } from "@/app/_components/warning-card";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,7 @@ export default async function PayslipDetail({ params }: { params: Promise<{ id: 
   await requireAdmin();
   const slip = await db.payslip.findUnique({
     where: { id: (await params).id },
-    include: { staff: true, lines: true },
+    include: { staff: true, lines: true, warnings: { orderBy: { seq: "asc" } } },
   });
   if (!slip) notFound();
 
@@ -43,6 +44,13 @@ export default async function PayslipDetail({ params }: { params: Promise<{ id: 
         </h1>
         <span className="text-sm text-neutral-500">{slip.status}</span>
       </div>
+
+      {slip.warnings.length > 0 && (
+        <WarningCard
+          heading={`คำเตือน (${slip.warnings.length})`}
+          items={slip.warnings.map((w) => w.message)}
+        />
+      )}
 
       <table className="card w-full">
         <thead>

@@ -1,6 +1,6 @@
 import { currentStaff } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { syncSources, type SyncEvent, type SyncResult } from "@/lib/sync";
+import { syncWithRun } from "@/lib/sync-run";
+import type { SyncEvent } from "@/lib/sync";
 
 export const dynamic = "force-dynamic";
 
@@ -25,48 +25,19 @@ export async function POST(req: Request) {
     async start(controller) {
       const send = (e: SyncEvent) => controller.enqueue(encoder.encode(JSON.stringify(e) + "\n"));
 
-      const run = await db.syncRun.create({ data: {} });
       const t0 = Date.now();
-      let fetchMs: number | null = null;
-      let units = 0;
 
       try {
-        const results = await syncSources(xlsxPath ? { xlsxPath } : {}, (p) => {
-          // event แรกของ phase process = จุดที่ดาวน์โหลดจบพอดี ใช้ปิดเวลาช่วง fetch
-          if (p.phase === "process" && fetchMs === null) fetchMs = Date.now() - t0;
-          if (p.total) units = p.total;
-          send({ ...p, elapsedMs: Date.now() - t0 });
-        });
-
-        const elapsedMs = Date.now() - t0;
-        const sum = (k: keyof SyncResult) => results.reduce((n, r) => n + (r[k] as number), 0);
-        await db.syncRun.update({
-          where: { id: run.id },
-          data: {
-            finishedAt: new Date(),
-            fetchMs: fetchMs ?? elapsedMs,
-            processMs: elapsedMs - (fetchMs ?? elapsedMs),
-            units,
-            ok: sum("ok"),
-            needsReview: sum("needsReview"),
-            ignored: sum("ignored"),
-          },
-        });
-
-        send({
-          phase: "done",
-          results,
-          elapsedMs,
-          fetchMs: fetchMs ?? elapsedMs,
-          processMs: elapsedMs - (fetchMs ?? elapsedMs),
-        });
+        // `syncWithRun` owns the `SyncRun` row, failure included; this route only forwards events.
+        // The no-JS fallback on /sync calls the same helper, so both paths record a run by
+        // construction rather than by two copies of the same bookkeeping staying in step.
+        const { results, elapsedMs, fetchMs, processMs } = await syncWithRun(
+          xlsxPath ? { xlsxPath } : {},
+          (p, elapsed) => send({ ...p, elapsedMs: elapsed }),
+        );
+        send({ phase: "done", results, elapsedMs, fetchMs, processMs });
       } catch (e) {
-        const message = (e as Error).message;
-        // เก็บ error ไว้ด้วย แต่รอบที่พังจะไม่ถูกใช้คิดค่าประมาณเวลา (ดู lastSyncRun)
-        await db.syncRun
-          .update({ where: { id: run.id }, data: { finishedAt: new Date(), error: message } })
-          .catch(() => {});
-        send({ phase: "error", message, elapsedMs: Date.now() - t0 });
+        send({ phase: "error", message: (e as Error).message, elapsedMs: Date.now() - t0 });
       } finally {
         controller.close();
       }

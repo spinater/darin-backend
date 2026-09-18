@@ -87,14 +87,34 @@ export async function runPayroll(period: string) {
     });
 
     const { lines, warnings, ...totals } = result;
-    const slip = await db.payslip.upsert({
-      where: { staffId_period: { staffId: staff.id, period } },
-      update: { ...totals, status: "draft" },
-      create: { staffId: staff.id, period, ...totals },
-    });
-    await db.payslipLine.deleteMany({ where: { payslipId: slip.id } });
-    await db.payslipLine.createMany({
-      data: lines.map((l) => ({ payslipId: slip.id, ...l })),
+    // One transaction per staff member, never one around the whole loop: an interactive
+    // transaction defaults to a 5 s timeout, so one slow run would roll back every payslip.
+    // Per-staff idempotency already comes from the staffId_period unique.
+    //
+    // Interactive (callback) form, not `db.$transaction([...])`, because createMany needs
+    // slip.id, which only exists after the upsert. Deliberately NOT a nested write either:
+    // Prisma does not guarantee a nested deleteMany runs before a nested createMany, and if
+    // that ever inverts, every line and warning is deleted right after insertion and the
+    // payslip goes blank with no error. Prefer an order you can read.
+    await db.$transaction(async (tx) => {
+      const slip = await tx.payslip.upsert({
+        where: { staffId_period: { staffId: staff.id, period } },
+        update: { ...totals, status: "draft" },
+        create: { staffId: staff.id, period, ...totals },
+      });
+      await tx.payslipLine.deleteMany({ where: { payslipId: slip.id } });
+      // Warnings are rewritten wholesale on every recompute, exactly like lines (CLAUDE.md §2
+      // rule 4). Always delete first: without it @@unique([payslipId, seq]) fails the insert,
+      // which is loud — far better than silently accumulating duplicate warnings.
+      await tx.payslipWarning.deleteMany({ where: { payslipId: slip.id } });
+      if (lines.length)
+        await tx.payslipLine.createMany({
+          data: lines.map((l) => ({ payslipId: slip.id, ...l })),
+        });
+      if (warnings.length)
+        await tx.payslipWarning.createMany({
+          data: warnings.map((message, seq) => ({ payslipId: slip.id, seq, message })),
+        });
     });
 
     results.push({ staffId: staff.id, name: staff.name, result });

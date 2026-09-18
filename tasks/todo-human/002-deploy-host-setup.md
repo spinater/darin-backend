@@ -54,6 +54,24 @@ working copy `/root/app/lim/darin-backend` · **แต่มันถูก depl
    ⚠️ **ห้ามมีบล็อกอื่นประกาศ `default_server` ซ้ำบนพอร์ตเดียวกัน** — nginx จะไม่ยอมโหลด
    · เหตุผลเต็มอยู่ในหัวไฟล์นั้น (ไฟล์อยู่นอกรีโป ⇒ อ่านที่เครื่อง)
 
+## Back up `pgdata` before the first working deploy (added 2026-09-18, task 009)
+
+The `migrate` service in `docker-compose.yml` runs `prisma db push` automatically on every
+`docker compose up -d --build`, against the persistent `pgdata` volume. §2 rule 8: that has no
+migration files and no down path.
+
+Nothing has been at risk so far **because this workflow has never once run** — the repo still has no
+`DEPLOY_SSH_KEY` secret, so every push to `develop` fails at the ssh step and the host's database has
+never been touched by CI. The day the secret is added, that stops being true in the same minute.
+
+- Take a dump of `pgdata` **before** the first deploy that actually lands, not after.
+- Measured on the host 2026-09-18: 21 payslips, all `draft`. Small enough that a dump costs seconds.
+- Task 009's own schema change is additive only (`CREATE TABLE PayslipWarning` + FK + one unique
+  index, no `ALTER`/`DROP`), so it needs no `--accept-data-loss` and loses nothing — the backup is
+  for the general case, not for that commit.
+- 🔴 Task 009 also has a **required post-deploy step**: run payroll once per open period so the 21
+  existing draft payslips get their warnings backfilled. Do it before approving anything.
+
 ## Notes
 
 - ตรวจว่า deploy ลงจริงอย่างไร: [.docs/knowledge/ops/deploy.md](../../.docs/knowledge/ops/deploy.md)

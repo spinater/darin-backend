@@ -10,6 +10,13 @@ export type SyncResult = {
   ok: number;
   needsReview: number;
   ignored: number;
+  /**
+   * true = the sheet is active but its grid could not be fetched, so **nothing was synced this
+   * round**. Every counter is 0 because no work was done, not because there was no work — the
+   * screen must tell those two apart (CLAUDE.md §2 rule 4), otherwise a sheet that silently
+   * vanished reads exactly like a sheet that was quiet.
+   */
+  missingGrid?: boolean;
 };
 
 /**
@@ -84,9 +91,16 @@ export async function syncSources(
   // parse ทุกชีตให้จบก่อนเริ่มเขียน DB — เป็นงานในหน่วยความจำล้วน เร็วมาก
   // แต่ทำให้รู้ "จำนวนงานทั้งหมด" ตั้งแต่ต้น ถ้า parse ไปเขียนไปจะบอก total ไม่ได้
   // จนกว่าจะทำไปแล้วครึ่งทาง → progress bar กระโดดและประมาณเวลาไม่ได้
+  // 🔴 A sheet with no grid must stay OUT of `plan` — `total` below dereferences `p.grid.rows`,
+  // so letting one through crashes the whole sync. Collect the names in a separate array and
+  // report them afterwards instead of dropping them silently (CLAUDE.md §2 rule 4).
+  const missingGrid: string[] = [];
   const plan = sources.flatMap((source) => {
     const grid = grids.find((g) => g.sheetName === source.sheetName);
-    if (!grid) return [];
+    if (!grid) {
+      missingGrid.push(source.sheetName);
+      return [];
+    }
     const parsed = parseGrid(grid, source.colMap as unknown as ColMap, source.headerRows, aliases);
     return [{ source, grid, parsed }];
   });
@@ -107,7 +121,18 @@ export async function syncSources(
     });
   };
 
-  const results: SyncResult[] = [];
+  // Sheets that got no data come first — what was NOT done must be read before what succeeded.
+  // Every counter is 0, so `sum()` in app/api/sync/route.ts and the SyncRun totals are unmoved.
+  const results: SyncResult[] = missingGrid.map((sheetName) => ({
+    sheetName,
+    created: 0,
+    updated: 0,
+    skippedReviewed: 0,
+    ok: 0,
+    needsReview: 0,
+    ignored: 0,
+    missingGrid: true,
+  }));
 
   for (const [sheetIndex, { source, grid, parsed }] of plan.entries()) {
     lastEmit = -PROGRESS_EVERY; // บังคับให้ส่ง 1 ครั้งตอนขึ้นชีตใหม่ ชื่อชีตจะได้อัปเดตทันที
