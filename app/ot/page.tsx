@@ -5,7 +5,6 @@ import { db } from "@/lib/db";
 import { periodRange } from "@/lib/payroll-run";
 import { parseOtPaste, otUsernameKey, type OtImportRow, type OtImportState } from "@/lib/ot-import";
 import { num, type Config } from "@/lib/config-keys";
-import { money } from "@/lib/payroll";
 import { isNextControlFlowError } from "@/lib/next-errors";
 import { SubmitButton } from "@/app/_components/submit-button";
 import { PasteForm } from "./_components/paste-form";
@@ -144,7 +143,18 @@ export default async function OtPage({
       // *any* throw — a dropped connection, a statement timeout, a Prisma version error — and sent
       // the operator hunting a malformed date that is not there. The loop is ordered and
       // `imported` counts committed rows, so `rows[imported]` **is** the row that failed.
-      error = `นำเข้าไม่สำเร็จ — ${describeFailedRow(rows[imported], everyone)} · บรรทัดก่อนหน้าบันทึกแล้ว ตรวจบรรทัดนั้นแล้ววางใหม่อีกครั้ง`;
+      // Two halves, each only stated when it is true:
+      //   · saved/not-saved — the "previous rows are already saved" copy is a lie at
+      //     `imported === 0`, where it tells the operator to go check a save that never happened;
+      //   · "ตรวจบรรทัดนั้น" ("check that line") — only meaningful when `describeFailedRow`
+      //     actually named a line. With `rows[imported]` undefined it degrades to the generic
+      //     `บันทึกข้อมูลไม่ผ่าน`, and the instruction then points at a line nobody identified.
+      const failedRow = rows[imported];
+      const saved = imported > 0 ? "บรรทัดก่อนหน้าบันทึกแล้ว" : "ยังไม่มีบรรทัดไหนถูกบันทึก";
+      const tail = failedRow
+        ? `${saved} ตรวจบรรทัดนั้นแล้ววางใหม่อีกครั้ง`
+        : `${saved} วางใหม่อีกครั้ง`;
+      error = `นำเข้าไม่สำเร็จ — ${describeFailedRow(failedRow, everyone)} · ${tail}`;
     }
     revalidatePath("/ot");
     return { imported, unmatched, invalidHours, error };
@@ -157,16 +167,20 @@ export default async function OtPage({
     revalidatePath("/ot");
   }
 
-  // 🔴 **Raw excess — never rounded here** (§2 rule 5: round once, at the end). Feeding a rounded
-  // intermediate into the multiplication below is exactly "round mid-way and round again": a
-  // fingerprint export writes 9:20 as 9.333333333333334, and `money(money(0.3333…) × 40)` = 13.20
-  // where the engine pays `money(0.3333… × 40)` = 13.33. Over 20 such days that is 266.67 ฿ paid
-  // against 264.00 ฿ shown — on the one screen whose job is checking the import against the
-  // payslip, and invisible to a spot check because clean 2-dp hours agree either way.
-  //
-  // Each *output* rounds once, with the engine's own `money()` — that is what removed the
-  // `0.6999999999999993` / `27.99999999999997` float noise this screen used to print.
+  // This screen shows hours only — no formula here turns them into baht. `computePayslip` in
+  // `lib/payroll.ts` is the single place that says what an hour is worth (§2 rule 2); `/ot` is a
+  // check against the fingerprint import, not a preview of the payslip. `otExcess` therefore stays
+  // a raw float and is never passed through `money()`: `money()` is the engine's baht rounding
+  // (§2 rule 5) and there is no baht here to round (task 011).
   const otExcess = (h: number) => Math.max(0, h - threshold);
+
+  /**
+   * Hours, at most 2 dp — a **display** format, not a money one. A fingerprint export writes 9:20
+   * as 9.333333333333334, and the raw float used to reach this table.
+   * `money()` is deliberately not used: it is the engine's baht rounding (§2 rule 5) and this
+   * column is hours. Nothing on this screen is money any more (task 011).
+   */
+  const hrs = (h: number) => String(Math.round(h * 100) / 100);
 
   return (
     <div className="flex flex-col gap-4">
@@ -214,7 +228,7 @@ export default async function OtPage({
       <table className="card w-full">
         <thead>
           <tr>
-            {["พนักงาน", "วันที่", "ชั่วโมง", "ชม. OT", "เป็นเงิน", ""].map((h) => (
+            {["พนักงาน", "วันที่", "ชั่วโมง", "ชม. OT", ""].map((h) => (
               <th key={h} className="th">
                 {h}
               </th>
@@ -226,9 +240,8 @@ export default async function OtPage({
             <tr key={r.id}>
               <td className="td">{r.staff.name}</td>
               <td className="td">{r.date.toISOString().slice(0, 10)}</td>
-              <td className="td">{r.hours}</td>
-              <td className="td">{money(otExcess(r.hours))}</td>
-              <td className="td">{money(otExcess(r.hours) * rate)}</td>
+              <td className="td">{hrs(r.hours)}</td>
+              <td className="td">{hrs(otExcess(r.hours))}</td>
               <td className="td">
                 <form action={del}>
                   <input type="hidden" name="id" value={r.id} />

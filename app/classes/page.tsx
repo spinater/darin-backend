@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { periodRange } from "@/lib/payroll-run";
+import { num, type Config } from "@/lib/config-keys";
 import { SubmitButton } from "@/app/_components/submit-button";
 
 export const dynamic = "force-dynamic";
@@ -28,8 +29,14 @@ export default async function ClassesPage({
     }),
   ]);
 
-  const minAtt = Number(cfg.find((c) => c.key === "class.minAttendees")?.value ?? 3);
-  const halfRatio = Number(cfg.find((c) => c.key === "class.halfRatio")?.value ?? 0.5);
+  // 🔴 Read these with `num()`, the engine's own helper — never `?? 3` / `?? 0.5`
+  // (CLAUDE.md §2 rule 3). A fallback here makes the screen and the payslip disagree in the worst
+  // direction: `num()` throws when the key is missing, so the payroll run dies, while this page
+  // used to invent a threshold nobody configured and print a confident figure for it. Same fix as
+  // `app/ot/page.tsx`.
+  const classConfig: Config = Object.fromEntries(cfg.map((c) => [c.key, c.value]));
+  const minAtt = num(classConfig, "class.minAttendees");
+  const halfRatio = num(classConfig, "class.halfRatio");
 
   async function add(formData: FormData) {
     "use server";
@@ -52,11 +59,6 @@ export default async function ClassesPage({
     await db.classSession.delete({ where: { id: String(formData.get("id")) } });
     revalidatePath("/classes");
   }
-
-  const value = (price: number, booked: number, noShow: number) => {
-    const att = booked - noShow;
-    return price * (att <= 0 ? 0 : att < minAtt ? halfRatio : 1);
-  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -110,7 +112,7 @@ export default async function ClassesPage({
       <table className="card w-full">
         <thead>
           <tr>
-            {["วันที่", "คลาส", "ผู้สอน", "จอง", "no-show", "เข้าจริง", "มูลค่า", ""].map((h) => (
+            {["วันที่", "คลาส", "ผู้สอน", "จอง", "no-show", "เข้าจริง", ""].map((h) => (
               <th key={h} className="th">
                 {h}
               </th>
@@ -126,7 +128,6 @@ export default async function ClassesPage({
               <td className="td">{r.booked}</td>
               <td className="td">{r.noShow}</td>
               <td className="td">{r.booked - r.noShow}</td>
-              <td className="td">{value(r.class.price, r.booked, r.noShow)}</td>
               <td className="td">
                 <form action={del}>
                   <input type="hidden" name="id" value={r.id} />

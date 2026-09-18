@@ -4,9 +4,19 @@ sources:
   - lib/config-keys.ts
   - lib/payroll-run.ts
   - prisma/schema.prisma
-  # Rule 4 below documents this screen's rounding contract and its `num()` rule ⇒ the day task 011
-  # changes or deletes the `เป็นเงิน` column, §5's staleness gate must point at this card.
+  # Rule 4 asserts this file still carries the engine's reference answer for a >2-decimal hours
+  # value (13.33 · qty 0.33 · 266.67 over 20 days) ⇒ deleting or rewriting that test must land here
+  # as STALE, not pass green under a card that keeps quoting the figure.
+  - lib/payroll.test.ts
+  # Rule 4 documents this file's `num()` rule for reading `ot.thresholdHours`/`ot.ratePerHour`
+  # outside the engine — the only claim this card still makes about the file, since task 011
+  # deleted the `เป็นเงิน` column it used to also document.
   - app/ot/page.tsx
+  # Rule 4 makes the same `num()` claim here about `class.minAttendees`/`class.halfRatio`, and
+  # states what the table shows now that task 011 deleted `มูลค่า` ⇒ re-adding a `?? 3` fallback (or
+  # a derived column) must go STALE instead of leaving the card advertising a ratio the engine no
+  # longer agrees with.
+  - app/classes/page.tsx
 ---
 
 # กติกาเงินเดือน — ที่มาของตัวเลขและเส้นที่ห้ามข้าม
@@ -65,38 +75,47 @@ sources:
      zero, which is this rule failing in the other direction.
 4. **ปัดเศษที่เดียว** — `money()` ปัดทศนิยม 2 ตำแหน่ง · ห้ามปัดกลางทางแล้วปัดซ้ำ
 
-   **`money()` is exported (task 009 review).** A screen that *previews* a figure the payslip also
-   prints must round with this same function — `/ot` showed `ชม. OT 0.6999999999999993` and
-   `เป็นเงิน 27.99999999999997` beside a payslip that had rounded, on the screen the counter staff
-   use to check one against the other. The export is for **rounding**, not a licence to compute
-   money elsewhere: rule 2 above still stands, and whether `/ot` should print a baht column at all
-   is task **011**.
+   **No screen computes money (task 011 — linus's ruling, option 1).** `/ot` and `/classes` used to
+   preview a baht column (`เป็นเงิน`, `มูลค่า`) built from a second formula living outside
+   `lib/payroll.ts` — a straight rule-2 violation. Task 011 deleted both columns rather than give the
+   duplication a shared seam: `/ot` now shows `ชั่วโมง`/`ชม. OT` as hours (a **display-only** 2 dp
+   formatter, never `money()` — hours are not baht), and `/classes`'s table is
+   `วันที่`/`คลาส`/`ผู้สอน`/`จอง`/`no-show`/`เข้าจริง` plus the delete column, with no derived amount
+   left in it. `money()` stays exported from `lib/payroll.ts` but as of 011 has **no caller outside
+   that file**.
 
-   🔴 **The export is also how this rule gets broken — it was, in 009's own first fix pass.** `/ot`
-   rounded the OT *hours* and fed that into the baht multiplication: `money(money(h − threshold) ×
-   rate)`. Both money gates found it independently. A fingerprint export writes 9:20 as
-   `9.333333333333334` ⇒ the engine pays `money(0.3333… × 40)` = **13.33** while the screen showed
-   `money(0.33 × 40)` = **13.20**; over 20 such days, 266.67 ฿ paid against 264.00 ฿ shown, on the
-   one screen whose job is checking the import against the payslip. It runs the other way too
-   (9:10 → engine 6.67, screen 6.80), and with clean 2-dp hours the two agree — which is why a spot
-   check would not catch it.
-   ⇒ **`money()` wraps an output, never an input.** Keep the raw excess for arithmetic and round
-   each printed figure once.
+   🔑 **The line is *computed* vs *displayed*, not "no baht on screen".** The payslip is the only
+   place a baht figure is **computed**. Any screen may **display a stored or configured amount
+   unchanged** — `Payslip.net`, `Sale.netPrice`, `ClassPrice.price`, a rate out of `PayrollConfig` —
+   and may **not derive one** (no rate, threshold or percentage applied anywhere in `app/**`). Read
+   the wrong half of this and you either strip a read-only figure the counter staff need (`/` shows
+   `ยอดขายในงวด`/`รวมจ่ายสุทธิ`, `/payslips` a period total, `/sales` `netPrice`, `/admin/config` the
+   rates and ฐานเงินเดือน, `/classes`'s add-form `<option>` the stored `({c.price})`) or you "fix" a
+   total by computing something new, which is the actual violation.
 
-   ⚠️ **Not pinned — the correction the third review round forced on this card.** `lib/payroll.test.ts`
-   writes down the **engine's** answer for a >2-decimal hours value (13.33 · qty 0.33 · 266.67 over
-   20 days), and that is all it does: it asserts `computePayslip`, whose OT block never carried the
-   defect, so it would have gone green against the pre-fix tree. It is a **reference figure**, so a
-   future disagreement is provable — **not** a regression test of the screen. Re-introducing
-   `money(Math.max(0, h - threshold))` in `app/ot/page.tsx` today leaves `bun test` green and puts
-   `/ot` back at 13.20 against 266.67 paid. Fencing it needs a testable seam outside the component
-   (task **011**, which also decides whether the column lives) and a lane that can render one
-   (task **015**).
+   **The one residue, named so it is not re-discovered as a scandal:** `app/page.tsx:43` and
+   `app/payslips/page.tsx:58` still **sum** already-rounded `Payslip.net` values inside the page.
+   No rate or threshold is applied, so it is not a second answer to *what is this worth* — but it is
+   arithmetic on baht in `app/**`, and it has the shape this rule tells you to distrust: an
+   unrounded aggregate of already-rounded parts. Carded as task **019**; do not close it here by
+   inventing a formula.
 
-   **Reading a rate outside the engine follows rule 1 exactly** — `num(cfg, key)`, never
-   `Number(...?.value ?? 40)`. `/ot` invented 40 ฿/h when `ot.ratePerHour` was missing while
-   `computePayslip` threw on the same key, so the screen looked right while the run died: one
-   screen inventing a rate the engine refuses to invent. Both sides now fail the same way.
+   **Why the deleted columns were dangerous, for the record.** `/ot` once fed a *rounded*
+   intermediate into its own multiplication — `money(money(h − threshold) × rate)` — while the
+   engine rounds only the final amount. A fingerprint export writes 9:20 as `9.333333333333334`: the
+   engine pays `money(0.3333… × 40)` = **13.33**, the screen showed `money(0.33 × 40)` = **13.20**;
+   over 20 such days, 266.67 ฿ paid against 264.00 ฿ shown — invisible to a spot check because clean
+   2-dp hours agree either way. `lib/payroll.test.ts` still carries the engine's answer for this exact
+   case (13.33 · qty 0.33 · 266.67 over 20 days) as a **reference figure** — it asserts
+   `computePayslip`, whose OT block was never wrong, so it proves a future disagreement rather than
+   fencing a screen; there is no screen arithmetic left to fence. A baht preview proposed again
+   anywhere must call `lib/payroll.ts`'s formula, never re-derive it (option 2 on the 011 card).
+
+   **Reading a rate/threshold outside the engine follows rule 1 exactly** — `num(cfg, key)`, never
+   `Number(...?.value ?? 40)`. Both `/ot` (`ot.thresholdHours`, `ot.ratePerHour`) and `/classes`
+   (`class.minAttendees`, `class.halfRatio`) read their explanatory `<p>` text this way: `num()`
+   throws when a key is missing, so the screen's copy fails the same way the payroll run does,
+   instead of a screen inventing a value and looking right while the run dies on it.
 5. **ชื่อในชีตคือกุญแจของการจับคู่** — `lib/normalize.ts` ยุบการสะกดที่ต่างกันให้เหลือคนเดียว
    (21 การสะกด → 5 คน ในชีต PT จริง) ⇒ แก้ตัวยุบเมื่อไร **ต้องรันเทสของ `lib/parser.test.ts` ซ้ำ**
 

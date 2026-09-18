@@ -57,6 +57,10 @@ export function PasteForm({
         </p>
       )}
 
+      {/* Deliberately uncapped, unlike `invalidHours` below: one misspelt username in this list is
+          one fix (rename the sheet entry or the staff record) that recovers a whole month, so
+          nothing here is allowed to scroll off screen. A scanner variant like "9:20" can invalidate
+          hundreds of hour fields at once — that list is capped instead (task 011). */}
       {state && state.unmatched.length > 0 && (
         <WarningCard
           heading={`คำเตือน (${state.unmatched.length}) — พบชื่อผู้ใช้ที่ไม่มีในระบบ ชั่วโมงกลุ่มนี้ยังไม่ถูกบันทึก`}
@@ -66,12 +70,16 @@ export function PasteForm({
       )}
 
       {/* A separate box from `unmatched`: the name is fine, the hours field is not — a different
-          fix, so a different heading (CLAUDE.md §2 rule 4 — neither may become a silent zero). */}
+          fix, so a different heading (CLAUDE.md §2 rule 4 — neither may become a silent zero).
+          Capped at 20: a single scanner-format variant (e.g. "9:20") can invalidate hundreds of
+          lines in one paste, which is one fix applied many times — not hundreds of distinct
+          problems worth scrolling through. */}
       {state && state.invalidHours.length > 0 && (
         <WarningCard
           heading={`คำเตือน (${state.invalidHours.length}) — ชั่วโมงไม่ใช่ตัวเลข บรรทัดกลุ่มนี้ยังไม่ถูกบันทึก`}
           items={state.invalidHours}
           mono
+          max={20}
         />
       )}
     </form>

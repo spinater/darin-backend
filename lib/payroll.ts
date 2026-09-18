@@ -45,10 +45,12 @@ export type PayslipResult = {
 /**
  * ปัดเงินครั้งเดียว ทศนิยม 2 ตำแหน่ง (§2 rule 5)
  *
- * Exported so a screen that previews the same figure — `/ot` prints ชม. OT and เป็นเงิน next to
- * the payslip they must agree with — rounds with *this* rule instead of printing raw float noise
- * (`0.6999999999999993`). It does not license computing money elsewhere: §2 rule 2 still says
- * `computePayslip` is the only thing that turns raw input into an amount.
+ * 🔴 **As of task 011 this has no caller outside this file** — every use is internal to
+ * `lib/payroll.ts`, and the export is kept so the rounding rule has one named home. It is **not** a
+ * licence for a screen-side baht preview: computing money in `app/**` is a §2 rule 2 violation
+ * (`computePayslip` is the only thing that turns raw input into an amount), which is why `/ot`'s
+ * `เป็นเงิน` and `/classes`'s `มูลค่า` were deleted rather than re-plumbed.
+ * See `.docs/knowledge/domain/payroll-rules.md` rule 4.
  */
 export const money = (n: number) => Math.round(n * 100) / 100;
 
