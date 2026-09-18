@@ -8,6 +8,14 @@ sources:
   # value (13.33 · qty 0.33 · 266.67 over 20 days) ⇒ deleting or rewriting that test must land here
   # as STALE, not pass green under a card that keeps quoting the figure.
   - lib/payroll.test.ts
+  # Rule 3 claims the run loop's two task-013 decisions are pinned *as predicates* while their
+  # transactional placement is reviewed, not tested (no DB in `bun test`) ⇒ deleting this file must
+  # land here as STALE rather than leave the card advertising coverage that no longer exists.
+  - lib/payroll-run.test.ts
+  # Rule 3 claims this screen holds the **other half** of the payslip lock — `setStatus` writing
+  # only when the row still holds the status it was rendered for — and that the run's own `skipped`
+  # reasons reach no screen. Reverting either to the unconditional shape must show up here as STALE.
+  - app/payslips/page.tsx
   # Rule 4 documents this file's `num()` rule for reading `ot.thresholdHours`/`ot.ratePerHour`
   # outside the engine — the only claim this card still makes about the file, since task 011
   # deleted the `เป็นเงิน` column it used to also document.
@@ -52,10 +60,51 @@ sources:
    - **Rewritten wholesale on every recompute**, exactly like `PayslipLine`. Dropping the unique
      "because the insert is failing" converts a loud error into duplicated warnings.
    - 🔴 **Not recomputable once the slip leaves `draft`** — `runPayroll` refuses non-draft slips,
-     so whatever warnings a slip carries at approval time are final.
+     so whatever warnings a slip carries at approval time are final. **Task 013 made `status` an
+     actual lock**, which took two changes and not one: the status is read **inside** the
+     `$transaction` that writes (`nonDraftSkipReason` on a `tx.payslip.findUnique`), *and* the write
+     is **conditional on the status that read saw** —
+     `tx.payslip.updateMany({ where: { staffId, period, status: "draft" }, data: totals })`, with
+     `count === 0` meaning an approval landed mid-run ⇒ refuse with `RACED_SKIP_REASON`
+     (`สลิปเปลี่ยนสถานะระหว่างคิดเงิน ไม่คำนวณทับ`, deliberately worded apart from the ordinary
+     already-closed refusal). **The read alone is not enough**: under READ COMMITTED it only sees
+     what was committed at that statement, so an approval committing between read and write would
+     still have won — the `WHERE status = 'draft'` is what re-checks the predicate against the
+     committed row. `status: "draft"` is gone from the update payload; it was the line that pushed
+     an approved or paid slip back to draft. The no-slip-yet case is a plain `create`, so a
+     concurrent create loses on `@@unique([staffId, period])` and **throws** — loud on purpose.
+     **The other half of the same lock is `setStatus` on `app/payslips/page.tsx`**: the form submits
+     the status its row was *rendered* for and the action updates only if the row still holds it
+     (`updateMany … where: { id, status: was }`, `count === 0` ⇒ write nothing, `?err=stale`). Without
+     it the reverse interleaving stands — a recompute commits first, the approval lands second, and
+     the slip closes at a figure the approver never saw. A lock that only one side honours is not one.
+     ⚠️ **Neither skip reason reaches a screen today** — `runPayroll` returns them in `skipped` and
+     the `compute` action discards its return value. What tells the admin is state-derived, by
+     design (009 removed the event banner): the `closedCount` box and the `— (ไม่ได้คำนวณใหม่)`
+     marker. Rendering the run's own refusals is carded separately.
    - **Deliberately not a workflow**: no `severity`, no `acknowledgedAt`/`resolvedBy`, no
      `/admin/warnings` inbox. This is a display of what the engine could not decide, not a
      decision. Do not add one without a card that says why.
+   - **A deactivated staff member is warned about, never zeroed or skipped (task 013).** Who a run
+     selects is `staffInPeriodWhere(period)`, a six-arm `OR`, each arm one way the period can still
+     be owed: `active: true` · `payslips: { some: { period } }` · and four **leaver arms** for
+     payable work dated inside the period — `teachSessions` (`status: "ok"`), `classSessions`,
+     `attributions` (by `sale.date`) and `otEntries`. 🔴 **The leaver arms are the whole point.**
+     Variable pay is computed after the month closes (`darin-payroll-system.md` §6), so the ordinary
+     case — resigns 20 July, deactivated that day, run on 3 August — has *no slip yet*: under
+     `{ active: true }` alone that person matched nothing and their month vanished with no slip, no
+     warning, no `skipped` entry and no review-queue row. A slip that exists is recomputed rather
+     than left stale in "รวมทั้งงวด"; a non-draft one is still refused by the guard above.
+   - 🔴 **A recompute rebuilds the slip from *today's* `Staff` row, not from the period.** `base`,
+     `classCredit`, `rank` and `role` are read live, so an edit in `/admin/config` between two runs
+     changes a past period's draft slip. **Nothing is pro-rated for anybody** — a leaver's slip
+     carries a full period of `baseSalary` whether they worked one day of it or twenty. That is a
+     policy question for the owner, not the engine's to answer: `StaffInput.active` exists for
+     **one** purpose, pushing `พนักงานถูกปิดการใช้งานแล้ว แต่ยังมีงวดนี้ค้างอยู่ — ฐานเงินเดือนคิดเต็มงวด
+     ไม่ได้หารตามสัดส่วนวันที่ทำงานจริง ⇒ ตรวจยอดก่อนอนุมัติ` onto `warnings`. It moves **no amount**:
+     paying 0 "because they are inactive" is the silent zero this rule forbids, and inventing a
+     daily rate is a literal in a formula (rule 1). **No new UI** — it rides 009's surface
+     (`PayslipWarning` → count column + banner on `/payslips` → `WarningCard`).
    - **Rendered above the amounts** on both payslip screens, never below, and never collapsed —
      `app/admin/config/page.tsx` already promises the user in Thai that unmatched work
      "ขึ้นเตือนในสลิป".

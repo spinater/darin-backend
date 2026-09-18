@@ -20,10 +20,11 @@ function thisPeriod() {
 export default async function PayslipsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ period?: string }>;
+  searchParams: Promise<{ period?: string; err?: string }>;
 }) {
   await requireAdmin();
-  const period = (await searchParams).period ?? thisPeriod();
+  const { period: periodParam, err } = await searchParams;
+  const period = periodParam ?? thisPeriod();
 
   const [slips, pending, lastRun] = await Promise.all([
     db.payslip.findMany({
@@ -48,11 +49,22 @@ export default async function PayslipsPage({
   async function setStatus(formData: FormData) {
     "use server";
     await requireAdmin();
-    await db.payslip.update({
-      where: { id: String(formData.get("id")) },
+    // 🔴 Conditional on the status this row was **rendered** for — the other half of the lock
+    // `runPayroll` holds (task 013 item 1). An unconditional `update` writes onto whatever the row
+    // holds *now*, so the reverse interleaving — a recompute commits first, this approval lands
+    // second — closes the slip at a figure the approver never saw. That is the direction nobody
+    // checks: the numbers on screen looked right when they were read, and the row ends up approved
+    // at different ones with nothing said.
+    const { count } = await db.payslip.updateMany({
+      where: { id: String(formData.get("id")), status: String(formData.get("was")) },
       data: { status: String(formData.get("status")) },
     });
     revalidatePath("/payslips");
+    // `err` is a **flag**, never the message — same precedent as `/ot`: the Thai copy lives in this
+    // file (§2.5) and nothing from the URL is rendered. On success, redirect to the clean URL so a
+    // stale notice cannot outlive the thing that caused it.
+    if (count === 0) redirect(`/payslips?period=${encodeURIComponent(period)}&err=stale`);
+    redirect(`/payslips?period=${encodeURIComponent(period)}`);
   }
 
   const total = slips.reduce((s, x) => s + x.net, 0);
@@ -90,6 +102,16 @@ export default async function PayslipsPage({
             คิวรอตรวจ
           </Link>{" "}
           — คำนวณตอนนี้จะ<b>จ่ายขาด</b> เคลียร์ให้หมดก่อน
+        </p>
+      )}
+
+      {/* The one event box on this screen, and it earns the exception: it reports something that
+          happened to *this* admin's click one moment ago and is gone on the next clean load —
+          unlike the state boxes below, which are true on every visit. */}
+      {err === "stale" && (
+        <p className="card-warn text-sm">
+          ⚠️ สลิปใบนี้เปลี่ยนสถานะไปแล้วก่อนที่จะกดยืนยัน — <b>ยังไม่ได้บันทึกอะไร</b>{" "}
+          ตรวจยอดและสถานะล่าสุดในตารางอีกครั้งก่อนทำซ้ำ
         </p>
       )}
 
@@ -184,6 +206,9 @@ export default async function PayslipsPage({
               <td className="td">
                 <form action={setStatus} className="flex gap-1">
                   <input type="hidden" name="id" value={s.id} />
+                  {/* The status this row was rendered for. The action writes only if the row still
+                      holds it, so a slip that changed under the admin is refused, not overwritten. */}
+                  <input type="hidden" name="was" value={s.status} />
                   {s.status === "draft" && (
                     <SubmitButton name="status" value="approved" pendingLabel="กำลังอนุมัติ…">
                       อนุมัติ

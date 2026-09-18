@@ -83,3 +83,59 @@ Deliberately **not** folded into 009: it was found after that card's final revie
 009 had already been through two rounds in which a small unreviewed "while we are here" fix
 introduced a defect the next round had to catch. Widening a predicate after the last gate has
 answered is how that happens. One token (`|| hours < 0`) plus a test when this card is picked up.
+
+---
+
+## Round 1 (2026-09-18): items 1 and 3 shipped, items 2 and 4 still open
+
+Implemented by `backend-dev`, reviewed by `code-reviewer` **and** `payroll-auditor` (§9 — the diff
+moves money). Both returned `BLOCK` on the first pass and the findings are recorded here rather than
+in a review log, because two of them changed what shipped.
+
+**What landed beyond the card's own text:**
+
+1. **Item 1's guard was not enough on its own.** Moving the `findUnique` inside the transaction
+   narrows the window but does not close it — Prisma interactive transactions run at Postgres'
+   default READ COMMITTED, so an approval committing between the read and the write is still
+   overwritten. The write is therefore **conditional**:
+   `updateMany({ where: { staffId, period, status: "draft" } })` + branch on `count`, with its own
+   skip reason (`RACED_SKIP_REASON`) when the row was raced. `status: "draft"` also came out of the
+   update payload — that was the field that pushed an approved slip back to draft. ⇒ the card's
+   original sentence, "moving the guard inside the transaction … removes the class", was too strong.
+2. **`setStatus` was the other half of the same lock** and was unconditional, so the reverse
+   interleaving (recompute commits first, approval lands second) closed a slip at a figure the
+   approver never saw. Made symmetric in the same change: the form carries the status the row was
+   rendered for, the write is conditional on it, and losing the race tells the admin instead of
+   proceeding.
+3. **Item 3's first shape left the bigger half of the hole open.** Selecting "inactive **and**
+   already holds a slip in this period" misses the ordinary leaver entirely, because variable pay is
+   computed after the month closes (`darin-payroll-system.md` §6: ภายในวันที่ 3 ของเดือนถัดไป) ⇒ the
+   person who resigned on the 20th has no slip when the run happens. `payroll-auditor` priced one
+   real case at **16,760 ฿** vanishing with no slip, no warning and no review-queue row. The
+   selector now also matches an inactive person with **payable activity inside the period**
+   (teach sessions, class sessions, sale attributions, OT entries).
+4. **The base salary of a leaver is charged for the whole period** — the engine pro-rates for
+   nobody. That is a policy question, not an agent's call ⇒ [task 021](../todo-human/021-leaver-base-salary-proration.md),
+   and the slip's Thai warning says so on screen in the meantime.
+5. **`skipped` reaches no screen.** `app/payslips/page.tsx` discards `runPayroll`'s return value, and
+   task 009 removed the run's event banner on purpose. Three comments written in round 1 claimed a
+   distinction "on screen" and were corrected to say *returned, not yet rendered*; the surface itself
+   is [task 022](022-render-payroll-run-refusals.md).
+
+**Junit pin lowered on purpose — `lib/payroll-run.test.ts` 5 → 4** (§7 requires the reason here):
+two `staffInPeriodWhere` tests asserted the same thing, the second being a strict subset of the
+first's whole-object `toEqual`. They were merged. **No coverage was removed** — the merged test
+still pins every arm, the arm count and the period binding. This is not a pin lowered to make the
+gate green.
+
+**What these tests still do not prove**, stated because the pin number would otherwise imply
+otherwise: `bun test` has no database here, so nothing exercises the read being *inside* the
+transaction, the `count === 0` branch, or the concurrent-`create` throw against a real Postgres.
+That is [task 015](015-db-test-lane.md)'s job and is written at the top of the test file too.
+
+**Still open on this card:** item 2 (`paid → draft` — blocked on linus, and it is the sibling of
+task 021) and item 4 (the unchecked `Number()` server actions — ships as its own commit).
+
+**Knowledge cards** `.docs/knowledge/ops/gates.md` and `.docs/knowledge/domain/payroll-rules.md`
+both crossed the 170-line warn in this round. Not split here — cramming or omitting the corrections
+would have cost more than the warn ⇒ [task 023](023-split-two-oversized-knowledge-cards.md).

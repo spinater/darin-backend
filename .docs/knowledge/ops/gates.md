@@ -113,7 +113,10 @@ sourced with `.` like the junit layer): fastest red, needs no DB and no generate
 `scripts/lib/check-code-junit.sh` + `scripts/junit-pins.txt`: every test file must be **run** and
 must run **exactly** the pinned number of tests. Current rows and what each is worth are in that
 file's own header; task 009 raised `lib/payroll.test.ts` 21 → **24** and added
-`lib/ot-import.test.ts` at **6** and `lib/next-errors.test.ts` at **6**. What each raise bought:
+`lib/ot-import.test.ts` at **6** and `lib/next-errors.test.ts` at **6**; task 013 raised
+`lib/payroll.test.ts` to **26** and added `lib/payroll-run.test.ts` at **4** (5 → 4 inside that
+same round: two scope tests merged into one whole-object comparison pinning strictly more — a
+merge, not a removal). What each raise bought:
 
 | Pin | Raise | What it is worth |
 | --- | --- | --- |
@@ -122,6 +125,8 @@ file's own header; task 009 raised `lib/payroll.test.ts` 21 → **24** and added
 | `lib/ot-import.test.ts` | new at 5 | usernames from a fingerprint paste that match nobody reach the screen instead of the floor |
 | `lib/ot-import.test.ts` | 5 → 6 | `invalidHours` — a non-finite hours value is rejected by the parser, because `OtEntry.hours` is a `Float` ⇒ `double precision`, which **accepts `NaN`** |
 | `lib/next-errors.test.ts` | new at 6 | telling a thrown `redirect()` apart from a real error, so the `/ot` action's `catch` cannot swallow navigation |
+| `lib/payroll.test.ts` | 24 → 26 | task 013 item 3 — an inactive staff member's slip **warns and changes no figure**; the second test compares the whole result against the same input with `active: true`, so a later "pay them 0" is red |
+| `lib/payroll-run.test.ts` | new at 4 | task 013 items 1 and 3 as *predicates*: the non-draft guard's wording and refuse-by-default shape, the two refusals staying distinguishable **in the returned `skipped` list** (no screen renders them — the `compute` action discards `runPayroll`'s return, and what the admin sees is the state-derived `closedCount` box and the `— (ไม่ได้คำนวณใหม่)` marker), and the six-arm staff scope including the leaver arms. **Not** the lock itself — the `count === 0` branch needs two concurrent sessions — and **not** that the leaver arms return a row, which needs a real Postgres; see the row below |
 
 **Every row is a raise**; only a lowering needs a reason in the task card.
 
@@ -134,17 +139,24 @@ render one (task 015).
 
 🔴 **Structural finding, not a task-local one: stage 4 has no database.** `check-code.sh` runs
 `bun test` *before* `db_stage` creates the throwaway postgres, and with no `DATABASE_URL` in the
-environment. `lib/db.ts` builds its `PrismaClient` at module scope, so **any test file that
-transitively imports it fails at import time.** Every way around it is closed on purpose:
+environment.
+
+⚠️ **Corrected at task 013 — importing `lib/db.ts` from a test does *not* fail.** This card used to
+say any test transitively importing it "fails at import time". Measured with `DATABASE_URL` unset
+and `.env` suppressed: the import succeeds and only the first **query** throws, because Prisma 7 +
+`@prisma/adapter-pg` connect lazily. `lib/payroll-run.test.ts` imports `lib/payroll-run.ts` → `./db`
+and is green in stage 4. ⇒ **a pure helper does not need its own DB-free module to be testable**;
+what is unreachable is an *assertion about stored rows*, which is the conclusion below and is
+unchanged. Do not re-derive the old claim from task 009's or 015's wording.
 
 | attempt | why it fails |
 |---|---|
-| a DB-backed `*.test.ts` | runs in stage 4 with no DB ⇒ red |
+| a DB-backed `*.test.ts` | the query runs in stage 4 with no DB ⇒ red |
 | `test.skipIf(!process.env.DATABASE_URL)` | the pin counts `tests - skipped`; an env-conditional count makes the pin meaningless, and layer 2 rejects it |
 | a second junit report inside `db_stage` | slips past the layer-2 corpus filter into an **unpinned** report — a gate that can vanish in silence, the exact class §7 exists to prevent |
 
 ⇒ **Consequence to plan around, not to work around:** domain logic that must be tested has to be
-reachable *without* `lib/db.ts`. That is why task 009 extracted `lib/ot-import.ts` as a pure
+reachable without *querying* — importing is fine (above). That is why task 009 extracted `lib/ot-import.ts` as a pure
 function instead of testing the server action, and why 009 has **no** test proving warnings reach
 the database — stage 5's `prisma db push` + seed proves the schema, and nothing proves the write.
 Closing that needs a **second pinned `bun test` pass inside `db_stage`** after push+seed, with

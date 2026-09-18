@@ -19,6 +19,7 @@
 lib/password.test.ts	7	# ใบ 001 · แฮช/ตรวจรหัสผ่าน — เส้นทางเดียวของ auth ทั้งระบบ
 lib/parser.test.ts	13	# ใบ 001 · ตัวอ่านชีต (16 เทส skip 3 ที่ต้องมีไฟล์จริง)
 lib/onboard.test.ts	4	# ใบ 001 · พนักงานใหม่เข้าระบบ — จุดที่คาบสอนกำพร้าเกิดได้
-lib/payroll.test.ts	24	# ใบ 001 · สูตรเงินเดือนทั้งชุด (§1.2–§2.4) — เงินของคนจริง (+2 เตือนคอม ใบ 009 · +1 OT ทศนิยมยาว/ปัดครั้งเดียว ใบ 009)
+lib/payroll.test.ts	26	# ใบ 001 · สูตรเงินเดือนทั้งชุด (§1.2–§2.4) — เงินของคนจริง (+2 เตือนคอม ใบ 009 · +1 OT ทศนิยมยาว/ปัดครั้งเดียว ใบ 009 · +2 inactive staff warn-but-never-rezero, ใบ 013)
 lib/ot-import.test.ts	6	# ใบ 009 · แยกชื่อที่จับคู่ไม่ได้/ชั่วโมงที่ไม่ใช่ตัวเลข ออกจากไฟล์สแกนนิ้ว — ชั่วโมงที่หายเงียบ กับ NaN ที่ทำให้ทั้งสลิปเป็น NaN
 lib/next-errors.test.ts	6	# ใบ 009 · แยก redirect() ของ Next ออกจาก error จริง — ยามของ catch ใน server action ที่ /ot
+lib/payroll-run.test.ts	4	# ใบ 013 · the run loop's pure decisions — the non-draft guard's predicate and wording, the two refusals staying distinguishable, and the period's staff scope (active · already holds a slip · did payable work in it). 5→4 in the same round it was added: the two scope tests merged into one whole-object comparison that pins strictly more (arm count, order, OR-not-AND, every period binding) — coverage merged, not removed (§7 'the expensive unit is the fixture'). No DB in bun test ⇒ the lock itself is reviewed, not pinned; see the file header.

@@ -7,6 +7,11 @@ export type StaffInput = {
   rank: string | null; // ST | CT | PT
   baseSalary: number;
   classCredit: number;
+  /**
+   * Still employed. Read **only** to raise a warning — deactivation is an HR fact, not a rate, so
+   * it may not move a single baht. See the first warning in `computePayslip` (task 013 item 3).
+   */
+  active: boolean;
 };
 
 export type SessionInput = { date: Date; activity: string };
@@ -73,6 +78,21 @@ export function computePayslip(input: {
   const { staff, sessions, classSessions, sales, otEntries, config, teachRates } = input;
   const lines: Line[] = [];
   const warnings: string[] = [];
+
+  // 0 ── A deactivated staff member still has this period owed to them — `runPayroll` selects them
+  // when a slip exists or when they did payable work in it (task 013 item 3). Emitted first because
+  // it qualifies the whole slip rather than one line of it, and worded to cover both routes in.
+  //
+  // 🔴 It changes **no amount**, and that is exactly why it has to name the risk. `base` below is a
+  // full period of `baseSalary` — this engine has no pro-rating for anybody — so a leaver's slip
+  // carries a whole month of base whether they worked one day of it or twenty. Whether that is
+  // right is the owner's call, not the engine's: §2 rule 4 says the undecidable reaches the screen,
+  // and both silent alternatives are worse than saying it (paying 0 "because they are inactive" is
+  // the silent zero the rule forbids; inventing a daily rate is a literal in a formula, §2 rule 3).
+  if (!staff.active)
+    warnings.push(
+      "พนักงานถูกปิดการใช้งานแล้ว แต่ยังมีงวดนี้ค้างอยู่ — ฐานเงินเดือนคิดเต็มงวด ไม่ได้หารตามสัดส่วนวันที่ทำงานจริง ⇒ ตรวจยอดก่อนอนุมัติ",
+    );
 
   // 1 ── ฐานเงินเดือน
   const base = staff.baseSalary;
