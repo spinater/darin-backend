@@ -1,10 +1,16 @@
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { normalizeTrainer } from "@/lib/normalize";
 import { hashPassword, MIN_PASSWORD_LEN } from "@/lib/password";
+import { finiteNumber, isBlank, INT_COLUMN_MAX } from "@/lib/form-number";
+import { parseConfigNumbers, numericKind } from "@/lib/config-form";
 import { SubmitButton } from "@/app/_components/submit-button";
 import { ActionProgress } from "@/app/_components/action-progress";
+import { AddStaffForm } from "./_components/add-staff-form";
+import { SaveNotice } from "./_components/save-notice";
+import { SheetMappingSections } from "./_components/sheet-mapping";
 import { timed } from "@/lib/job-timing";
 
 export const dynamic = "force-dynamic";
@@ -12,8 +18,15 @@ export const dynamic = "force-dynamic";
 const RANKS = ["PT", "CT", "ST"];
 const ROLES = ["trainer", "counter", "admin", "owner"];
 
-export default async function ConfigPage() {
+export default async function ConfigPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ err?: string }>;
+}) {
   await requireAdmin();
+  // `err` is a **flag**, never the message — the copy lives in `_components/save-notice.tsx` and in
+  // the add-staff form, and nothing the URL carries is rendered (§2.5, `/ot` precedent).
+  const { err } = await searchParams;
 
   const [configs, rates, classes, staff, aliases, sources, colors, saveTime] = await Promise.all([
     db.payrollConfig.findMany({ orderBy: { key: "asc" } }),
@@ -31,39 +44,84 @@ export default async function ConfigPage() {
   async function save(formData: FormData) {
     "use server";
     await requireAdmin();
+
+    // 🔴 **Everything is parsed before anything is written** — `parseConfigNumbers` in
+    // `lib/config-form.ts` carries the reasoning and the tests. `kind` is a closed set, so it is a
+    // safe URL flag, and the refusal reaches the admin as words this file owns.
+    const parsed = parseConfigNumbers(formData.entries());
+    if (!parsed.ok) redirect(`/admin/config?err=${parsed.kind}`);
+    // The parse refused every invalid numeric field, so a miss here is unreachable — this throw is
+    // a type guard that keeps the write loop free of `!`, not error handling.
+    const checked = (k: string) => {
+      const n = parsed.values.get(k);
+      if (n === undefined) throw new Error(`unvalidated numeric field: ${k}`);
+      return n;
+    };
+
     // ฟอร์มนี้บันทึกทีเดียวหลายสิบช่อง = อัปเดต DB เรียงกันหลายสิบครั้ง
     // จดเวลาไว้ ถ้าวันหลังพนักงาน/คลาสเยอะจนช้า ผู้ใช้จะได้เห็นเวลาโดยไม่ต้องแก้โค้ด
-    await timed("config-save", async () => {
-      for (const [k, v] of formData.entries()) {
-        const val = String(v).trim();
-        const [kind, ...rest] = k.split("|");
+    //
+    // 🔴 **One transaction around the loop**, so "ยังไม่ได้บันทึกอะไรเลยสักช่อง" stays true for a
+    // failure *during* the writes and not only for a bad field found before them. Unlike
+    // `runPayroll` — which must never wrap its whole period, because the work per staff member is
+    // unbounded — this loop is bounded by the size of the form: ~65 round-trips for today's 18
+    // config keys, 9 rates, 13 class prices, 7 staff and 4 sheets, which at 1–3 ms each sits well
+    // inside the **5 s Prisma applies by default** — no `timeout` is passed here, so that number is
+    // the default and not something this code states. Overrunning it is a **rollback** plus an
+    // error page (P2028), i.e. the same "nothing was saved" the notice promises, minus the notice —
+    // which is why the transaction is what makes a slow save safe. `timed` stays **outside** it:
+    // the duration row is bookkeeping and must not be part of what rolls back.
+    await timed("config-save", () =>
+      db.$transaction(async (tx) => {
+        for (const [k, v] of formData.entries()) {
+          const val = String(v).trim();
+          const [kind, ...rest] = k.split("|");
 
-        if (kind === "cfg")
-          await db.payrollConfig.update({ where: { key: rest[0] }, data: { value: val } });
-        else if (kind === "rate") {
-          const [activity, rank] = rest;
-          if (!val) await db.teachRate.deleteMany({ where: { activity, rank } });
-          else
-            await db.teachRate.upsert({
-              where: { activity_rank: { activity, rank } },
-              update: { rate: Number(val) },
-              create: { activity, rank, rate: Number(val) },
-            });
-        } else if (kind === "class")
-          await db.classPrice.update({ where: { id: rest[0] }, data: { price: Number(val) } });
-        else if (kind === "staff") {
-          const [id, field] = rest;
-          await db.staff.update({
-            where: { id },
-            data: field === "rank" ? { rank: val || null } : { [field]: Number(val) },
-          });
-        } else if (kind === "sheet")
-          await db.sheetSource.update({ where: { id: rest[0] }, data: { spreadsheetId: val } });
-      }
-    });
+          if (kind === "cfg")
+            // Stored as the admin typed it — `PayrollConfig.value` is text, and `parseConfigNumbers`
+            // has already refused anything `num()` could not read back. Writing `String(checked(k))`
+            // instead would quietly renormalise "0.50" to "0.5".
+            await tx.payrollConfig.update({ where: { key: rest[0] }, data: { value: val } });
+          else if (kind === "rate") {
+            const [activity, rank] = rest;
+            if (!val) await tx.teachRate.deleteMany({ where: { activity, rank } });
+            else
+              await tx.teachRate.upsert({
+                where: { activity_rank: { activity, rank } },
+                update: { rate: checked(k) },
+                create: { activity, rank, rate: checked(k) },
+              });
+          } else if (kind === "class")
+            await tx.classPrice.update({ where: { id: rest[0] }, data: { price: checked(k) } });
+          else if (kind === "staff") {
+            const [id, field] = rest;
+            // 🔑 Ask `numericKind` rather than assuming "not rank ⇒ numeric". A posted
+            // `staff|<id>|active` — a field this form never renders — used to reach `checked()`,
+            // which the parse had skipped, and **throw mid-loop**. Ignored now, and the dynamic
+            // Prisma key can only ever be one of the two columns the form actually has.
+            if (field === "rank")
+              await tx.staff.update({ where: { id }, data: { rank: val || null } });
+            else if (numericKind(k))
+              await tx.staff.update({ where: { id }, data: { [field]: checked(k) } });
+          } else if (kind === "sheet")
+            await tx.sheetSource.update({ where: { id: rest[0] }, data: { spreadsheetId: val } });
+        }
+      }),
+    );
     revalidatePath("/admin/config");
+    // Back to the clean URL so a later successful save clears a sticky `err=` — without it the
+    // rejection notice would outlive the field that caused it.
+    redirect("/admin/config");
   }
 
+  /**
+   * 🔴 **Every action on this page that writes ends on the clean URL.** They share one screen with
+   * one `?err=` slot, so an action that only revalidates leaves whatever flag is in the address bar
+   * standing over the thing it just saved: add an activity right after a refused บันทึกทั้งหมด and
+   * `SaveNotice` still says "ยังไม่ได้บันทึกอะไรเลยสักช่อง" above a rate row that now exists. A
+   * notice that outlives its cause is worse than no notice — it is read as the truth about the last
+   * click.
+   */
   async function addActivity(formData: FormData) {
     "use server";
     await requireAdmin();
@@ -76,6 +134,7 @@ export default async function ConfigPage() {
         create: { activity, rank, rate: 0 },
       });
     revalidatePath("/admin/config");
+    redirect("/admin/config");
   }
 
   /**
@@ -91,6 +150,20 @@ export default async function ConfigPage() {
     const role = String(formData.get("role") ?? "trainer");
     if (!name || !username || password.length < MIN_PASSWORD_LEN) return;
 
+    // 🔴 These two become this person's `net` on **every future run**, so an unreadable one refuses
+    // the whole add instead of creating a staff record around a `NaN` that nobody looks at again.
+    // A field left blank keeps the documented default of 0 — the same answer `?? 0` gave before —
+    // but a field that was filled in and cannot be read is a rejection, not a 0.
+    // Same `Int`-column rules the bulk form applies to these two columns (`lib/config-form.ts`):
+    // a fraction is **truncated** by Prisma rather than refused (`15000.5` → `15000`), and an
+    // overflow throws at the write.
+    const INT_COLUMN = { int: true, max: INT_COLUMN_MAX };
+    const baseRaw = formData.get("baseSalary");
+    const creditRaw = formData.get("classCredit");
+    const baseSalary = isBlank(baseRaw) ? 0 : finiteNumber(baseRaw, INT_COLUMN);
+    const classCredit = isBlank(creditRaw) ? 0 : finiteNumber(creditRaw, INT_COLUMN);
+    if (baseSalary === null || classCredit === null) redirect("/admin/config?err=newstaff");
+
     const created = await db.staff.create({
       data: {
         name,
@@ -98,8 +171,8 @@ export default async function ConfigPage() {
         passwordHash: await hashPassword(password),
         role,
         rank: role === "trainer" ? String(formData.get("rank") ?? "PT") : null,
-        baseSalary: Number(formData.get("baseSalary") ?? 0),
-        classCredit: Number(formData.get("classCredit") ?? 0),
+        baseSalary,
+        classCredit,
       },
     });
 
@@ -115,6 +188,12 @@ export default async function ConfigPage() {
         });
     }
     revalidatePath("/admin/config");
+    // 🔴 Not optional here. Refused → admin fixes the field → submits again → the `create`
+    // **succeeds** while `?err=newstaff` is still in the address bar, so "ยังไม่ได้เพิ่มพนักงานคนนี้"
+    // renders over a staff member who now exists ⇒ they add the person a second time. Two active
+    // `Staff` rows for one human, the alias follows the newer one, and the orphan draws its
+    // `baseSalary` in every run with no sessions to make it look wrong.
+    redirect("/admin/config");
   }
 
   async function toggleActive(formData: FormData) {
@@ -126,6 +205,7 @@ export default async function ConfigPage() {
     // ลาออก/พักงาน → เตะออกจากระบบ แต่คาบสอนเก่ายังอยู่ครบ (สลิปย้อนหลังยังตรวจได้)
     if (target.active) await db.session.deleteMany({ where: { staffId: id } });
     revalidatePath("/admin/config");
+    redirect("/admin/config");
   }
 
   async function addAlias(formData: FormData) {
@@ -140,6 +220,7 @@ export default async function ConfigPage() {
       create: { alias, staffId },
     });
     revalidatePath("/admin/config");
+    redirect("/admin/config");
   }
 
   async function addColor(formData: FormData) {
@@ -156,6 +237,7 @@ export default async function ConfigPage() {
       create: { hex, meaning, note: String(formData.get("note") ?? "") },
     });
     revalidatePath("/admin/config");
+    redirect("/admin/config");
   }
 
   return (
@@ -164,6 +246,10 @@ export default async function ConfigPage() {
       <p className="text-xs text-neutral-500">
         ทุกค่าในหน้านี้คือค่าที่ engine ใช้จริง — ไม่มีตัวเลขไหน hardcode ในโค้ด
       </p>
+
+      {/* At the top, not beside the field: the refused field can be in any of four sections, the
+          form fills the whole screen, and the page reloads at the top after the refusal. */}
+      <SaveNotice err={err} />
 
       <form action={save} className="flex flex-col gap-6">
         <section className="card">
@@ -336,127 +422,15 @@ export default async function ConfigPage() {
         </form>
       </section>
 
-      <section className="card">
-        <h2 className="mb-2 font-medium">เพิ่มพนักงานใหม่</h2>
-        <p className="mb-2 text-xs text-neutral-500">
-          ใส่ <b>ชื่อที่ใช้จดในชีต</b> ให้ตรงด้วย แล้วกด Sync อีกครั้ง → คาบเก่าที่ค้างอยู่เพราะ
-          &quot;ไม่รู้จักเทรนเนอร์&quot; จะถูกจับคู่ให้อัตโนมัติ ไม่ต้องไล่แก้ทีละอัน
-        </p>
-        <form action={addStaff} className="grid gap-2 md:grid-cols-4">
-          <label className="flex flex-col gap-1 text-xs text-neutral-500">
-            ชื่อ
-            <input name="name" required className="input" />
-          </label>
-          <label className="flex flex-col gap-1 text-xs text-neutral-500">
-            ชื่อผู้ใช้ (ล็อกอิน)
-            <input name="username" required className="input" />
-          </label>
-          <label className="flex flex-col gap-1 text-xs text-neutral-500">
-            รหัสผ่านตั้งต้น (≥{MIN_PASSWORD_LEN} ตัว)
-            <input
-              name="password"
-              type="password"
-              required
-              minLength={MIN_PASSWORD_LEN}
-              className="input"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs text-neutral-500">
-            บทบาท
-            <select name="role" className="input">
-              {ROLES.map((r) => (
-                <option key={r}>{r}</option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1 text-xs text-neutral-500">
-            ระดับ (เฉพาะเทรนเนอร์)
-            <select name="rank" className="input">
-              {RANKS.map((r) => (
-                <option key={r}>{r}</option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1 text-xs text-neutral-500">
-            ฐานเงินเดือน
-            <input name="baseSalary" type="number" defaultValue={10000} className="input" />
-          </label>
-          <label className="flex flex-col gap-1 text-xs text-neutral-500">
-            เครดิตสอนคลาส
-            <input name="classCredit" type="number" defaultValue={5000} className="input" />
-          </label>
-          <label className="flex flex-col gap-1 text-xs text-neutral-500">
-            ชื่อที่ใช้จดในชีต (เว้นว่าง = ใช้ชื่อด้านบน)
-            <input name="sheetName" placeholder='เช่น "PT ต้น"' className="input" />
-          </label>
-          <SubmitButton
-            className="btn md:col-span-4 md:justify-self-start"
-            pendingLabel="กำลังเพิ่มพนักงาน…"
-          >
-            เพิ่มพนักงาน
-          </SubmitButton>
-        </form>
-      </section>
+      <AddStaffForm action={addStaff} ranks={RANKS} roles={ROLES} rejected={err === "newstaff"} />
 
-      <section className="card">
-        <h2 className="mb-2 font-medium">ชื่อเทรนเนอร์ในชีต → พนักงาน</h2>
-        <p className="mb-2 text-xs text-neutral-500">
-          ชีต PT สะกดชื่อ 21 แบบสำหรับคน ~5 คน — ระบบ normalize (ตัดช่องว่าง/prefix PT/พี่)
-          แล้วจับคู่ที่นี่
-        </p>
-        <div className="mb-2 flex flex-wrap gap-1">
-          {aliases.map((a) => (
-            <span key={a.alias} className="rounded bg-neutral-100 px-2 py-0.5 text-xs">
-              {a.alias} → {a.staff.name}
-            </span>
-          ))}
-        </div>
-        <form action={addAlias} className="flex gap-2">
-          <input name="alias" placeholder='ชื่อในชีต เช่น "PT มิกซ์"' className="input" />
-          <select name="staffId" className="input">
-            <option value="">— พนักงาน —</option>
-            {staff.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-          <SubmitButton className="btn-ghost" pendingLabel="กำลังเพิ่ม…">
-            เพิ่ม
-          </SubmitButton>
-        </form>
-      </section>
-
-      <section className="card">
-        <h2 className="mb-2 font-medium">สีในชีต → ความหมาย</h2>
-        <p className="mb-2 text-xs text-neutral-500">
-          ชีตใช้สีพื้น 28–41 แบบ ถ้าสีไหนแปลว่า &quot;ยกเลิก/ไม่จ่าย&quot; ต้องตั้งที่นี่
-          ไม่งั้นระบบจะจ่ายให้ทุกสี
-        </p>
-        <div className="mb-2 flex flex-wrap gap-1">
-          {colors.map((c) => (
-            <span
-              key={c.hex}
-              className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-0.5 text-xs"
-            >
-              <span className="size-3 rounded-sm border" style={{ background: c.hex }} />
-              {c.hex} → {c.meaning}
-            </span>
-          ))}
-        </div>
-        <form action={addColor} className="flex gap-2">
-          <input name="hex" placeholder="#b6d7a8" className="input w-32 font-mono" />
-          <select name="meaning" className="input">
-            <option value="pay">จ่ายปกติ</option>
-            <option value="skip">ไม่จ่าย (ข้าม)</option>
-            <option value="review">ให้คนตรวจ</option>
-          </select>
-          <input name="note" placeholder="หมายเหตุ" className="input" />
-          <SubmitButton className="btn-ghost" pendingLabel="กำลังเพิ่ม…">
-            เพิ่ม
-          </SubmitButton>
-        </form>
-      </section>
+      <SheetMappingSections
+        aliases={aliases}
+        colors={colors}
+        staff={staff}
+        addAlias={addAlias}
+        addColor={addColor}
+      />
     </div>
   );
 }

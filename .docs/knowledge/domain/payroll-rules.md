@@ -36,7 +36,10 @@ sources:
 
 1. **ทุกเรท/เกณฑ์/% อยู่ที่ `lib/config-keys.ts` ที่เดียว — ห้าม literal ในสูตร**
    ค่าใน `CONFIG_DEFAULTS` ใช้ **ตอน seed เท่านั้น**; runtime อ่านจากตาราง `PayrollConfig` เสมอ
-   ⇒ เจ้าของแก้เรทเองได้จากหน้า `/admin/config` โดยไม่ต้อง deploy
+   ⇒ เจ้าของแก้เรทเองได้จากหน้า `/admin/config` โดยไม่ต้อง deploy · 🔴 **ใบ 013 item 4: `num()` ต้อง
+   throw เมื่อค่าว่าง/ไม่ finite** — เดิมเช็คแค่ `Number.isNaN` ⇒ `""` อ่านเป็น **0** เงียบ ๆ (วัดจริง: ล้าง
+   `comm.pt.selfClosed` = คอม **0 ฿** แทน 2,000 ฿ บนบิล 20,000 ฿ · ล้าง `incentive.threshold` = 12%
+   ย้อนหลังเข้าทุกคนทุกเดือน · ทั้งคู่ `warnings: []`) · ฝั่งเขียน: [money-input-guards.md](money-input-guards.md)
 2. **`computePayslip` เป็น pure function** — ไม่แตะ DB ไม่อ่าน env ไม่อ่านนาฬิกา
    ⇒ เทสทุกใบใน `lib/payroll.test.ts` เป็นการเทียบตัวเลขตรง ๆ ไม่ต้องมีฐานข้อมูล · **ห้ามย้าย
    การอ่าน config เข้ามาในนี้** ตัวเรียก (`lib/payroll-run.ts`) เป็นคนโหลดมาส่งให้
@@ -110,18 +113,17 @@ sources:
      "ขึ้นเตือนในสลิป".
    - The same shape elsewhere has **different lifetimes and therefore different homes**: the OT
      paste's rejected lines live one submission (returned by the action, `lib/ot-import.ts` —
-     `unmatched` for a username nobody has, `invalidHours` for an hours field that is not a finite
+     `unmatched` for a username nobody has, `invalidHours` for an hours field that is not a usable
      number), and a sheet whose grid did not arrive lives one sync run (`SyncResult.missingGrid`).
      Neither belongs in `PayslipWarning`.
    - 🔴 **`invalidHours` exists because `NaN` is not a loud failure.** `OtEntry.hours` is a `Float`
      ⇒ `double precision`, which **accepts `NaN`**; one bad character would write it, and §2.4's
      `Math.max(0, NaN − threshold)` turns that staff member's `otPay`, `net` and whole month into
      `NaN`. Rejecting it at the parser makes the outcome the same whatever the driver does.
-     ⇒ **every write path into `OtEntry.hours` carries that guard, not just the paste.** The one-row
-     add form on `/ot` rejects a non-string or non-finite field in its own action and reports it
-     (`?err=hours`); `type="number" required` is a client hint and a server action is a plain HTTP
-     endpoint, where an absent field is `Number(null) === 0` — a recorded 12.5 h overwritten by a
-     zero, which is this rule failing in the other direction.
+     ⇒ **every write path into `OtEntry.hours` carries that guard, not just the paste** — task 013
+     put the one-row form, the paste parser and four more money-writing actions on one predicate,
+     `finiteNumber` (`lib/form-number.ts`), which also refuses a **negative** value (`-5` stored, then
+     paid nothing). Per-site rules and the shared `?err=` surface: [money-input-guards.md](money-input-guards.md).
 4. **ปัดเศษที่เดียว** — `money()` ปัดทศนิยม 2 ตำแหน่ง · ห้ามปัดกลางทางแล้วปัดซ้ำ
 
    **No screen computes money (task 011 — linus's ruling, option 1).** `/ot` and `/classes` used to

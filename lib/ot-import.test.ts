@@ -65,6 +65,25 @@ describe("parseOtPaste (task 009)", () => {
     expect(invalidHours[1]).toContain("Nok");
   });
 
+  // 🔴 Task 013 item 4: the *negative* case, added when `/ot`'s one-row form started refusing it.
+  // `-5` is the quiet one — it is finite, so the old `Number.isFinite` check passed it through, it
+  // stored, and `Math.max(0, -5 - threshold)` then paid nothing. The paste is how OT actually
+  // arrives, so this was the open door of the two.
+  test("a negative hours value NEVER reaches rows either — same bucket, not a silent 0", () => {
+    const { rows, invalidHours } = parseOtPaste(
+      [
+        "somchai\t2026-07-01\t-5",
+        "Nok,2026-07-02,-0.25",
+        "somchai\t2026-07-03\t0", // a real zero somebody typed still lands
+      ].join("\n"),
+      staff,
+    );
+    expect(rows).toEqual([{ staffId: "s1", date: new Date("2026-07-03T00:00:00Z"), hours: 0 }]);
+    expect(invalidHours).toHaveLength(2);
+    expect(invalidHours[0]).toContain("-5");
+    expect(invalidHours[1]).toContain("Nok");
+  });
+
   test("unmatched is deduplicated by the normalized key, keeping the first spelling", () => {
     // A month of scans repeats one bad username daily; 20 identical bullets bury the real count.
     const { unmatched } = parseOtPaste(

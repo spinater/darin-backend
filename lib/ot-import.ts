@@ -10,6 +10,8 @@
  * instead of dropping them on the floor (CLAUDE.md §2 rule 4, task 009).
  */
 
+import { finiteNumber } from "./form-number";
+
 /** One OT row the caller writes. `date` is UTC midnight, matching `OtEntry`'s `@@unique([staffId, date])`. */
 export type OtImportRow = { staffId: string; date: Date; hours: number };
 
@@ -23,8 +25,8 @@ export type OtImportParse = {
    */
   unmatched: string[];
   /**
-   * Lines whose username matched but whose hours field is not a finite number (`แปด`, `Infinity`,
-   * a stray unit). Their hours are NOT in `rows`.
+   * Lines whose username matched but whose hours field is not a usable number — not finite
+   * (`แปด`, `Infinity`, a stray unit) **or negative**. Their hours are NOT in `rows`.
    *
    * 🔴 **Why this is a bucket and not "it fails loudly at the DB write".** `OtEntry.hours` is a
    * `Float` ⇒ PostgreSQL `double precision`, which **accepts `NaN`**. A single bad character
@@ -32,6 +34,11 @@ export type OtImportParse = {
    * that staff member's `otPay`, `net` and whole payslip for the month become `NaN` — one
    * character silently voiding one person's pay. Rejecting it here makes the outcome the same
    * whether or not the driver happens to refuse it (CLAUDE.md §2 rule 4).
+   *
+   * **The negative case joined at task 013 item 4**, and the asymmetry is the reason: the one-row
+   * form on `/ot` refuses `-5` through `finiteNumber`, so a paste that still accepted it left the
+   * open door on the path OT actually arrives by. `-5` is not loud — it stores, and
+   * `Math.max(0, -5 - threshold)` pays nothing. Same predicate, same bucket, same box on screen.
    *
    * Not deduplicated: unlike a misspelt username, a bad hours value is per-line, and the operator
    * needs each line to go and fix it. An `Invalid Date` is deliberately **not** routed here — it
@@ -52,7 +59,7 @@ export type OtImportParse = {
 export type OtImportState = {
   imported: number;
   unmatched: string[];
-  /** Lines rejected for a non-finite hours value — same lifetime and same reason as `unmatched`. */
+  /** Lines rejected for an unusable hours value — same lifetime and same reason as `unmatched`. */
   invalidHours: string[];
   /** Thai, user-facing. The raw cause is logged server-side — see `app/ot/page.tsx`. */
   error: string | null;
@@ -68,8 +75,8 @@ export const otUsernameKey = (username: string) => username.trim().toLowerCase()
  * end of every paste, and a header row, neither of which is money going missing.
  *
  * ⚠️ A line whose **date** is present but unparseable still reaches `rows` (`Invalid Date`) and
- * fails at the DB write — kept identical to the pre-009 behaviour, and owned by task 014. A
- * non-finite **hours** value is different in kind and does not get that treatment: see
+ * fails at the DB write — kept identical to the pre-009 behaviour, and owned by task 014. An
+ * unusable **hours** value is different in kind and does not get that treatment: see
  * `invalidHours` above.
  */
 export function parseOtPaste(text: string, byUsername: Map<string, string>): OtImportParse {
@@ -94,8 +101,12 @@ export function parseOtPaste(text: string, byUsername: Map<string, string>): OtI
 
     // Checked *after* the username lookup on purpose: a line that is wrong in both ways is one
     // problem to the operator, and the name is the fix that also recovers the other days.
-    const value = Number(hours);
-    if (!Number.isFinite(value)) {
+    //
+    // `finiteNumber` is the shared predicate the five write actions use (`lib/form-number.ts`), so
+    // the paste and the one-row form refuse exactly the same set — including a negative value,
+    // which is the one this path used to let through.
+    const value = finiteNumber(hours);
+    if (value === null) {
       invalidHours.push(`${user} ${date} → "${hours}"`);
       continue;
     }

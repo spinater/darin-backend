@@ -27,11 +27,34 @@ export type ConfigKey = keyof typeof CONFIG_DEFAULTS;
 
 export type Config = Record<string, string>;
 
+/**
+ * Read one configured number, or **throw**.
+ *
+ * 🔴 The throw is the feature (task 013 item 4). Every rate, threshold and percentage the engine
+ * has comes through here, and until this round two inputs walked straight past the guard:
+ *
+ *   • `""` / `"   "` — `Number("")` is **0**. `/admin/config`'s config boxes are plain text fields
+ *     with no `required`, so clearing one and pressing บันทึกทั้งหมด stored a blank. Measured
+ *     through `computePayslip`: a cleared `comm.pt.selfClosed` pays **0 ฿** instead of 2,000 ฿ on a
+ *     20,000 ฿ self-closed bill; a cleared `incentive.threshold` makes `total >= 0` true for
+ *     everybody, so §1.6's retroactive 12% fires for every trainer every month; a cleared
+ *     `ot.ratePerHour` zeroes OT. Every one of them with `warnings: []` — the silent zero CLAUDE.md
+ *     §2 rule 4 exists to forbid, at the single point where it multiplies across every payslip.
+ *   • `"1e999"` — `Infinity`, which `Number.isNaN` says nothing about and which turns a payslip
+ *     into `Infinity`/`NaN` rather than failing.
+ *
+ * A blank is **not** a zero and is not a missing key either: the key exists and the value was
+ * erased, which is a different mistake to report. The write path refuses both now
+ * (`lib/config-form.ts`), and this refuses them again at read time, because a value can also arrive
+ * by seed or by hand in the database.
+ */
 export function num(cfg: Config, key: ConfigKey): number {
   const raw = cfg[key];
   if (raw == null) throw new Error(`ไม่พบ config: ${key}`);
+  if (raw.trim() === "")
+    throw new Error(`config ${key} ถูกเว้นว่างไว้ — ต้องตั้งค่าก่อนคิดเงินเดือน`);
   const n = Number(raw);
-  if (Number.isNaN(n)) throw new Error(`config ${key} ไม่ใช่ตัวเลข: ${raw}`);
+  if (!Number.isFinite(n)) throw new Error(`config ${key} ไม่ใช่ตัวเลข: ${raw}`);
   return n;
 }
 

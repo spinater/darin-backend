@@ -6,6 +6,7 @@ import { periodRange } from "@/lib/payroll-run";
 import { parseOtPaste, otUsernameKey, type OtImportRow, type OtImportState } from "@/lib/ot-import";
 import { num, type Config } from "@/lib/config-keys";
 import { isNextControlFlowError } from "@/lib/next-errors";
+import { finiteNumber } from "@/lib/form-number";
 import { SubmitButton } from "@/app/_components/submit-button";
 import { PasteForm } from "./_components/paste-form";
 import { timed } from "@/lib/job-timing";
@@ -68,19 +69,19 @@ export default async function OtPage({
     const staffId = String(formData.get("staffId"));
     const date = new Date(String(formData.get("date")) + "T00:00:00Z");
 
-    // 🔴 `type="number" step="0.25" required` is a *client* hint; a server action is a plain HTTP
-    // endpoint, so `hours` arrives as anything or not at all — and both ways it stays silent:
-    //   • absent field ⇒ `Number(null)` is **0**, and `update: { hours }` overwrites a recorded
-    //     12.5 h with a zero nobody is told about (CLAUDE.md §2 rule 4 — the undecidable becoming
-    //     a zero is the exact failure this repo pays the most for);
-    //   • a `File` part or `"1e999"` ⇒ `NaN`/`Infinity`, and `OtEntry.hours` is a `Float` ⇒
-    //     `double precision`, which **accepts `NaN`** ⇒ §2.4's `Math.max(0, NaN − threshold)`
-    //     carries it into `otPay`, `net`, the stored `Payslip.net` and the period total.
+    // 🔴 `type="number" step="0.25" min={0} required` is a *client* hint; a server action is a
+    // plain HTTP endpoint, so `hours` arrives as anything or not at all, and every wrong shape is
+    // silent. `finiteNumber` is the one home for that predicate (`lib/form-number.ts` — it carries
+    // the full list of what `Number()` answers quietly) and is used by the four other actions that
+    // write a figure which becomes money.
     // Same hazard `parseOtPaste` routes to `invalidHours`; this is that bucket for the one-row
     // form. Rejected **before** the write and reported — never a silent `return`.
-    const raw = formData.get("hours");
-    const hours = typeof raw === "string" ? Number(raw) : NaN;
-    if (!Number.isFinite(hours)) redirect(`/ot?period=${encodeURIComponent(period)}&err=hours`);
+    //
+    // Task 013 widened it by one case the inline `Number.isFinite` check let through: a *negative
+    // finite* value. `-5` stored, rendered, and then computed to nothing through
+    // `Math.max(0, -5 − threshold)`. `finiteNumber`'s default floor of 0 is the whole fix.
+    const hours = finiteNumber(formData.get("hours"));
+    if (hours === null) redirect(`/ot?period=${encodeURIComponent(period)}&err=hours`);
 
     await db.otEntry.upsert({
       where: { staffId_date: { staffId, date } },
@@ -215,11 +216,13 @@ export default async function OtPage({
       </form>
 
       {/* Same wording as the paste form's `invalidHours` box, one row instead of a list: the
-          hours field was not a number, so nothing was written. */}
+          hours field was not a usable number, so nothing was written. “หรือติดลบ” joined it at
+          task 013 — a negative value is refused by the same guard now, and a notice that names
+          only “ไม่ใช่ตัวเลข” sends the admin looking for a typo that is not there. */}
       {err === "hours" && (
         <p className="card-warn text-sm">
-          คำเตือน — ชั่วโมงไม่ใช่ตัวเลข รายการนี้ยังไม่ถูกบันทึก ตรวจช่อง “ชั่วโมงทำงานวันนั้น”
-          แล้วบันทึกอีกครั้ง
+          คำเตือน — ชั่วโมงไม่ใช่ตัวเลข หรือติดลบ รายการนี้ยังไม่ถูกบันทึก ตรวจช่อง
+          “ชั่วโมงทำงานวันนั้น” แล้วบันทึกอีกครั้ง
         </p>
       )}
 

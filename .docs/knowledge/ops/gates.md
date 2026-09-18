@@ -116,7 +116,10 @@ file's own header; task 009 raised `lib/payroll.test.ts` 21 → **24** and added
 `lib/ot-import.test.ts` at **6** and `lib/next-errors.test.ts` at **6**; task 013 raised
 `lib/payroll.test.ts` to **26** and added `lib/payroll-run.test.ts` at **4** (5 → 4 inside that
 same round: two scope tests merged into one whole-object comparison pinning strictly more — a
-merge, not a removal). What each raise bought:
+merge, not a removal), and item 4 of the same card added `lib/form-number.test.ts` at **11** and
+`lib/config-form.test.ts` at **7** and raised `lib/ot-import.test.ts` 6 → **7**; its review round
+then raised all three again — `lib/form-number.test.ts` → **13**, `lib/config-form.test.ts` → **12**
+and `lib/payroll.test.ts` 26 → **30**. What each raise bought:
 
 | Pin | Raise | What it is worth |
 | --- | --- | --- |
@@ -127,6 +130,12 @@ merge, not a removal). What each raise bought:
 | `lib/next-errors.test.ts` | new at 6 | telling a thrown `redirect()` apart from a real error, so the `/ot` action's `catch` cannot swallow navigation |
 | `lib/payroll.test.ts` | 24 → 26 | task 013 item 3 — an inactive staff member's slip **warns and changes no figure**; the second test compares the whole result against the same input with `active: true`, so a later "pay them 0" is red |
 | `lib/payroll-run.test.ts` | new at 4 | task 013 items 1 and 3 as *predicates*: the non-draft guard's wording and refuse-by-default shape, the two refusals staying distinguishable **in the returned `skipped` list** (no screen renders them — the `compute` action discards `runPayroll`'s return, and what the admin sees is the state-derived `closedCount` box and the `— (ไม่ได้คำนวณใหม่)` marker), and the six-arm staff scope including the leaver arms. **Not** the lock itself — the `count === 0` branch needs two concurrent sessions — and **not** that the leaver arms return a row, which needs a real Postgres; see the row below |
+| `lib/form-number.test.ts` | new at 11 | the one predicate every form field that becomes money goes through — absent, blank, a `File` part, `"1e999"` and a negative value each refused, plus `isBlank` keeping a `File` **out** of the "not given" bucket instead of letting it take the field's default |
+| `lib/config-form.test.ts` | new at 7 | `/admin/config`'s bulk save parsed **all-or-nothing** before its first write: a blank rate still deletes that rate, a blank salary refuses, and one bad field refuses the whole save — which is exactly what the screen promises the admin ("ยังไม่ได้บันทึกอะไรเลยสักช่อง") |
+| `lib/ot-import.test.ts` | 6 → 7 | the **negative** hours value the `isFinite` check let through — it is finite, so it stored and then paid nothing through `Math.max(0, -5 − threshold)`. Pinned because the form had just started refusing it and the paste is the path OT actually arrives by |
+| `lib/form-number.test.ts` | 11 → 13 | `int` and `max`. Measured against this schema: Postgres `integer` **truncates** `2.5` to `2` rather than refusing it (`booked`, `baseSalary`, `ClassPrice.price` all), and an out-of-range value throws **at the write**, mid-loop. Both are now refused before the first write |
+| `lib/config-form.test.ts` | 7 → 12 | `cfg\|…` joining the parse — the largest hole of the five, since those boxes are plain text with no `required` and a cleared one stored `""`; plus the `Int` ceiling, the fraction that used to be pinned as *valid*, and a `staff\|…` field the form does not render (which used to throw mid-loop) |
+| `lib/payroll.test.ts` | 26 → 30 | `num()` throwing on a blank or non-finite config value, pinned at the engine rather than at the form — including the 20,000 ฿ self-closed bill that paid **0 ฿** instead of 2,000 ฿ with `warnings: []` when `comm.pt.selfClosed` was cleared |
 
 **Every row is a raise**; only a lowering needs a reason in the task card.
 

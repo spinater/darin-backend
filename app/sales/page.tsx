@@ -1,6 +1,8 @@
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { finiteNumber, isBlank } from "@/lib/form-number";
 import { SubmitButton } from "@/app/_components/submit-button";
 
 export const dynamic = "force-dynamic";
@@ -21,10 +23,14 @@ const ROLES = [
 export default async function SalesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ period?: string }>;
+  searchParams: Promise<{ period?: string; err?: string }>;
 }) {
   await requireRole("owner", "admin", "counter");
-  const period = (await searchParams).period ?? new Date().toISOString().slice(0, 7);
+  // `err` is a **flag**, never the message — same precedent as `/ot` and `/payslips`: the Thai copy
+  // lives in this file (§2.5) and nothing the URL carries is rendered, so a crafted link cannot put
+  // words on a counter staff member's screen.
+  const { period: periodParam, err } = await searchParams;
+  const period = periodParam ?? new Date().toISOString().slice(0, 7);
 
   const [sales, staff] = await Promise.all([
     db.sale.findMany({
@@ -47,7 +53,22 @@ export default async function SalesPage({
   async function add(formData: FormData) {
     "use server";
     await requireRole("owner", "admin", "counter");
-    const listPrice = String(formData.get("listPrice") ?? "").trim();
+
+    // 🔴 Both prices go through `finiteNumber` (`lib/form-number.ts`), never `Number()`: this form
+    // is the only source of the commission base, so an absent field's silent `0` or a `File`
+    // part's `NaN` reaches `Sale.netPrice` → every commission, the incentive threshold and the
+    // period total on `/payslips` (CLAUDE.md §2 rule 4). Refused before the write, said on screen.
+    const netPrice = finiteNumber(formData.get("netPrice"));
+    if (netPrice === null) redirect(`/sales?period=${encodeURIComponent(period)}&err=netPrice`);
+
+    // ราคาเต็ม is genuinely optional — "ไม่ใส่ราคาเต็ม = ถือว่าขายเต็มราคา" is printed under the
+    // form — so absent-or-blank stays `null` and is not an error. Anything else that is not a
+    // non-negative finite number is **refused**, never quietly demoted to "no list price": that
+    // demotion turns a promo sale into a full-price one and changes the commission rate with it.
+    const listRaw = formData.get("listPrice");
+    const listPrice = isBlank(listRaw) ? null : finiteNumber(listRaw);
+    if (listPrice === null && !isBlank(listRaw))
+      redirect(`/sales?period=${encodeURIComponent(period)}&err=listPrice`);
 
     const attributions = ROLES.flatMap(([role]) => {
       const id = String(formData.get(role) ?? "");
@@ -60,13 +81,16 @@ export default async function SalesPage({
         kind: String(formData.get("kind")),
         tier: String(formData.get("tier") ?? "") || null,
         productName: String(formData.get("productName")),
-        listPrice: listPrice ? Number(listPrice) : null,
-        netPrice: Number(formData.get("netPrice")),
+        listPrice,
+        netPrice,
         note: String(formData.get("note") ?? "") || null,
         attributions: { create: attributions },
       },
     });
     revalidatePath("/sales");
+    // Back to the clean URL so a later successful save clears a sticky `err=` — without it the
+    // rejection notice would outlive the bill that caused it.
+    redirect(`/sales?period=${encodeURIComponent(period)}`);
   }
 
   async function del(formData: FormData) {
@@ -74,6 +98,9 @@ export default async function SalesPage({
     await requireRole("owner", "admin");
     await db.sale.delete({ where: { id: String(formData.get("id")) } });
     revalidatePath("/sales");
+    // Clean URL like `add`: deleting a bill while `?err=netPrice` is in the address bar would leave
+    // "บิลนี้ยังไม่ถูกบันทึก" standing over a delete that did happen.
+    redirect(`/sales?period=${encodeURIComponent(period)}`);
   }
 
   return (
@@ -140,6 +167,22 @@ export default async function SalesPage({
           บันทึกบิล
         </SubmitButton>
       </form>
+
+      {/* One flag per refused field, so the notice can name the field without ever rendering
+          anything the URL carried. Both say the same two things `/ot` says: what was refused, and
+          that **nothing was saved** — a bill the counter believes is in is the failure mode here. */}
+      {err === "netPrice" && (
+        <p className="card-warn text-sm">
+          ⚠️ ราคาจ่ายจริงไม่ใช่ตัวเลข หรือติดลบ — <b>บิลนี้ยังไม่ถูกบันทึก</b> ตรวจช่อง
+          “ราคาจ่ายจริง (ฐานคิดคอม)” แล้วบันทึกอีกครั้ง
+        </p>
+      )}
+      {err === "listPrice" && (
+        <p className="card-warn text-sm">
+          ⚠️ ราคาเต็มใน catalog ไม่ใช่ตัวเลข หรือติดลบ — <b>บิลนี้ยังไม่ถูกบันทึก</b> ตรวจช่อง
+          “ราคาเต็มใน catalog” หรือเว้นว่างไว้ถ้าขายเต็มราคา แล้วบันทึกอีกครั้ง
+        </p>
+      )}
 
       <p className="text-xs text-neutral-500">
         จ่ายจริง &lt; ราคาเต็ม = ระบบถือว่าเป็นราคาโปรฯ (คอม 5%) · ไม่ใส่ราคาเต็ม =

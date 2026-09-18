@@ -76,7 +76,7 @@ export function PasteForm({
           problems worth scrolling through. */}
       {state && state.invalidHours.length > 0 && (
         <WarningCard
-          heading={`คำเตือน (${state.invalidHours.length}) — ชั่วโมงไม่ใช่ตัวเลข บรรทัดกลุ่มนี้ยังไม่ถูกบันทึก`}
+          heading={`คำเตือน (${state.invalidHours.length}) — ชั่วโมงไม่ใช่ตัวเลข หรือติดลบ บรรทัดกลุ่มนี้ยังไม่ถูกบันทึก`}
           items={state.invalidHours}
           mono
           max={20}

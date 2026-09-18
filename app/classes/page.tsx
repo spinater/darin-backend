@@ -1,8 +1,10 @@
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { periodRange } from "@/lib/payroll-run";
 import { num, type Config } from "@/lib/config-keys";
+import { finiteNumber, isBlank, INT_COLUMN_MAX } from "@/lib/form-number";
 import { SubmitButton } from "@/app/_components/submit-button";
 
 export const dynamic = "force-dynamic";
@@ -10,10 +12,13 @@ export const dynamic = "force-dynamic";
 export default async function ClassesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ period?: string }>;
+  searchParams: Promise<{ period?: string; err?: string }>;
 }) {
   await requireAdmin();
-  const period = (await searchParams).period ?? new Date().toISOString().slice(0, 7);
+  // `err` is a **flag**, never the message — same precedent as `/ot` and `/payslips`: the Thai copy
+  // lives in this file (§2.5) and nothing the URL carries is rendered.
+  const { period: periodParam, err } = await searchParams;
+  const period = periodParam ?? new Date().toISOString().slice(0, 7);
   const { from, to } = periodRange(period);
 
   const [rows, classes, trainers, cfg] = await Promise.all([
@@ -41,16 +46,40 @@ export default async function ClassesPage({
   async function add(formData: FormData) {
     "use server";
     await requireAdmin();
+
+    // 🔴 These two head counts decide the full/half/no-pay branch of the whole class (the line
+    // under the heading spells the branch out), so `Number()` is not good enough here either:
+    // an absent `booked` was silently `0` = a class that pays nothing, and a `File` part was `NaN`
+    // reaching `ClassSession.booked` (CLAUDE.md §2 rule 4). `finiteNumber` is the shared predicate
+    // — see `lib/form-number.ts` for the full list of what it refuses and why.
+    //
+    // `int`/`max` because both are `Int` columns: a head count of `2.5` is **truncated to 2** by
+    // Prisma, not refused, and an overflow throws at the write instead of here.
+    const HEAD_COUNT = { int: true, max: INT_COLUMN_MAX };
+    const booked = finiteNumber(formData.get("booked"), HEAD_COUNT);
+    if (booked === null) redirect(`/classes?period=${encodeURIComponent(period)}&err=booked`);
+
+    // no-show keeps today's meaning for a field left alone: absent or blank is **0**, which is what
+    // `?? 0` and the input's `defaultValue={0}` already say, and is not a guess — nobody types a
+    // zero. A value that *was* given and is not a non-negative number is refused instead of being
+    // rounded down to "none", which would quietly promote a half-pay class to full pay.
+    const noShowRaw = formData.get("noShow");
+    const noShow = isBlank(noShowRaw) ? 0 : finiteNumber(noShowRaw, HEAD_COUNT);
+    if (noShow === null) redirect(`/classes?period=${encodeURIComponent(period)}&err=noShow`);
+
     await db.classSession.create({
       data: {
         date: new Date(String(formData.get("date")) + "T00:00:00Z"),
         classId: String(formData.get("classId")),
         staffId: String(formData.get("staffId")),
-        booked: Number(formData.get("booked")),
-        noShow: Number(formData.get("noShow") ?? 0),
+        booked,
+        noShow,
       },
     });
     revalidatePath("/classes");
+    // Back to the clean URL so a later successful save clears a sticky `err=` — without it the
+    // rejection notice would outlive the row that caused it.
+    redirect(`/classes?period=${encodeURIComponent(period)}`);
   }
 
   async function del(formData: FormData) {
@@ -58,6 +87,9 @@ export default async function ClassesPage({
     await requireAdmin();
     await db.classSession.delete({ where: { id: String(formData.get("id")) } });
     revalidatePath("/classes");
+    // Clean URL like `add`: deleting a row while `?err=booked` is in the address bar would leave
+    // "คาบนี้ยังไม่ถูกบันทึก" standing over a delete that did happen.
+    redirect(`/classes?period=${encodeURIComponent(period)}`);
   }
 
   return (
@@ -108,6 +140,21 @@ export default async function ClassesPage({
           บันทึก
         </SubmitButton>
       </form>
+
+      {/* One flag per refused field. Each says what was refused and that **nothing was saved** —
+          a คาบ the admin believes is keyed in is the failure this screen can hide. */}
+      {err === "booked" && (
+        <p className="card-warn text-sm">
+          ⚠️ จำนวนคนจองไม่ใช่จำนวนเต็มตั้งแต่ 0 ขึ้นไป — <b>คาบนี้ยังไม่ถูกบันทึก</b> ตรวจช่อง
+          “คนจอง” แล้วบันทึกอีกครั้ง
+        </p>
+      )}
+      {err === "noShow" && (
+        <p className="card-warn text-sm">
+          ⚠️ จำนวน no-show ไม่ใช่จำนวนเต็มตั้งแต่ 0 ขึ้นไป — <b>คาบนี้ยังไม่ถูกบันทึก</b> ตรวจช่อง
+          “no-show” หรือเว้นว่างไว้ถ้าไม่มีใครขาด แล้วบันทึกอีกครั้ง
+        </p>
+      )}
 
       <table className="card w-full">
         <thead>

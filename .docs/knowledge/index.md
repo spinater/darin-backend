@@ -33,3 +33,4 @@ Card ยาว 40–120 บรรทัด (**เตือนที่ 170 · �
 | Card | ครอบคลุม |
 |---|---|
 | [domain/payroll-rules.md](domain/payroll-rules.md) | สูตรค่าสอน/คอม/OT/incentive · ที่มาของตัวเลข · จุดที่ห้าม hardcode |
+| [domain/money-input-guards.md](domain/money-input-guards.md) | ตัวเลขที่มาจากฟอร์ม: `finiteNumber`/`isBlank` · 5 action ที่ปฏิเสธก่อนเขียน · รูปแบบ `?err=` ที่ใช้ร่วมกัน |
