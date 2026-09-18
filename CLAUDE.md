@@ -28,7 +28,8 @@ docs are in Thai.
   Two tiers since ใบ 017: the gates' gates run only when `scripts/**` moved (§7).
 - **Deploy (dev):** `docker-compose.yml` → `https://darin.rocketlabth.com` — see
   [.docs/knowledge/ops/deploy.md](.docs/knowledge/ops/deploy.md)
-- **Sub-agents:** `.claude/agents/`
+- **Sub-agents:** `.claude/agents/` — plus the external `claude-tekton` lane, dispatched with
+  `scripts/tekton.sh` (§9)
 - **Code graph:** `graphify-out/GRAPH_REPORT.md` — ask the graph before reading files wholesale (§8)
 
 ### Local design skills (`.claude/skills/`)
@@ -48,6 +49,7 @@ comes up.
 | `saas-onboarding-flow` | First-login flow for a new staff account — activation steps, empty states |
 | `microcopy-writer` | Thai UI copy: buttons, errors, empty states (run at implementation time) |
 | `content-style-guide` | The Thai payroll glossary — one word per concept across every screen |
+| `tekton-brief` | **Not UI.** Writing a brief for the `claude-tekton` lane (Qwen3 27B) and judging whether work belongs there at all (§9) |
 | `workflow-mapper` | Map a real payroll process (sync → review → run → payslip) with its bottlenecks |
 | `sop-builder` | Staff-facing SOP documents → `.docs/design/sop/` |
 
@@ -361,6 +363,7 @@ costs to be wrong*, not by what feels safer.
 | `frontend-dev` · `qa-tester` · `sa-requirements` · `uxui-designer` | **sonnet** | well-trodden ground (App Router, test writing, reading requirement docs, screen layout); a mistake here is caught by `tsc`, `bun test`, or a human reading the screen |
 | `translator` | **sonnet** | pure translation of linus's Thai prompts into an English brief — no judgment to buy |
 | `watchdog` | **haiku** | stall detection — no judgment to buy |
+| the **`claude-tekton` lane** — *not* an `.claude/agents/` agent | **Qwen3 27B** (`gi/coder` via `llm-router.tekton.sh`) | transcription of a brief that already contains every decision · reached by `bash scripts/tekton.sh <brief>`, never by `Task`/`Agent` · see the section below |
 
 🔴 **The trap this table closes:** `.claude/settings.json` pins a model, and an agent file with no
 `model:` **inherits it silently**. The wrong direction here is silent and recurring: nothing is
@@ -372,6 +375,33 @@ effort tier, spawn through **`Workflow`**, whose `agent(prompt, {model, effort})
 ⚠️ **Brief detail is inversely proportional to the model's strength.** A sonnet lane gets numbered
 steps, a copyable template, and the explicit list of files it may touch. An opus lane gets the
 goal, the traps, and room to decide.
+
+### The `claude-tekton` lane (linus order 2026-09-18)
+
+*"ให้ใช้ claude-tekton เป็นหนึ่งใน agent ใช้ในการทำงานได้เลย ให้ opus แตกงานให้ละเอียดพอสำหรับ
+qwen3.8 27B"*
+
+A third lane, below sonnet: Claude Code pointed at `llm-router.tekton.sh` running **Qwen3 27B**. It
+is a **separate process**, so it is dispatched, not spawned — `bash scripts/tekton.sh <brief.md>`,
+and **[`/tekton-brief`](.claude/skills/tekton-brief/SKILL.md) is the briefing standard: read it
+before writing the first brief.**
+
+Extending the rule above by one step: **a brief for this lane contains no decisions left to make.**
+Its failure mode is not bad code — it is that an undecided question gets answered by a guess written
+in the same confident prose as the work, so `"update the config keys as appropriate"` comes back with
+invented key names, plausibly formatted, in the right file.
+
+- **It never receives money, schema or auth work** — §2 rules 2–5 and §2 rule 8 do not leave the
+  opus lanes however mechanical the edit looks. A rename inside `lib/payroll.ts` is still
+  `lib/payroll.ts`.
+- **It has no Bash**, by design: that is where a model that guessed stops being reviewable (it could
+  run the gate and report green, or `git checkout` over work in progress — §6 rule 8). ⇒ **it never
+  ran anything, so it cannot have verified anything.**
+- **Verification and review stay here.** Read the **diff**, not the log — the model writes its
+  reasoning into the ordinary text block, so the log deliberates aloud and ends with "I have
+  completed…" whether or not anything changed. Then `verify.sh`, then §9 review as normal. Output
+  from this lane has **no special standing**: an edit nobody asked for is a finding even when the
+  rest is right.
 
 ## 10. Document Generation Rules
 
@@ -394,3 +424,10 @@ At the end of every turn, write `.scratch/agent-status.json` (gitignored):
 
 Why this file exists: the watcher reads files **for free**, but typing a question into the session
 costs your context every time.
+
+🔴 **The `claude-tekton` lane (§9) is exempt — it must never write this file.** There is one status
+file per project and it belongs to the session the watcher tracks; a dispatched lane writing here
+reports a card it is not working on, to a watcher that acts on it. `scripts/tekton.sh` denies the
+path outright (`Edit(.scratch/agent-status.json)` — a `Write(...)` deny rule is a no-op, Claude Code
+matches file tools on `Edit` rules only) and says so in the lane's system prompt, because the first
+real dispatch spent its whole turn stopped at this exact collision instead of doing the work.

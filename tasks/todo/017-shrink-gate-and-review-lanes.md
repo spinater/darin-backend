@@ -96,3 +96,28 @@ every gate name it calls, so the four cases could be built on purpose:
 | one gate script edited, **uncommitted** | ran — the case `git diff <ref>...HEAD` alone cannot see |
 | that edit committed on a branch, `develop` behind | ran |
 | app-only change, `scripts/` untouched | skipped, and said so |
+
+---
+
+## Follow-on, same day: the `claude-tekton` lane (linus order 2026-09-18)
+
+*"ให้ใช้ claude-tekton เป็นหนึ่งใน agent ใช้ในการทำงานได้เลย ให้ opus แตกงานให้ละเอียดพอสำหรับ
+qwen3.8 27B"*
+
+Added `scripts/tekton.sh` (dispatcher) + `.claude/skills/tekton-brief/SKILL.md` (the briefing
+standard), registered in §9 and in Quick Reference. Proved end to end on a real brief, twice.
+
+**Two things the first real dispatch found, which no amount of reasoning had:**
+
+1. **CLAUDE.md §11 collides with the lane.** It told the lane to write
+   `.scratch/agent-status.json`; the lane found the developer lane's live card-009 state in it and
+   **spent its entire turn stopped at the conflict** rather than overwrite. It was right to stop —
+   one status file per project, owned by the session the watcher tracks. Now denied at the
+   permission layer and stated in the lane's system prompt, and §11 says so.
+2. **A `Write(path)` deny rule is a no-op.** Claude Code answered in the log: *"Write(...) is not
+   matched by file permission checks — only Edit(path) rules are. Edit rules cover all file-editing
+   tools."* The `Edit` rule is what denies `Write`; the `Write` row bought only a warning line.
+
+Also corrected from the first run: the footprint report was `git diff --stat`, which on this repo's
+normally-dirty tree emitted **17 files of task-009 work as "the lane's output"**. It now diffs
+`git status` before against after and reports only the delta.
