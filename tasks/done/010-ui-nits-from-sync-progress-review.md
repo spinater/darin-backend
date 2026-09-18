@@ -37,7 +37,7 @@ Fix in `app/globals.css`, which is the whole design system: add `.card-ok` / `.c
 instances of the same anti-pattern in the same pass** — `app/account/page.tsx:82-83`,
 `app/payslips/page.tsx:77`, `app/page.tsx:66`.
 
-These same classes are what card [009](../todo/009-surface-payroll-warnings.md) needs to render payroll
+These same classes are what card [009](009-surface-payroll-warnings.md) needs to render payroll
 warnings, so this card should land first or alongside it.
 
 ## 3. Process-phase label wraps against its spinner
@@ -53,7 +53,7 @@ The systemic UI debt the same review found — money never right-aligned or forc
 `@media print` on the payslip, no sticky headers or `overflow-x-auto` on any table, inconsistent
 zero-row messages, no active-route marker in `app/layout.tsx` — is **pre-existing since `cdc580e`**
 and belongs to [task 006](../todo-human/006-ui-design-pass.md), which is blocked on linus for brand
-direction. Dropping `warnings` belongs to [task 009](../todo/009-surface-payroll-warnings.md).
+direction. Dropping `warnings` belongs to [task 009](009-surface-payroll-warnings.md).
 
 ⚠️ Route the result back through `uxui-designer` in review mode (§9) — `app/globals.css` changes
 are exactly what that gate watches.
@@ -84,7 +84,7 @@ not be written the obvious way. Two alternatives were compiled against this repo
 ### Design-gate rulings folded into the same commit
 
 `uxui-designer` returned APPROVE-WITH-NITS with three token-layer findings it asked to land here
-rather than let [task 009](../todo/009-surface-payroll-warnings.md) build warning banners on tokens already
+rather than let [task 009](009-surface-payroll-warnings.md) build warning banners on tokens already
 known to fail:
 
 - `.td`'s `border-neutral-100` is **~1.04:1 on `bg-green-50`** — invisible, and would be equally

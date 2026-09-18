@@ -1,7 +1,7 @@
 # Surface `warnings` — the engine's "I could not decide" must reach the screen
 
-- status: todo
-- commit:
+- status: done
+- commit: 882ba6a
 
 ## Goal
 
