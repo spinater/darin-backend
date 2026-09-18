@@ -14,6 +14,13 @@ load-bearing, so do not cram or omit them, but the next growth owes a split.
 Splitting is cheapest **before** the work commit that would grow them again, not after
 (`check-knowledge.sh`'s own comments say a split may be its own commit ahead of the work).
 
+🔴 **Measured after task 013 item 4 (2026-09-18): `payroll-rules.md` is at 198/200 and `gates.md` at
+189/200.** Two lines of headroom on the card that **nearly every money commit must update** — it
+sources `lib/payroll.ts`, `lib/config-keys.ts`, `lib/payroll-run.ts`, `prisma/schema.prisma`, both
+payroll test files and `app/payslips/page.tsx`. The next such commit will shave a paragraph to fit,
+and shaving is how the *why* gets lost, which is the only thing these cards are for. ⇒ **pull this
+card next**, as the thing standing in front of the next money change, not as housekeeping.
+
 ## Scope
 
 - Split by **topic with a clear boundary**, not by line count.

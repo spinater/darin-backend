@@ -139,3 +139,47 @@ task 021) and item 4 (the unchecked `Number()` server actions — ships as its o
 **Knowledge cards** `.docs/knowledge/ops/gates.md` and `.docs/knowledge/domain/payroll-rules.md`
 both crossed the 170-line warn in this round. Not split here — cramming or omitting the corrections
 would have cost more than the warn ⇒ [task 023](023-split-two-oversized-knowledge-cards.md).
+
+---
+
+## Round 2 (2026-09-18): item 4 shipped in `202b62a` — item 2 is all that is left
+
+`backend-dev` implemented, `code-reviewer` and `payroll-auditor` both reviewed twice; both returned
+`BLOCK` on the first pass and `PASS` on the second. What shipped is wider than this card's table,
+because the review found the holes the table did not know about:
+
+1. **The `cfg|…` boxes were never guarded, and `num()` only rejected `NaN`.** Measured on a
+   throwaway Postgres and through `computePayslip`: `""` → 0 · `"1e999"` → Infinity · `"-5"` → -5,
+   all silent. Clearing `comm.pt.selfClosed` paid **0 ฿ instead of 2,000 ฿** on a 20,000 ฿
+   self-closed bill with `warnings: []`; clearing `incentive.threshold` made `total >= 0` always
+   true, firing §1.6's retroactive 12% **for everyone, every month**. Both halves closed: the write
+   path refuses, and `num()` now refuses a blank (own message, kept distinct from a missing key) and
+   anything non-finite.
+2. **Prisma truncates a fraction into an `Int`** — `1201.5 → 1201`, `0.4 → 0` — it does not round
+   and does not refuse, which is the opposite of what the first version of the knowledge card said.
+   Hence `int` and `INT_COLUMN_MAX` on `finiteNumber`, applied to every `Int`-backed field including
+   `addStaff`'s, and deliberately **not** to the `Float` columns where 9.5 is real.
+3. **The bulk save was atomic only in the parse** — an out-of-range value committed every rate row
+   ahead of it before throwing. The write loop is now one `db.$transaction` (~65 round-trips,
+   bounded by the form's size, not by the data), so the notice's promise holds for a DB failure too.
+4. **`lib/ot-import.ts` accepted negative hours** while the form refused them — the paste is how OT
+   actually arrives, so the open door was the one people use.
+
+**Junit pins**: `form-number` 13 · `config-form` 12 · `payroll` 26 → 30 · `ot-import` 6 → 7. All
+raises. `app/admin/config/page.tsx` was split twice under §4 as it grew (462 → 433).
+
+**Opened from this round** — every one is a real defect or decision found while the lanes were in
+here, not speculation: [025](025-noshow-greater-than-booked-pays-half.md) (`noShow > booked` pays
+**0 ฿** with no warning — the first version of that card said "half", which the auditor measured and
+corrected) · [026](026-sync-page-renders-a-url-value.md) · [027](027-addstaff-fails-silently.md) ·
+[028](028-config-values-have-no-per-key-spec.md) (a `12` typed where `0.12` is meant still passes) ·
+[029](../todo-human/029-sweep-rows-keyed-before-the-guards.md) (the guards shut the doors; they do
+not sweep the room).
+
+🔴 **Before this deploys**, read 029 first: `num()` now throws on a blank, and `/ot` and `/classes`
+call it **at page render**, so a legacy blank `PayrollConfig` value turns those screens into Next's
+default error page — with the message redacted in production. `/admin/config` does not call `num()`,
+so the repair path stays reachable. The order is sweep → fix → deploy.
+
+**Still open on this card: item 2 only** (`paid → draft`), blocked on linus and the sibling of
+[task 021](../todo-human/021-leaver-base-salary-proration.md).
