@@ -30,7 +30,8 @@ it" is a warning, not a rule.
 
 - If **full month**: nothing in the engine changes. Record the decision in
   `.docs/knowledge/domain/payroll-rules.md` so the next lane stops treating it as an open hole, and
-  soften the warning to state the policy instead of flagging a risk.
+  soften the warning to state the policy instead of flagging a risk — the warning's exact Thai
+  string moved to `.docs/knowledge/domain/payslip-lifecycle.md` at task 023.
 - If **pro-rated**: the divisor and the numerator are both his answer, and they become
   `lib/config-keys.ts` entries read from `PayrollConfig` at runtime — never literals in a formula
   (§2 rule 3). `computePayslip` stays pure: its caller loads the leave date and passes it in, which

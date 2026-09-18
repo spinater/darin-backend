@@ -7,7 +7,7 @@
 
 Three places in the repo state that pushing to `develop` deploys:
 
-- `.docs/knowledge/ops/gates.md:146` — "`verify.sh` ยังไม่อยู่ใน CI — push develop แล้ว deploy
+- `.docs/knowledge/ops/gates.md`, open-holes item 3 — "`verify.sh` ยังไม่อยู่ใน CI — push develop แล้ว deploy
   เลยโดยไม่มีเกตขวาง"
 - `.docs/knowledge/ops/deploy.md:35` — "**push develop = dev deploy ลงแล้ว**"
 - `CLAUDE.md` §6, Deploy — "**push-to-develop = dev deploy is already live**"

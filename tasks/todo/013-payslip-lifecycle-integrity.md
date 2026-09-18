@@ -69,7 +69,8 @@ surface on those forms yet — adding one is part of the work, not an extra.
   answers, ship 1 and 3 and leave 2 with the question quoted.
 - 4 is agent-decidable too, and independent of 1–3: it can ship on its own.
 - Related: task 009 established that warnings are not recomputable once a slip leaves `draft`
-  (`.docs/knowledge/domain/payroll-rules.md`, invariant 3). Item 2 is the other side of that coin.
+  (`.docs/knowledge/domain/payslip-lifecycle.md`, split out of `payroll-rules.md` invariant 3 at
+  task 023). Item 2 is the other side of that coin.
 
 ### Negative hours are the same hole with a different cause
 

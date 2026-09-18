@@ -27,10 +27,12 @@ Card ยาว 40–120 บรรทัด (**เตือนที่ 170 · �
 |---|---|
 | [ops/deploy.md](ops/deploy.md) | ปลายทาง (`darin.rocketlabth.com`), compose, CI, กับดักที่กัดจริง |
 | [ops/gates.md](ops/gates.md) | เกตทั้งชุดของรีโปนี้: ใครเฝ้าอะไร · อะไรไม่ได้พอร์ตมาและทำไม |
+| [ops/gate-tiers-and-pins.md](ops/gate-tiers-and-pins.md) | สองชั้นของเกต (ใบ 017): ด่านไหนรันทุกรอบ · selftest รันเมื่อไร · ชั้นหมุด junit กับข้อสรุปว่าไม่มีเทสใบไหนถึงฐานข้อมูล |
 
 ## Domain cards
 
 | Card | ครอบคลุม |
 |---|---|
 | [domain/payroll-rules.md](domain/payroll-rules.md) | สูตรค่าสอน/คอม/OT/incentive · ที่มาของตัวเลข · จุดที่ห้าม hardcode |
+| [domain/payslip-lifecycle.md](domain/payslip-lifecycle.md) | วงจรชีวิตของสลิป: `PayslipWarning` · ล็อก `Payslip.status` สองฝั่ง · ใครเข้ารอบ (leaver arms) · อะไรถูกคิดใหม่ |
 | [domain/money-input-guards.md](domain/money-input-guards.md) | ตัวเลขที่มาจากฟอร์ม: `finiteNumber`/`isBlank` · 5 action ที่ปฏิเสธก่อนเขียน · รูปแบบ `?err=` ที่ใช้ร่วมกัน |

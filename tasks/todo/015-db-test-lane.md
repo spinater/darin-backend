@@ -28,13 +28,14 @@ A second **pinned** `bun test` pass inside `db_stage`, after `prisma db push` + 
 - extend `scripts/lib/check-code-junit.sh` to read a second junit file and pin it the same way —
   the point is that the new lane is as unskippable as the first, not that it merely runs;
 - `scripts/junit-pins.txt` grows rows for the DB lane;
-- `.docs/knowledge/ops/gates.md` has the finding recorded already — update it with what shipped;
+- `.docs/knowledge/ops/gate-tiers-and-pins.md` has the finding recorded already (split out of
+  `gates.md` at task 023) — update it with what shipped;
 - first test to write in the new lane: `runPayroll` persists `warnings` and a recompute replaces
   them wholesale rather than appending.
 
 ## Notes
 
 - Ruled and reasoned by `architect` during task 009; the structural finding is in
-  `.docs/knowledge/ops/gates.md` rather than in the 009 card, so it survives that card's archival.
+  `.docs/knowledge/ops/gate-tiers-and-pins.md` rather than in the 009 card, so it survives that card's archival.
 - §7's price rule applies: measure before adding, and the new lane must not make the gate slow
   enough that people reach for `SKIP_CODE_CHECKS=1`.

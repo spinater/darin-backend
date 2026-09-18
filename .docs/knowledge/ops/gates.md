@@ -1,18 +1,26 @@
 ---
 sources:
+  # This card's table claims the stage list and the precondition order `verify.sh` actually runs.
+  # (Its two-tier machinery is the other card's claim — see the note under the title.)
   - scripts/verify.sh
-  - scripts/tests/check-verify-summary-selftest.sh
+  # The stage list of `check-code.sh` — the groove-clinic comparison row and the formatter stage.
   - scripts/check-code.sh
+  - scripts/lib/check-code-format.sh
+  # The bun pin has two homes (`lib/bun-image.sh` and `Dockerfile`) and this card says which gate
+  # compares them, and why the formatter needs no watcher of that shape.
   - scripts/check-bun-pin.sh
   - scripts/lib/bun-image.sh
-  - scripts/lib/check-code-format.sh
-  - scripts/junit-pins.txt
 ---
 
 # เกตของรีโปนี้ — ใครเฝ้าอะไร และอะไร *ไม่ได้* ถูกเฝ้า
 
 ทางเข้าเดียวคือ `bash scripts/verify.sh` (CLAUDE.md §7) · ลำดับ stage ไม่ได้เรียงตามความสำคัญ
 แต่เรียงตาม **เงื่อนไขของกันและกัน**: ด่านที่ตอบว่า "ผลของด่านอื่นเชื่อได้ไหม" ต้องจบก่อนเสมอ
+
+**Split at task 023** (this card was at 189/200). Two topics moved out whole, to
+[gate-tiers-and-pins.md](gate-tiers-and-pins.md): **which tier runs when** (ใบ 017's `core_gates` /
+`gate_selftests`, and how `verify.sh` decides without a `fetch`) and **the junit pin layer** with the
+"no test here reaches a database" conclusion. Nothing was shortened in the move.
 
 ## พอร์ตมาจาก groove-clinic ทั้งก้อน (ใบ 001)
 
@@ -22,35 +30,13 @@ sources:
 | `scripts/check-file-length.sh` | §4 เพดาน 500 บรรทัด · ขอบเขตอยู่บ้านเดียวที่ `scripts/lib/file-length-scope.sh` ซึ่ง hook ของ Claude อ่านตัวเดียวกัน |
 | `scripts/check-links.sh` | ลิงก์ md ที่เน่า · ใบงานที่มีสองบ้าน · หัวใบที่อ้างสถานะขัดกับบ้านของตัวเอง |
 | `scripts/check-knowledge.sh` | §5 — การ์ดที่ `sources:` ขยับแล้วการ์ดไม่ขยับตาม (STALE) · เพดานการ์ด · การ์ดที่ไม่มีแถวใน index |
-| selftest ของแต่ละด่าน | **เกตของเกต** — ด่านที่โกหกได้ ทำให้ผลของด่านอื่นในรอบเดียวกันไม่มีความหมาย · **ใบ 017: รันเมื่อ `scripts/**` ขยับเท่านั้น** (ดูหัวข้อถัดไป) |
+| selftest ของแต่ละด่าน | **เกตของเกต** — ด่านที่โกหกได้ ทำให้ผลของด่านอื่นในรอบเดียวกันไม่มีความหมาย · **ใบ 017: รันเมื่อ `scripts/**` ขยับเท่านั้น** ([gate-tiers-and-pins.md](gate-tiers-and-pins.md)) |
 
 Four rows that used to sit in this table came out in ใบ 017 — `check-path-bytes.sh` ·
 `check-sort-locale.sh` · `check-text-bytes.sh` · `check-card-paths.sh`. What each one watched, and
 what is therefore no longer watched, is written out in
 [ใบ 017](../../../tasks/done/017-shrink-gate-and-review-lanes.md) under "What stops being watched".
 It is also item 6 of the open-holes list at the bottom of this card.
-
-## ใบ 017 — สองชั้น: ด่านที่รันทุกรอบ กับ selftest ที่รันเมื่อแตะ `scripts/**`
-
-วัดก่อนตัด (§7 "measure first", 2026-09-18): เกตทั้งก้อน **81 วินาที** · ในนั้น **~41 วินาที**
-คือ selftest 15 ใบ · ด่านเนื้อหาทั้งแปดใบรวมกัน **2.3 วินาที** · `check-code.sh` **5.2 วินาที**
-· เทสโดเมนทั้ง 63 ใบ (รวมเงิน) **244 มิลลิวินาที**
-
-🔑 **ราคาไม่ได้อยู่ที่เทสของสินค้า มันอยู่ที่เทสของสคริปต์เกต** ⇒ ชั้นที่เลื่อนออกไปคือ selftest
-ไม่ใช่ coverage: `check-code.sh` และทุกข้อใน §2 ไม่ถูกแตะเลยในใบนี้ (§7 ข้อ 4 — จ่ายด้วยเครื่อง
-และ I/O ก่อน ค่อยจ่ายด้วย coverage)
-
-- **`core_gates`** รันทุกรอบ · **`gate_selftests`** รันเมื่อ `scripts/**` ขยับ
-- `verify.sh` ตัดสินเองด้วย `git status` **และ** `git diff` เทียบ **สอง ref** (`develop` กับ
-  `origin/develop`) · **ไม่ fetch** — เกตต้องรันได้ตอนไม่มีเน็ต · ทิศที่พลาดแล้วเงียบคือ
-  "สคริปต์เกตที่แก้แล้วยังไม่ commit" ซึ่ง `git diff <ref>...HEAD` มองไม่เห็น ⇒ ต้องมี `status` ด้วย
-- **ข้ามแล้วต้องดัง** — บรรทัด `verify: ` บอกเองว่าข้าม selftest ไปกี่ใบและบังคับรันยังไง
-  (`VERIFY_GATES=1` เปิด · `VERIFY_GATES=0` ปิด) · นี่คือเหตุผลเดียวที่การข้ามแบบอัตโนมัติยอมได้
-- `check-shell-source.sh` **อยู่ชั้นที่รันทุกรอบ** แม้ selftest ของมันจะเลื่อน — มันคือเงื่อนไขที่
-  ผลของด่านอื่นวางอยู่บน และมันใช้ 0.7 วินาที · ส่วน selftest ของมันตอบแค่ว่า "ด่านนั้นยังทำงานไหม"
-  ซึ่งเปลี่ยนไม่ได้ตอน `scripts/**` ไม่ขยับ
-- `scripts/tests/check-verify-summary-selftest.sh` อ่านรายชื่อด่าน **ออกจาก `verify.sh` ตัวจริง**
-  ⇒ มันอ่านทั้งสองอาร์เรย์ และตั้ง `VERIFY_GATES=1` ให้สนามจำลองรันครบทั้งลิสต์
 
 ## ที่ต่างจาก groove-clinic — และเหตุผล
 
@@ -108,70 +94,6 @@ sourced with `.` like the junit layer): fastest red, needs no DB and no generate
   sandbox goes green; the docker form is asserted as text only, and only the native cases run at all
   when the host bun is off the pin.
 
-## The junit pin layer — and why no test in this repo can touch a database (task 009)
-
-`scripts/lib/check-code-junit.sh` + `scripts/junit-pins.txt`: every test file must be **run** and
-must run **exactly** the pinned number of tests. Current rows and what each is worth are in that
-file's own header; task 009 raised `lib/payroll.test.ts` 21 → **24** and added
-`lib/ot-import.test.ts` at **6** and `lib/next-errors.test.ts` at **6**; task 013 raised
-`lib/payroll.test.ts` to **26** and added `lib/payroll-run.test.ts` at **4** (5 → 4 inside that
-same round: two scope tests merged into one whole-object comparison pinning strictly more — a
-merge, not a removal), and item 4 of the same card added `lib/form-number.test.ts` at **11** and
-`lib/config-form.test.ts` at **7** and raised `lib/ot-import.test.ts` 6 → **7**; its review round
-then raised all three again — `lib/form-number.test.ts` → **13**, `lib/config-form.test.ts` → **12**
-and `lib/payroll.test.ts` 26 → **30**. What each raise bought:
-
-| Pin | Raise | What it is worth |
-| --- | --- | --- |
-| `lib/payroll.test.ts` | 21 → 23 | two §2-rule-4 cases — a membership sale attributed to a non-`closer`, and an unknown `sale.kind`; each asserts a warning **and** a zero commission |
-| `lib/payroll.test.ts` | 23 → 24 | the OT >2-decimal case: 9:20 arrives as `9.333333333333334`, the engine pays 13.33 and 266.67 over 20 days (§2 rule 5, round once) |
-| `lib/ot-import.test.ts` | new at 5 | usernames from a fingerprint paste that match nobody reach the screen instead of the floor |
-| `lib/ot-import.test.ts` | 5 → 6 | `invalidHours` — a non-finite hours value is rejected by the parser, because `OtEntry.hours` is a `Float` ⇒ `double precision`, which **accepts `NaN`** |
-| `lib/next-errors.test.ts` | new at 6 | telling a thrown `redirect()` apart from a real error, so the `/ot` action's `catch` cannot swallow navigation |
-| `lib/payroll.test.ts` | 24 → 26 | task 013 item 3 — an inactive staff member's slip **warns and changes no figure**; the second test compares the whole result against the same input with `active: true`, so a later "pay them 0" is red |
-| `lib/payroll-run.test.ts` | new at 4 | task 013 items 1 and 3 as *predicates*: the non-draft guard's wording and refuse-by-default shape, the two refusals staying distinguishable **in the returned `skipped` list** (no screen renders them — the `compute` action discards `runPayroll`'s return, and what the admin sees is the state-derived `closedCount` box and the `— (ไม่ได้คำนวณใหม่)` marker), and the six-arm staff scope including the leaver arms. **Not** the lock itself — the `count === 0` branch needs two concurrent sessions — and **not** that the leaver arms return a row, which needs a real Postgres; see the row below |
-| `lib/form-number.test.ts` | new at 11 | the one predicate every form field that becomes money goes through — absent, blank, a `File` part, `"1e999"` and a negative value each refused, plus `isBlank` keeping a `File` **out** of the "not given" bucket instead of letting it take the field's default |
-| `lib/config-form.test.ts` | new at 7 | `/admin/config`'s bulk save parsed **all-or-nothing** before its first write: a blank rate still deletes that rate, a blank salary refuses, and one bad field refuses the whole save — which is exactly what the screen promises the admin ("ยังไม่ได้บันทึกอะไรเลยสักช่อง") |
-| `lib/ot-import.test.ts` | 6 → 7 | the **negative** hours value the `isFinite` check let through — it is finite, so it stored and then paid nothing through `Math.max(0, -5 − threshold)`. Pinned because the form had just started refusing it and the paste is the path OT actually arrives by |
-| `lib/form-number.test.ts` | 11 → 13 | `int` and `max`. Measured against this schema: Postgres `integer` **truncates** `2.5` to `2` rather than refusing it (`booked`, `baseSalary`, `ClassPrice.price` all), and an out-of-range value throws **at the write**, mid-loop. Both are now refused before the first write |
-| `lib/config-form.test.ts` | 7 → 12 | `cfg\|…` joining the parse — the largest hole of the five, since those boxes are plain text with no `required` and a cleared one stored `""`; plus the `Int` ceiling, the fraction that used to be pinned as *valid*, and a `staff\|…` field the form does not render (which used to throw mid-loop) |
-| `lib/payroll.test.ts` | 26 → 30 | `num()` throwing on a blank or non-finite config value, pinned at the engine rather than at the form — including the 20,000 ฿ self-closed bill that paid **0 ฿** instead of 2,000 ฿ with `warnings: []` when `comm.pt.selfClosed` was cleared |
-
-**Every row is a raise**; only a lowering needs a reason in the task card.
-
-⚠️ **A pin is worth exactly what its test asserts — read the 23 → 24 row before quoting one as
-proof.** It asserts `computePayslip`, whose OT block never had the defect (that was in
-`app/ot/page.tsx`), so it would have gone green against the pre-fix tree: it writes the engine's
-figure down **outside** the screen, making a future disagreement provable, but it does not fence
-the screen. Pinning a screen needs a seam outside the component (task 011) and a lane that can
-render one (task 015).
-
-🔴 **Structural finding, not a task-local one: stage 4 has no database.** `check-code.sh` runs
-`bun test` *before* `db_stage` creates the throwaway postgres, and with no `DATABASE_URL` in the
-environment.
-
-⚠️ **Corrected at task 013 — importing `lib/db.ts` from a test does *not* fail.** This card used to
-say any test transitively importing it "fails at import time". Measured with `DATABASE_URL` unset
-and `.env` suppressed: the import succeeds and only the first **query** throws, because Prisma 7 +
-`@prisma/adapter-pg` connect lazily. `lib/payroll-run.test.ts` imports `lib/payroll-run.ts` → `./db`
-and is green in stage 4. ⇒ **a pure helper does not need its own DB-free module to be testable**;
-what is unreachable is an *assertion about stored rows*, which is the conclusion below and is
-unchanged. Do not re-derive the old claim from task 009's or 015's wording.
-
-| attempt | why it fails |
-|---|---|
-| a DB-backed `*.test.ts` | the query runs in stage 4 with no DB ⇒ red |
-| `test.skipIf(!process.env.DATABASE_URL)` | the pin counts `tests - skipped`; an env-conditional count makes the pin meaningless, and layer 2 rejects it |
-| a second junit report inside `db_stage` | slips past the layer-2 corpus filter into an **unpinned** report — a gate that can vanish in silence, the exact class §7 exists to prevent |
-
-⇒ **Consequence to plan around, not to work around:** domain logic that must be tested has to be
-reachable without *querying* — importing is fine (above). That is why task 009 extracted `lib/ot-import.ts` as a pure
-function instead of testing the server action, and why 009 has **no** test proving warnings reach
-the database — stage 5's `prisma db push` + seed proves the schema, and nothing proves the write.
-Closing that needs a **second pinned `bun test` pass inside `db_stage`** after push+seed, with
-`check-code-junit.sh` extended to read a second junit file — task
-[015](../../../tasks/todo/015-db-test-lane.md).
-
 ## 🔴 ช่องที่รู้ตัวว่าเปิดอยู่ — อย่าอ่านตารางข้างบนว่า "ครบแล้ว"
 
 1. **ไม่มีเกตฝั่งสิทธิ์** — หน้าใหม่ที่ลืมเรียก `requireRole()` วันนี้ไม่มีอะไรแดง
@@ -180,7 +102,7 @@ Closing that needs a **second pinned `bun test` pass inside `db_stage`** after p
 3. **`verify.sh` ยังไม่อยู่ใน CI** — push develop แล้ว deploy เลยโดยไม่มีเกตขวาง
 4. **The formatter watches shape, never content** — `prettier --check` is green on code that is
    wrong, and it does not look at shell, SQL, YAML or Markdown at all.
-5. **No test in this repo reaches a database** — see the junit-pin section above. Stage 5 proves
+5. **No test in this repo reaches a database** — see [gate-tiers-and-pins.md](gate-tiers-and-pins.md). Stage 5 proves
    the schema pushes and seeds; **no gate proves any write against it is correct.**
 6. **สี่ช่องที่ใบ 017 เปิดคืน** — พาธที่ไม่ใช่ ASCII ที่ `core.quotePath` quote แล้วเกตที่เหลือ
    ข้ามไปเงียบ ๆ **ก่อนตัวนับของตัวเองจะขยับ** (วันนี้ยังไม่มีพาธแบบนั้นในรีโป ⇒ แฝงอยู่ ไม่ได้ปิด) ·
