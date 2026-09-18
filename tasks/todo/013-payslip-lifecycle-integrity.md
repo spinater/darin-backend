@@ -139,7 +139,7 @@ task 021) and item 4 (the unchecked `Number()` server actions — ships as its o
 
 **Knowledge cards** `.docs/knowledge/ops/gates.md` and `.docs/knowledge/domain/payroll-rules.md`
 both crossed the 170-line warn in this round. Not split here — cramming or omitting the corrections
-would have cost more than the warn ⇒ [task 023](023-split-two-oversized-knowledge-cards.md).
+would have cost more than the warn ⇒ [task 023](../done/023-split-two-oversized-knowledge-cards.md).
 
 ---
 
