@@ -1,7 +1,7 @@
 # Shrink the gate and the review lanes to the size of this app
 
-- status: todo
-- commit:
+- status: done
+- commit: 48d936c (gate + review lanes) · 20d0c20 (the `claude-tekton` lane)
 
 ## Goal
 
@@ -121,3 +121,8 @@ standard), registered in §9 and in Quick Reference. Proved end to end on a real
 Also corrected from the first run: the footprint report was `git diff --stat`, which on this repo's
 normally-dirty tree emitted **17 files of task-009 work as "the lane's output"**. It now diffs
 `git status` before against after and reports only the delta.
+
+**Closed 2026-09-18.** Both halves shipped and gated: `48d936c` cut the gate to two tiers
+and the review chain to one-reviewer-by-default, `20d0c20` added the `claude-tekton` lane with
+its dispatcher and briefing standard. `bash scripts/verify.sh` → ALL GREEN on each, with the
+selftest tier running (both touched `scripts/**`).

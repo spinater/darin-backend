@@ -11,7 +11,7 @@
 #
 # Task 017 cut this to the size of the app: the corpus-completeness gates
 # (`check-text-bytes` · `check-path-bytes`) and two content gates came out — see
-# `tasks/todo/017-shrink-gate-and-review-lanes.md` for what each one stopped watching —
+# `tasks/done/017-shrink-gate-and-review-lanes.md` for what each one stopped watching —
 # and the selftests of stage 2 now run only when `scripts/**` moved. Everything the gate
 # still lists runs on every change.
 #

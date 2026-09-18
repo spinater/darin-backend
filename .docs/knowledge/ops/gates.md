@@ -27,7 +27,7 @@ sources:
 Four rows that used to sit in this table came out in ใบ 017 — `check-path-bytes.sh` ·
 `check-sort-locale.sh` · `check-text-bytes.sh` · `check-card-paths.sh`. What each one watched, and
 what is therefore no longer watched, is written out in
-[ใบ 017](../../../tasks/todo/017-shrink-gate-and-review-lanes.md) under "What stops being watched".
+[ใบ 017](../../../tasks/done/017-shrink-gate-and-review-lanes.md) under "What stops being watched".
 It is also item 6 of the open-holes list at the bottom of this card.
 
 ## ใบ 017 — สองชั้น: ด่านที่รันทุกรอบ กับ selftest ที่รันเมื่อแตะ `scripts/**`

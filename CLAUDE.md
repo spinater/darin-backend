@@ -267,7 +267,7 @@ and `origin/develop`, no `fetch` — and **says on the summary line when it skip
 `check-path-bytes.sh` (a non-ASCII path that `core.quotePath` quotes, which the remaining gates
 then skip **before their own counter moves** — zero such paths today, so this is latent, not
 gone) · `check-text-bytes.sh` · `check-sort-locale.sh`.
-The record of what each one watched is `tasks/todo/017-shrink-gate-and-review-lanes.md` — read it
+The record of what each one watched is `tasks/done/017-shrink-gate-and-review-lanes.md` — read it
 before concluding a class of bug "cannot happen here".
 
 **The junit pin layer** (`scripts/lib/check-code-junit.sh` + `scripts/junit-pins.txt`): every test
