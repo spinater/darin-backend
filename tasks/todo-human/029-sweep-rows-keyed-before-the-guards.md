@@ -49,6 +49,26 @@ Run on the real database, read-only first, and report counts before changing any
   container that already holds the env — `docker compose exec -T app sh -c '…'`.
 - A row that is wrong cannot be corrected by guessing. Report it to linus with the person, the date
   and the value; the fix is a human re-keying it, not a script.
+- 🔑 **`TeachRate.rate = 0` carries a new, sharper question since task 036** — and it is a *business*
+  question, which is why it belongs here and not in 036. A stored `0` can be either of two things and
+  the database cannot tell them apart: **typed** by an owner ("this rank is not paid for this
+  activity", which must pay 0 with a visible line and no warning), or **produced** by pressing
+  "เพิ่มกิจกรรมใหม่", which used to write three rows at 0 per activity and thereby made the
+  §2 rule 4 warning unreachable for it. For every `0` the sweep finds, only linus or the owner can
+  say which it was. ⚠️ **Do not classify them by inspection** — a `0` on `pt`/`pilates`/`swim`/`yoga`
+  *looks* like the `addActivity` artifact, especially yoga, which the dashboard actively nags about
+  while the only เพิ่ม button near that table was the one writing zeros. Likely is not known, and the
+  rule above applies unchanged.
+  - **Reinterpreting them moves no money either way** — both readings pay 0 ฿ for those sessions; the
+    only difference is whether a warning and a line appear. So nothing is underpaid while this waits.
+  - **Task 036 freezes the set**: once `addActivity` stops writing rate rows, no new ambiguous `0`
+    can be created, so this set can only shrink from here.
+  - Run it as part of the same read-only pass: `SELECT activity, rank, rate FROM "TeachRate" ORDER BY
+    activity, rank;` — the table is nine rows from seed, so read it whole rather than filtering. The
+    cheap pre-check that may close the question outright: `git show 106cbe8:app/admin/config/page.tsx`
+    — if the build actually running on the host never had `addActivity` writing zeros, the ambiguity
+    has never existed in production. (Host state re-measured 2026-09-19, see
+    [018](../todo/018-deploy-docs-claim-a-pipeline-that-never-ran.md).)
 - 🔴 `PayrollConfig` is the urgent one, and it is urgent **before the next deploy, not before the
   next payroll run**. `num()` now throws on a blank, and `/ot` and `/classes` call it **at page
   render** — so a legacy blank value in the deployed database turns those two screens into Next's
