@@ -172,7 +172,7 @@ raises. `app/admin/config/page.tsx` was split twice under §4 as it grew (462 �
 **Opened from this round** — every one is a real defect or decision found while the lanes were in
 here, not speculation: [025](../done/025-negative-class-attendance-pays-zero-in-silence.md) (`noShow > booked` pays
 **0 ฿** with no warning — the first version of that card said "half", which the auditor measured and
-corrected) · [026](026-sync-page-renders-a-url-value.md) · [027](027-addstaff-fails-silently.md) ·
+corrected) · [026](026-sync-page-renders-a-url-value.md) · [027](../done/027-addstaff-fails-silently.md) ·
 [028](028-config-values-have-no-per-key-spec.md) (a `12` typed where `0.12` is meant still passes) ·
 [029](../todo-human/029-sweep-rows-keyed-before-the-guards.md) (the guards shut the doors; they do
 not sweep the room).
