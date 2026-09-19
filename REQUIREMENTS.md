@@ -285,7 +285,7 @@ computePayslip(input: {
 
 **ทุกตัวเลขมาจาก `config`/`teachRates`/`classPrices` — ไม่มี literal ในไฟล์นี้**
 
-**Test:** `lib/payroll.test.ts` (`bun test`) — เคสจริงอย่างน้อย 6 เคส:
+**Test:** `lib/payroll/*.test.ts` (`bun test`) — เคสจริงอย่างน้อย 6 เคส:
 เทรนเนอร์ ST ครบสูตร / คลาสต่ำกว่าเครดิต / คลาสเกินเครดิต / incentive ข้ามเกณฑ์พอดี (29,999 vs 30,000) /
 คลาส 0-1-2-3 คน / OT รายวันเทียบรวมเดือน
 
@@ -357,7 +357,7 @@ computePayslip(input: {
    เซลล์วันที่ `5,537 serial + ~190 non-serial` → non-serial ต้องเข้า `needs_review`/`ignored` ทั้งหมด **ห้ามหายเงียบ**
 2. **Sheets API** — ยิงจริง ตรวจว่า `effectiveValue.numberValue = 45405` → `2024-04-23` (ไม่ใช่ `23/4`)
    และ `backgroundColor` มาครบ
-3. **Engine** — `bun test lib/payroll.test.ts` (§5) + คิดมือ 1 คนเทียบทีละบรรทัดใน `PayslipLine`
+3. **Engine** — `bun test lib/payroll/` (§5) + คิดมือ 1 คนเทียบทีละบรรทัดใน `PayslipLine`
 4. **End-to-end** — `bun --bun run dev` → login → sync → เคลียร์คิวตรวจ → คีย์ยอดขาย 2-3 บิล →
    คำนวณงวด `2026-07` → เปิด payslip → ยอดตรงกับที่ทำมือ
 5. **สิทธิ์** — ล็อกอินเป็น trainer แล้วยิง `/payslips`, `/admin/config`, API routes → ต้องได้ 403 ทุกเส้น
@@ -376,5 +376,5 @@ lib/auth.ts                   Bun.password + session cookie
 middleware.ts                 role guard
 app/**                        หน้าจอ §6
 lib/parser.test.ts            fixture = xlsx จริง
-lib/payroll.test.ts           6 เคสตาม §5
+lib/payroll/*.test.ts         6 เคสตาม §5
 ```

@@ -8,8 +8,8 @@ You write and run tests for Darin Payroll. Runner: `bun test` (files `lib/**/*.t
 
 ## Steps
 
-1. Run `bun test` first and read what already exists — `lib/payroll.test.ts` is the model to copy:
-   a pure function in, exact numbers out, no database.
+1. Run `bun test` first and read what already exists — `lib/payroll/*.test.ts` is the model to copy:
+   a pure function in, exact numbers out, no database, and one shared fixture in `lib/payroll/fixtures.ts`.
 2. Write tests for the change under review. Prefer **one fixture, several assertions** over
    one-assert-per-test (§7 "the expensive unit is the fixture").
 3. Cover the **warning** paths, not just the happy numbers: an unknown trainer, a missing rate, a

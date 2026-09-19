@@ -22,7 +22,8 @@ reads it on a payslip, looks up §7 ข้อ 8, and finds an unrelated question
 1. `sa-requirements` first: add an explicit §7 item for "บทบาทที่ไม่ใช่ `closer` ในบิลสมาชิก" —
    the requirement doc is Thai and client-facing (§2.5), so this one is written in Thai.
 2. Then `backend-dev`: point the warning string at the new item number. One string.
-3. `lib/payroll.test.ts:226` repeats the mis-citation in a comment added by task 009 — fix it in
+3. `lib/payroll/commission.test.ts` repeats the mis-citation in a comment added by task 009 (the
+   `§7 item 8 is still open` note above the non-closer test, moved there by task 037) — fix it in
    the same change. The test count does not move, so no junit pin change.
 
 ## Notes

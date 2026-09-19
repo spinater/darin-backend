@@ -2,11 +2,14 @@
 sources:
   - lib/payroll.ts
   - lib/config-keys.ts
-  # Rule 4 asserts this file still carries the engine's reference answer for a >2-decimal hours
-  # value (13.33 · qty 0.33 · 266.67 over 20 days) ⇒ deleting or rewriting that test must land here
-  # as STALE, not pass green under a card that keeps quoting the figure. Rule 3 also leans on the
-  # inactive-staff pair task 013 added here (the 24 → 26 raise): a warning that moves no figure.
-  - lib/payroll.test.ts
+  # `lib/payroll.test.ts` was split into `lib/payroll/*.test.ts` at task 037; these are the **three**
+  # halves this card quotes. Rule 4's reference answer for a >2-decimal hours value (13.33 · qty 0.33
+  # · 266.67 over 20 days) is in the first; rule 3's inactive-staff pair in the second; rule 3's
+  # task-025 negative-attendance trio — the 400/200 ฿ pair and the exactly-0 boundary — in the third.
+  # Dropping any of them from this list is how a rewritten test leaves the card green and wrong.
+  - lib/payroll/ot.test.ts
+  - lib/payroll/slip.test.ts
+  - lib/payroll/class.test.ts
   # Rule 4 documents this file's `num()` rule for reading `ot.thresholdHours`/`ot.ratePerHour`
   # outside the engine — the only claim this card still makes about the file, since task 011
   # deleted the `เป็นเงิน` column it used to also document.
@@ -45,7 +48,7 @@ sources:
    `comm.pt.selfClosed` = คอม **0 ฿** แทน 2,000 ฿ บนบิล 20,000 ฿ · ล้าง `incentive.threshold` = 12%
    ย้อนหลังเข้าทุกคนทุกเดือน · ทั้งคู่ `warnings: []`) · ฝั่งเขียน: [money-input-guards.md](money-input-guards.md)
 2. **`computePayslip` เป็น pure function** — ไม่แตะ DB ไม่อ่าน env ไม่อ่านนาฬิกา
-   ⇒ เทสทุกใบใน `lib/payroll.test.ts` เป็นการเทียบตัวเลขตรง ๆ ไม่ต้องมีฐานข้อมูล · **ห้ามย้าย
+   ⇒ เทสทุกใบใน `lib/payroll/*.test.ts` เป็นการเทียบตัวเลขตรง ๆ ไม่ต้องมีฐานข้อมูล · **ห้ามย้าย
    การอ่าน config เข้ามาในนี้** ตัวเรียก (`lib/payroll-run.ts`) เป็นคนโหลดมาส่งให้
    · that caller's own rules — who it selects, what it locks, what a recompute rebuilds — are in
    [payslip-lifecycle.md](payslip-lifecycle.md), which is the card that sources it.
@@ -61,8 +64,8 @@ sources:
      this rule forbids, and inventing a daily rate is a literal in a formula (rule 1). Nothing is
      pro-rated for anybody — that is the owner's call, carded as
      [021](../../../tasks/todo-human/021-leaver-base-salary-proration.md). Pinned in
-     `lib/payroll.test.ts` by the pair task 013 added in its 24 → 26 raise — the file's junit pin is
-     **34** today and `scripts/junit-pins.txt` is the authority for it — and the second of the two compares
+     `lib/payroll/slip.test.ts` by the pair task 013 added (the engine suite's 24 → 26 raise), whose
+     own junit pin is **3** — `scripts/junit-pins.txt` is the authority — and the second of the two compares
      the whole result against the same input with `active: true`, so a later "pay them 0" goes red. Who a run
      selects, and the warning's exact wording, are in [payslip-lifecycle.md](payslip-lifecycle.md).
    - **A negative attendance (`noShow > booked`) warns — it is not paid 0 in silence (task 025).**
@@ -75,8 +78,8 @@ sources:
      mistyped alone (`booked 2 / noShow 0`) is 2 attended and pays **200 ฿** ⇒ §2 rule 4, the คาบ
      goes to `warnings` naming the class, both counts, the negative result and the price, and the
      human picks. **The boundary is the sign and nothing else**: an attendance of exactly 0 is the
-     ordinary case §1.4 covers and must **not** warn. Three tests took `lib/payroll.test.ts`
-     30 → **33** — both directions, plus one warning **per row** (`byClass`
+     ordinary case §1.4 covers and must **not** warn. Three tests (now `lib/payroll/class.test.ts`)
+     took the engine suite 30 → **33** — both directions, plus one warning **per row** (`byClass`
      merges the *lines* by class name; the warnings deliberately do not follow). The door that
      refuses this pair before it ever stores: [money-input-guards.md](money-input-guards.md)
    - 🔴 **`invalidHours` exists because `NaN` is not a loud failure.** `OtEntry.hours` is a `Float`
@@ -119,7 +122,7 @@ sources:
    engine rounds only the final amount. A fingerprint export writes 9:20 as `9.333333333333334`: the
    engine pays `money(0.3333… × 40)` = **13.33**, the screen showed `money(0.33 × 40)` = **13.20**;
    over 20 such days, 266.67 ฿ paid against 264.00 ฿ shown — invisible to a spot check because clean
-   2-dp hours agree either way. `lib/payroll.test.ts` still carries the engine's answer for this exact
+   2-dp hours agree either way. `lib/payroll/ot.test.ts` still carries the engine's answer for this exact
    case (13.33 · qty 0.33 · 266.67 over 20 days) as a **reference figure** — it asserts
    `computePayslip`, whose OT block was never wrong, so it proves a future disagreement rather than
    fencing a screen; there is no screen arithmetic left to fence. A baht preview proposed again
@@ -165,6 +168,6 @@ sources:
 
 `lib/payroll.ts` and `lib/payroll-run.ts` went through the first `prettier --write` pass when the
 formatter gate opened. **Shape only — no rule, rate or branch changed**; the pass is in the diff
-but not in the behaviour, and `lib/payroll.test.ts` ran the same 21 tests before and after.
+but not in the behaviour, and the engine suite (then `lib/payroll.test.ts`) ran the same 21 tests.
 From now on `prettier --check` is the first stage of `scripts/check-code.sh`, so a hand-formatted
 edit to these files goes red before `tsc` even starts — see [../ops/gates.md](../ops/gates.md).

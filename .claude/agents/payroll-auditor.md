@@ -41,7 +41,7 @@ Check each against the section it implements in
    path that drops a case without a warning. A wrong `0` is invisible on a payslip; a warning is not.
 
 3. **Purity.** `lib/payroll.ts` must not import `db`, call `Date.now()`, or read `process.env`. If
-   it does, the money is no longer testable without a database and `lib/payroll.test.ts` stops being
+   it does, the money is no longer testable without a database and `lib/payroll/*.test.ts` stops being
    a real guarantee.
 
 4. **Rounding.** `money()` (2 dp) is applied at each accumulation boundary, not once at the end.
@@ -73,7 +73,7 @@ Check each against the section it implements in
    - `runPayroll` still refuses to recompute a slip that is not `draft`.
    - `TeachSession.staff` still `onDelete: Restrict`.
 
-7. **Coverage.** Does `lib/payroll.test.ts` assert both the new behaviour and its warning path?
+7. **Coverage.** Does `lib/payroll/*.test.ts` assert both the new behaviour and its warning path?
 
 ## Output
 

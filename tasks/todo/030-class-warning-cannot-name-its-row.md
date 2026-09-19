@@ -37,7 +37,11 @@ and a manual scan to act on is one step short of §2 rule 4's intent.
 
 ## Notes
 
-- 🔴 **This card is the one that splits `lib/payroll.test.ts`** (`code-reviewer`, 2026-09-18). Task
+- ✅ **The split this card was told to carry has already happened** — task 037 did it on 2026-09-19
+  (`lib/payroll/{teach,class,commission,ot,slip,config-guards}.test.ts` + `fixtures.ts`, the pin row
+  replaced by six summing to 36). What is left below is the history of why, and one live instruction:
+  this card's new test goes into **`lib/payroll/class.test.ts`** and raises **that** file's pin.
+- 🔴 **This card was the one that splits `lib/payroll.test.ts`** (`code-reviewer`, 2026-09-18). Task
   025 left it at **433 lines** — 17 under the §4 450 warn — and spent 32 lines on three tests, so the
   test this card adds almost certainly crosses it. Split along the `describe` boundaries that already
   exist (`lib/payroll/{teach,class,commission,ot}.test.ts`), move the shared fixtures at
