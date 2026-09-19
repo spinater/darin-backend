@@ -63,10 +63,24 @@ sources:
      pro-rated for anybody — that is the owner's call, carded as
      [021](../../../tasks/todo-human/021-leaver-base-salary-proration.md). Pinned in
      `lib/payroll.test.ts` by the pair task 013 added in its 24 → 26 raise — the file's junit pin is
-     **30** today and `scripts/junit-pins.txt` is the authority for it — and the second of the two
+     **33** today and `scripts/junit-pins.txt` is the authority for it — and the second of the two
      compares the whole result against the same input with `active: true`, so a later "pay them 0"
      goes red. Who a run selects, and the warning's exact wording, are in
      [payslip-lifecycle.md](payslip-lifecycle.md).
+   - **A negative attendance (`noShow > booked`) warns — it is not paid 0 in silence (task 025).**
+     `attended = booked − noShow` used to fall into the class formula's `<= 0` arm ⇒ **0 ฿ with
+     `warnings: []`** (measured: `{price:400, booked:2, noShow:5}` → `classPay 0`; four such rows in a
+     month is 800 ฿ gone with nothing on the slip to look at). It still **pays nothing**, and the
+     reason is that the row is *unreadable* — **not** that a rate is missing: paying anything means
+     guessing which of the two counts is wrong, and the guesses pay differently. On that same row a
+     transposed pair (`booked 5 / noShow 2`) is 3 attended and pays **400 ฿**, while a `noShow`
+     mistyped alone (`booked 2 / noShow 0`) is 2 attended and pays **200 ฿** ⇒ §2 rule 4, the คาบ
+     goes to `warnings` naming the class, both counts, the negative result and the price, and the
+     human picks. **The boundary is the sign and nothing else**: an attendance of exactly 0 is the
+     ordinary case §1.4 covers and must **not** warn. Three tests took `lib/payroll.test.ts`
+     30 → **33** — both directions, plus one warning **per row** (`byClass`
+     merges the *lines* by class name; the warnings deliberately do not follow). The door that
+     refuses this pair before it ever stores: [money-input-guards.md](money-input-guards.md)
    - 🔴 **`invalidHours` exists because `NaN` is not a loud failure.** `OtEntry.hours` is a `Float`
      ⇒ `double precision`, which **accepts `NaN`**; one bad character would write it, and §2.4's
      `Math.max(0, NaN − threshold)` turns that staff member's `otPay`, `net` and whole month into
@@ -127,7 +141,7 @@ sources:
 `commission` (คอมขาย + incentive) + `otPay` = `net` · ทุกก้อนแตกเป็น `lines[]` ที่ผู้ใช้เห็นได้
 
 - **ค่าสอน** — `teachRates[activity][rank]`; rank คือ `ST`/`CT`/`PT`
-- **คลาสกลุ่ม** — คนเข้าจริง ≥ `class.minAttendees` ได้เต็ม · 1..min-1 คูณ `class.halfRatio` · 0 คนไม่จ่าย
+- **คลาสกลุ่ม** — คนเข้าจริง ≥ `class.minAttendees` ได้เต็ม · 1..min-1 คูณ `class.halfRatio` · 0 คนไม่จ่าย · **negative = pays nothing and warns** (rule 3, task 025)
 - **คอมขาย** — แตกตาม *ใครปิด* และ *ใครส่งลีด* (`comm.pt.selfClosed` · `leadTrainer` · `leadReferrer`
   · `counterSelf`) ⇒ บิลใบเดียวจ่ายได้หลายคน ผ่าน `attributions`
 - **incentive** — ยอด PT ที่ปิดเอง ≥ `incentive.threshold` ในเดือนนั้น ⇒ คิด `incentive.rate`

@@ -67,6 +67,15 @@ export default async function ClassesPage({
     const noShow = isBlank(noShowRaw) ? 0 : finiteNumber(noShowRaw, HEAD_COUNT);
     if (noShow === null) redirect(`/classes?period=${encodeURIComponent(period)}&err=noShow`);
 
+    // 🔴 Each field is sane on its own and the **pair** is still nonsense: `booked: 2,
+    // noShow: 5` passed both guards above and stored, and `computePayslip` then read
+    // `attended = −3` — a case §1.4 does not define. The engine no longer decides it quietly
+    // (task 025), but a warning on a slip is a cost this door can avoid paying: refuse the pair
+    // here, where the person who typed it is still looking at the numbers. Same surface as the two
+    // field guards — a flag, not a message, and nothing is written.
+    if (noShow > booked)
+      redirect(`/classes?period=${encodeURIComponent(period)}&err=noShowOverBooked`);
+
     await db.classSession.create({
       data: {
         date: new Date(String(formData.get("date")) + "T00:00:00Z"),
@@ -141,8 +150,9 @@ export default async function ClassesPage({
         </SubmitButton>
       </form>
 
-      {/* One flag per refused field. Each says what was refused and that **nothing was saved** —
-          a คาบ the admin believes is keyed in is the failure this screen can hide. */}
+      {/* One flag per refusal — two fields plus the pair. Each says what was refused and that
+          **nothing was saved**: a คาบ the admin believes is keyed in is the failure this screen
+          can hide. */}
       {err === "booked" && (
         <p className="card-warn text-sm">
           ⚠️ จำนวนคนจองไม่ใช่จำนวนเต็มตั้งแต่ 0 ขึ้นไป — <b>คาบนี้ยังไม่ถูกบันทึก</b> ตรวจช่อง
@@ -153,6 +163,12 @@ export default async function ClassesPage({
         <p className="card-warn text-sm">
           ⚠️ จำนวน no-show ไม่ใช่จำนวนเต็มตั้งแต่ 0 ขึ้นไป — <b>คาบนี้ยังไม่ถูกบันทึก</b> ตรวจช่อง
           “no-show” หรือเว้นว่างไว้ถ้าไม่มีใครขาด แล้วบันทึกอีกครั้ง
+        </p>
+      )}
+      {err === "noShowOverBooked" && (
+        <p className="card-warn text-sm">
+          ⚠️ จำนวน no-show มากกว่าคนจอง ⇒ คนเข้าจริงติดลบ ซึ่งไม่อยู่ในกติกาคิดเงินคลาส —{" "}
+          <b>คาบนี้ยังไม่ถูกบันทึก</b> ตรวจช่อง “คนจอง” กับ “no-show” ให้ตรงกัน แล้วบันทึกอีกครั้ง
         </p>
       )}
 

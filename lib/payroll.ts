@@ -124,6 +124,22 @@ export function computePayslip(input: {
 
   for (const c of classSessions) {
     const attended = c.booked - c.noShow;
+    // 🔴 `attended < 0` is **not** "nobody came" — it is a row that cannot be read at all
+    // (`noShow` larger than `booked`, which stored before `/classes` refused the pair). It used to
+    // fold into the `<= 0` branch and pay 0 ฿ with `warnings: []` — the silent zero §2 rule 4
+    // forbids, ~800 ฿ off one slip for four such rows (task 025).
+    //
+    // It still pays **nothing**, and the reason is that the input is *unreadable*, not that a rule
+    // is undecided: paying anything means guessing **which of the two counts is wrong**, and the
+    // guesses pay differently. For `{price 400, booked 2, noShow 5}` — if the two fields were
+    // transposed (`booked 5 / noShow 2`) that is 3 attended ⇒ **400 ฿**; if only `noShow` is wrong
+    // and `booked 2` stands, it is at most 2 attended ⇒ **200 ฿**. The engine cannot pick between
+    // them, so §2 rule 4 sends the คาบ to `warnings` — class, both counts, the negative result,
+    // the price — and the human picks.
+    if (attended < 0)
+      warnings.push(
+        `คลาส ${c.className}: no-show (${c.noShow}) มากกว่าคนจอง (${c.booked}) ⇒ คนเข้าจริงติดลบ (${attended}) — §1.4 ไม่ได้ครอบคลุมกรณีนี้ จึงยังไม่คิดเงินคาบนี้ (ราคา ${c.price}) ⇒ ลบคาบนี้แล้วคีย์ใหม่ที่หน้าคาบสอนคลาส Group`,
+      );
     const ratio = attended <= 0 ? 0 : attended < minAtt ? halfRatio : 1;
     const amount = money(c.price * ratio);
     classValue += amount;

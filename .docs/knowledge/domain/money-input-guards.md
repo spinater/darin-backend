@@ -77,6 +77,7 @@ documented meaning, and every other `null` is a refusal.
 | `/sales` `add` | `listPrice` | "sold at list price" ⇒ `null`, and fine | `err=listPrice` |
 | `/classes` `add` | `booked` | refused | `err=booked` |
 | `/classes` `add` | `noShow` | 0 — what `?? 0` and `defaultValue={0}` already said | `err=noShow` |
+| `/classes` `add` | `noShow` **vs** `booked` | — (a *pair*, not a field) | `err=noShowOverBooked` |
 | `/admin/config` `addStaff` | `baseSalary`, `classCredit` | 0, the documented default | `err=newstaff` |
 | `/admin/config` `save` | every `cfg` box — every rate, threshold and percentage the engine has | refused | `err=cfg` |
 | `/admin/config` `save` | every teach rate, class price and staff salary field of the bulk form | a **rate** blank deletes that rate; every other blank is refused | `err=rate` · `err=class` · `err=staff` |
@@ -128,15 +129,27 @@ reason.
 rather than the page: the page was at 462 lines against the §4 ceiling of 500, and the add-staff
 form moved out with it.
 
+## The one guard that is not a field — `noShow` vs `booked` (task 025)
+
+Every row in the table above refuses a **field**. This one refuses a **pair**: `booked: 2,
+noShow: 5` passes both field guards — each is a non-negative integer — and stores, and the engine
+then reads `attended = −3`, a case §1.4 does not define.
+
+🔑 **Both ends were fixed, and only one of them is the deliverable.** The engine is the end that
+matters: rows keyed before this guard existed are already in the table, and `computePayslip` used to
+fold them into its `<= 0` arm for **0 ฿ with `warnings: []`** — the invisible zero, ~800 ฿ off one
+slip for four such rows. It now warns, naming the class and the numbers, and still pays nothing —
+paying anything would mean guessing which of the two counts is wrong, and the guesses pay
+differently (200 ฿ vs 400 ฿ on that row); see [payroll-rules.md](payroll-rules.md) rule 3. This door
+only stops the next one being typed, where the person who typed it is still looking at the numbers
+— it can never repair what is stored, so **a guard here is not a reason to let the engine decide
+quietly**.
+
 ## What is deliberately *not* guarded here
 
 - **A per-key ceiling for a config value.** Nothing stops `comm.pt.selfClosed` being set to `900`
   (a 900% commission) or `payday.base` to `77`. That needs a spec table beside `CONFIG_DEFAULTS`,
   one row per key, and is carded — guessing the maxima here would put the spec in the guard.
-- **Cross-field sense.** `noShow > booked` still stores. Measured: `lib/payroll.ts:127` is
-  `attended <= 0 ? 0 : …`, so a negative attendance pays **0, not half** — the invisible-zero case,
-  about 800 ฿ off one slip for four such rows, with `warnings: []`. Reported, not fixed here: task
-  025 owns it.
 - **A non-numeric config key.** All 18 keys in `CONFIG_DEFAULTS` are non-negative numbers today, and
   the `cfg` rule assumes it. A key that is a name, a flag or a date needs its own branch in
   `lib/config-form.ts` **before** it is added, or the first owner who edits it is refused.

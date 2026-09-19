@@ -55,7 +55,8 @@ same round: two scope tests merged into one whole-object comparison pinning stri
 merge, not a removal), and item 4 of the same card added `lib/form-number.test.ts` at **11** and
 `lib/config-form.test.ts` at **7** and raised `lib/ot-import.test.ts` 6 → **7**; its review round
 then raised all three again — `lib/form-number.test.ts` → **13**, `lib/config-form.test.ts` → **12**
-and `lib/payroll.test.ts` 26 → **30**. What each raise bought:
+and `lib/payroll.test.ts` 26 → **30**; task 025 then took `lib/payroll.test.ts` 30 → **33**.
+What each raise bought:
 
 | Pin | Raise | What it is worth |
 | --- | --- | --- |
@@ -72,6 +73,7 @@ and `lib/payroll.test.ts` 26 → **30**. What each raise bought:
 | `lib/form-number.test.ts` | 11 → 13 | `int` and `max`. Measured against this schema: Postgres `integer` **truncates** `2.5` to `2` rather than refusing it (`booked`, `baseSalary`, `ClassPrice.price` all), and an out-of-range value throws **at the write**, mid-loop. Both are now refused before the first write |
 | `lib/config-form.test.ts` | 7 → 12 | `cfg\|…` joining the parse — the largest hole of the five, since those boxes are plain text with no `required` and a cleared one stored `""`; plus the `Int` ceiling, the fraction that used to be pinned as *valid*, and a `staff\|…` field the form does not render (which used to throw mid-loop) |
 | `lib/payroll.test.ts` | 26 → 30 | `num()` throwing on a blank or non-finite config value, pinned at the engine rather than at the form — including the 20,000 ฿ self-closed bill that paid **0 ฿** instead of 2,000 ฿ with `warnings: []` when `comm.pt.selfClosed` was cleared |
+| `lib/payroll.test.ts` | 30 → 33 | task 025 — a **negative** attendance (`noShow > booked`, which stored before `/classes` refused the pair) warns with the class and the two counts **in order** instead of folding into the engine's `<= 0` arm for 0 ฿ with `warnings: []`; the opposite boundary, an attendance of exactly 0, which must **not** warn; and one warning **per row**, since `byClass` merges the payslip lines by class name and a "dedupe the warnings" tidy-up would otherwise stay green. 🔑 The money half asserts the class **line**, not `classPay` — `Math.max(0, … − classCredit)` clamps the latter, so a row that *subtracted* 400 ฿ would still read 0 |
 
 **Every row is a raise**; only a lowering needs a reason in the task card.
 
