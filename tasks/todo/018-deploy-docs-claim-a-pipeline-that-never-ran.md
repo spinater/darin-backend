@@ -49,3 +49,20 @@ against the persistent `pgdata` volume on every deploy (§2 rule 8, already writ
 - Flagged by the `private-68` lane at the end of task 017, deliberately not patched into either
   that card or task 009 — it is ops and belongs to neither.
 - Do **not** "fix" this by adding the secret. That is task 002 and it is blocked on a human.
+- **Re-measured read-only from the host on 2026-09-19**, right after `develop` was pushed for task
+  034 (`c286758`). Still exactly as described above — and one line of `deploy.md` has since gone
+  stale in the *other* direction:
+
+  | checked | found |
+  |---|---|
+  | host HEAD | `106cbe8` on `feat/sync-progress-ui` — unmoved |
+  | host's own `develop` | `8db815c` — nowhere near `origin/develop` |
+  | `darin-web` | `Up 36 hours` ⇒ nothing restarted, so no deploy ran |
+  | `darin-pg` | `Up 36 hours (healthy)` · `docker compose ls` → project `darin` (the `name:` trap is intact) |
+  | host working copy | `M docker-compose.yml` still dirty ⇒ `git pull --ff-only` would refuse |
+  | **`/root/app/deploy-darin.sh`** | 🔴 **exists now** — `-rwx------ root 1419 bytes, 2026-09-18 03:46`. `deploy.md:39` says it does not. Correct that line with the rest of the sweep; what is left missing is the key in `authorized_keys` and the `DEPLOY_SSH_KEY` secret, not the script. |
+
+  ⚠️ Whoever finally arms this: the host is **on another branch with a dirty `docker-compose.yml`**,
+  so the first real run does not just `git pull`. Switching it to `develop` by hand is the step that
+  walks straight into `deploy.md`'s 🔴 empty-database trap, which is why it is task 002's and a
+  human's, not a lane's.
