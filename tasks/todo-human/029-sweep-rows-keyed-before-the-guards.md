@@ -64,6 +64,6 @@ Run on the real database, read-only first, and report counts before changing any
 
 - Opened from `payroll-auditor`'s round-2 note on task 013 item 4 (2026-09-18): *the door is now shut,
   but a row keyed before today is unaffected.*
-- Related: [025](../todo/025-noshow-greater-than-booked-pays-half.md) (the `noShow > booked` rows this sweep
+- Related: [025](../done/025-negative-class-attendance-pays-zero-in-silence.md) (the `noShow > booked` rows this sweep
   would find) · [028](../todo/028-config-values-have-no-per-key-spec.md) (a value that is in range but
   implausible — `12` where `0.12` was meant — which this sweep **cannot** find).
