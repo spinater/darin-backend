@@ -135,7 +135,7 @@ re-derives them, are listed in [task 035](../todo/035-activity-name-with-a-pipe-
   answer to this card's own question: an activity name containing `|` collides with the bulk-save
   field encoding `rate|<activity>|<rank>` and overwrites a **different** activity's rate with 0.
   Same silent zero, different road, untouched by the `Map`.
-- [036](../todo/036-addactivity-seeds-rate-zero-so-the-warning-can-never-fire.md) — `payroll-auditor`,
+- [036](036-addactivity-seeds-rate-zero-so-the-warning-can-never-fire.md) — `payroll-auditor`,
   **Major**: `addActivity` seeds all three ranks at `rate 0`, so an activity added through the screen
   is never "unconfigured" and the §2 rule 4 warning this card just restored can never fire for it. A
   12-session ST trainer is 4,800 ฿ short with `warnings: []`. Needs `architect` first — the two ways

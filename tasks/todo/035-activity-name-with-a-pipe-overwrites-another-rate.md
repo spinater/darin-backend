@@ -35,6 +35,25 @@ the rank of a **different** activity.
    `lib/payroll.ts:122` is **false** ⇒ no warning. Every ST trainer's `pt` sessions become a 0 ฿
    line with `warnings: []`.
 
+## ⚠️ After task 036 the symptom changed — it is now a **delete**, not an overwrite
+
+Task 036 stopped `addActivity` seeding three `TeachRate` rows at 0, so the registered name `pt|PT`
+renders three **blank** boxes instead of three `0`s. A blank rate box is the documented way to
+*delete* a rate (`lib/config-form.ts:87`), so the same บันทึกทั้งหมด now runs
+`deleteMany({ activity: "pt", rank: "PT" })` against the genuine row instead of upserting it to 0.
+Rows still sort `pt` before `pt|PT`, so the real upsert runs first and is deleted in the same submit.
+
+**Net direction is an improvement** — a deleted rate *warns* (`ไม่มีเรทค่าสอน pt × PT`) where the
+0 paid silently, which is §2 rule 4 working. But the money still moves: a PT-rank trainer with 40
+`pt` คาบ drops from 40 × 200 = **8,000 ฿ to 0 ฿**, and retyping 200 does not help because the next
+submit deletes it again. The trigger set is unchanged, and the mechanism is now a `DELETE` on the
+live money table.
+
+🔑 **Task 036 already paid for this card's better option.** `TeachActivity.id` exists for exactly
+one reason: to make `rate|<id>` cheap. Prefer it over rejecting `|` at the write.
+
+Found by `payroll-auditor` on the task 036 review, 2026-09-19.
+
 ## Why this one matters
 
 🔴 **Same failure as [task 034](../done/034-activity-named-proto-pollutes-the-rate-map.md), reached by a

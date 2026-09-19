@@ -4,7 +4,7 @@
 - commit:
 
 - 🚫 **Blocked on linus (three questions, none of them about table shape).** They came out of the
-  `architect` pass on [task 036](../todo/036-addactivity-seeds-rate-zero-so-the-warning-can-never-fire.md)
+  `architect` pass on [task 036](../done/036-addactivity-seeds-rate-zero-so-the-warning-can-never-fire.md)
   on 2026-09-19, which separated what a lane may decide from what it may not. 036 ships **without**
   these answers — it is correct under every one of them — so nothing is waiting on this card. What is
   waiting is knowing whether a branch of complexity in the payroll engine deserves to exist at all.

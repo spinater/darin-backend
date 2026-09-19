@@ -63,6 +63,15 @@ Run on the real database, read-only first, and report counts before changing any
     only difference is whether a warning and a line appear. So nothing is underpaid while this waits.
   - **Task 036 freezes the set**: once `addActivity` stops writing rate rows, no new ambiguous `0`
     can be created, so this set can only shrink from here.
+  - 🔑 **Task 036 added a second reason to read this column, and it is about whitespace, not zeros.**
+    The rate matrix now lists activity names through `mergeActivityNames`, which **trims**, while the
+    box's own lookup (`rates.find(x => x.activity === a)`) and `buildTeachRates` both key on the
+    **raw** column. So a legacy row like `TeachRate{activity: "pilates ", rank: "ST", rate: 500}`
+    merges into the displayed `pilates` row, its box renders `ยังไม่ตั้ง`, and the owner can no
+    longer reach the 500 ฿ from the screen — while sessions carrying the padded name still collect
+    it. No writer produces a padded activity today (seed uses literals, the form trims, sheet
+    sources are seed-only), so this is **latent** — but the sweep is the only thing that can say
+    whether a pre-guard row already carries one. Same query, just look at the whitespace too.
   - Run it as part of the same read-only pass: `SELECT activity, rank, rate FROM "TeachRate" ORDER BY
     activity, rank;` — the table is nine rows from seed, so read it whole rather than filtering. The
     cheap pre-check that may close the question outright: `git show 106cbe8:app/admin/config/page.tsx`

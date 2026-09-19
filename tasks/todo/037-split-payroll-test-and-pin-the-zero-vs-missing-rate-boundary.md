@@ -62,6 +62,6 @@ a wrong line, and here the two cases differ precisely in *whether a line exists*
   the §5 warn — `.docs/knowledge/domain/money-input-guards.md` at 168 and
   `.docs/knowledge/domain/payroll-rules.md` at 170 (warn 170 · cap 200). The next sentence added to
   either one warns.
-- **Coordinate with [task 036](036-addactivity-seeds-rate-zero-so-the-warning-can-never-fire.md)** —
+- **Coordinate with [task 036](../done/036-addactivity-seeds-rate-zero-so-the-warning-can-never-fire.md)** —
   its acceptance test is the same `0`-vs-missing pair seen from the screen's side. Whichever card ships
   second must not write the assertions a second time.

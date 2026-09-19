@@ -1,7 +1,7 @@
 # `addActivity` seeds every rank at rate 0, so a new activity can never warn — it pays 0 ฿ silently
 
-- status: todo
-- commit:
+- status: done
+- commit: a8faa9e
 
 ## Goal
 
@@ -236,6 +236,86 @@ per-rank blind spot in `app/page.tsx:36` (it flags an activity only when **no** 
 the engine warning, worth its own card) · `RANKS` being a hardcoded literal at `page.tsx:21` while
 §6 also promises "เพิ่มระดับ" (related to task 031 — do not let this card grow a `Rank` table).
 
+### The two review lanes — run 2026-09-19
+
+| Lane | Verdict |
+|---|---|
+| `code-reviewer` | **BLOCK**, narrow — two markdown-structure defects, no finding in the code |
+| `payroll-auditor` | **APPROVE-WITH-NITS** |
+
+**Both blockers were real, verified with `cat -A` rather than taken on report, and are fixed.** The
+serious one was in the §3 "spec" step: the new Thai paragraph was inserted **inside** the screens
+table in `REQUIREMENTS.md`, so GFM lazy continuation glued the row
+`| /me | Trainer | … **ห้ามเห็นเงิน** |` onto the end of it as literal pipes. The row that rendered
+wrong was the one saying a trainer must never see money, in the document the client reads, and it
+rendered correctly before this diff. The second: a stray blank line dropped the new junit-pin row out
+of the pin table in `gate-tiers-and-pins.md`.
+
+**The money trace came back clean from both lanes, checked by reading rather than by the gate** —
+which matters unusually much here, see the counter-test note below. Verified between them:
+`addActivity` writes no number on any path including the `P2002` arm · both `redirect()` calls sit
+outside the `try`, so `NEXT_REDIRECT` cannot be swallowed · the pre-check and the unique index are
+genuinely not redundant · `prisma/seed.ts` gives yoga a **name and no rate**, leaving
+`REQUIREMENTS.md` §7 item 10 open and both yoga warnings firing · `git diff develop` on
+`lib/payroll.ts`, `lib/payroll-run.ts`, `lib/config-form.ts`, `lib/config-keys.ts` and `app/page.tsx`
+is **empty** · no arm of the union can subtract, so a configured rate cannot become invisible · a
+deliberate `0` still pays 0 with its line and no warning. The card's worked example now reads: ST
+trainer, 12 `boxing` คาบ → **no teach line**, `teachPay 0`, and
+`ไม่มีเรทค่าสอน boxing × ST — 12 คาบยังไม่ถูกคิดเงิน` on the slip, the `/payslips` badge and the
+dashboard — where before it was a `0 ฿/คาบ` line with `warnings: []` and the 4,800 ฿ gap invisible.
+
+**Fixed in this commit, beyond the two blockers:**
+
+1. **`mergeActivityNames` moved to its own db-free `lib/activity-names.ts`**, re-exported by
+   `lib/activities.ts` (§4 barrel). Both lanes caught the same thing: the pinned fold was dragging
+   `lib/db.ts` — which constructs a `PrismaClient` at module load — into `bun test`, the exact
+   coupling task 034 moved `buildTeachRates` out of `payroll-run.ts` to avoid, and this card's own
+   knowledge card restates that rationale. It passed today only because `PrismaPg` does not validate
+   the connection string at construction, which is a property of the adapter version, not of us.
+2. **The defect narrative was written out nine times again** — the same shape task 034's review
+   flagged, with `lib/activities.ts` carrying 31 lines of doc comment on a 9-line function. Cut back
+   to one sentence plus a pointer at the schema, the action, the page and the component; the full
+   account stays in the knowledge card.
+3. **Task 039's card split shipped in the same round**, because adding `lib/activity-names.ts` to
+   `payslip-lifecycle.md`'s `sources:` pushed that card to 173 against the §5 warn of 170. The card
+   is now 115 and the teach-rate material lives in `teach-rate-lookup.md` at 87, reflowed back to
+   100 columns — which also undoes the *widening* finding 3 objected to (30 lines up to 137 columns).
+
+**Not fixed here — carded, with the reason each one is not this card's:**
+
+- [040](../todo/040-seed-recreates-a-rate-the-owner-deliberately-deleted.md) — 🔴 the one the auditor found
+  that this diff *created a promise against*: the new amber note says a blank rate box means "no
+  rate, and the คาบ warn", and `lib/config-form.ts` duly deletes the row — then `prisma/seed.ts`'s
+  `upsert … update: {}` **re-creates it on every deploy**. An owner who removes pt×PT gets it back at
+  200 ฿ on the next push, paying a PT trainer with 40 คาบ **8,000 ฿** they had removed, with
+  `warnings: []`. `update: {}` protects an *edited* value and does nothing for a *deleted* one. It is
+  the last remaining answer to "what still writes a rate nobody typed", and it needs `architect`
+  (seed-vs-owner-state is the same policy family as §2 rule 3's "seed time only").
+- [041](../todo/041-no-way-to-remove-a-registered-activity.md) — the accepted side effect, now with the
+  auditor's capacity half: a registered name can never be removed, and each one adds three
+  `deleteMany` calls to the bulk save's single 5 s transaction. Clutter and a loud `P2028` at worst,
+  never a wrong amount.
+- **Task 035's symptom changed and its card was updated in this commit.** With the seeded zeros gone,
+  a registered `pt|PT` renders *blank* boxes, so the field-encoding collision now runs
+  `deleteMany({activity:"pt",rank:"PT"})` instead of upserting 0 — the net direction is an
+  improvement (a deleted rate *warns*), but 8,000 ฿ still moves and the mechanism is now a `DELETE`
+  on the live money table.
+- **Task 029 gained a whitespace row**: `mergeActivityNames` trims for display while
+  `buildTeachRates` and the box's `defaultValue` key on the raw column, so a padded legacy
+  `TeachRate.activity` would merge into the trimmed row and become un-editable while still paying.
+  Latent — no writer produces one today — and only the live-data sweep can say whether one exists.
+- `activityExists()` reading the whole union to answer a yes/no is deliberate and recorded in the
+  code: four filtered probes would be cheaper but would put "which places count as existing" in a
+  second home.
+
+🔴 **The counter-test result is the most important sentence here, and it was volunteered by the
+implementer rather than found by me.** Restoring the three `rate: 0` writes leaves `tsc` clean,
+`bun test` at 0 fail and `verify.sh` **ALL GREEN**. No test lane here reaches a server action —
+`bun test` has no database (task 015) — so of this change's money behaviour the automated coverage is
+exactly one thing: the union cannot lose a name. The `0`-vs-missing boundary is unpinned until
+**task 037** lands its engine pair, so 037 should not slip behind 035 in the queue. Everything else
+on this screen is held by review, and this card is the record that it was reviewed rather than gated.
+
 ## Who reviews this
 
 Money path and probably the schema ⇒ CLAUDE.md §9's path list ⇒ **`code-reviewer` + `payroll-auditor`**,
@@ -247,10 +327,104 @@ money and schema out of it, and the whole card is one undecided question.
 - Found by `payroll-auditor` (Major) during the task 034 review, 2026-09-19. **Pre-existing on
   `develop`** and in no line task 034's diff moved — but it silences the exact warning task 034 just
   restored, which is why it is carded immediately rather than "next time someone touches that screen".
-- Related, same failure, different road: [task 035](035-activity-name-with-a-pipe-overwrites-another-rate.md)
+- Related, same failure, different road: [task 035](../todo/035-activity-name-with-a-pipe-overwrites-another-rate.md)
   (a `|` in the name overwrites another activity's rate with 0).
 - A thing task 034 bought that its own card does not claim, recorded so nobody re-derives it: the
   `Map` also closed the **rank** dimension. Under the old object fold a rank string that is a
   prototype key returned a *function* (`teachRates["pt"]?.["toString"]`), `rate == null` was false,
   and `money(qty * fn)` made `teachPay`, `net` and every `Payslip` total for that staff member `NaN`.
   Ranks come from the closed `RANKS` list today, so it was latent; it is now structurally gone.
+
+## Progress — implemented 2026-09-19 on `task-036-teach-activity-registry` (not committed, not moved)
+
+Design **A** built as ruled. `lib/payroll.ts`, `lib/payroll-run.ts`, `lib/config-form.ts` and
+`lib/config-keys.ts` are **untouched** — `rate == null` is unchanged and merely reachable now. No
+`?? 0`, `|| 0` or `!rate` anywhere on the new path; nothing in `lib/activities.ts` is a number at all.
+No FK onto `TeachActivity`, no `UPDATE`/`DELETE` against any existing `TeachRate` row.
+
+**What moved, in the §3 order**
+
+1. `REQUIREMENTS.md` — `TeachActivity` in the §3 data-model block, and a paragraph under the §6 table
+   saying "เพิ่มกิจกรรม" registers a *name* with no rate (Thai; client-facing file). §7 item 10 left open.
+2. `prisma/schema.prisma` — `model TeachActivity { id · name @unique · createdAt }` under the
+   `config (ห้าม hardcode)` banner, with the no-FK / no-number reasoning in its doc comment.
+3. `prisma/seed.ts` — backfill `Object.keys(RATES) ∪ SOURCES.map(s => s.activity)` = `pt, pilates,
+   swim, yoga` via `upsert … update: {}`. `yoga` gets a **name and still no rate**, which is the pair
+   the rule-4 warning exists for.
+4. `lib/activities.ts` (new, 93 lines, no split) — pure `mergeActivityNames(...lists)` (trim · drop
+   empty · dedupe through a **`Set`** · plain `.sort()`), `listActivities()` folding the four arms, and
+   `activityExists()` for the pre-check. `lib/activities.test.ts` (new) — 5 tests, pinned at **5** in
+   `scripts/junit-pins.txt` with the matching row in `.docs/knowledge/ops/gate-tiers-and-pins.md`.
+5. `app/admin/config/page.tsx` — the hardcoded `"yoga"` line is gone, `listActivities()` joined the
+   existing `Promise.all`, and `addActivity` writes **one** `TeachActivity` row and **zero** rate rows,
+   behind a union pre-check **and** a caught `P2002`.
+6. `_components/add-activity-form.tsx` — `ACTIVITY_DUP` beside `ACTIVITY_EMPTY`, two `===` comparisons
+   (no lookup table ⇒ no `Object.hasOwn` question), plus a line under the form saying what an add now
+   produces. The amber note moved with the matrix into the new `_components/rate-table.tsx` and states
+   **both** halves: blank = ยังไม่มีเรท ⇒ warns · `0` = ตั้งใจไม่จ่าย ⇒ pays 0 with a line, no warning.
+7. `app/page.tsx` — **verified, not edited.** `!rates.some(r => r.activity === a)` is true again for a
+   screen-added activity because no rate row exists, so the dashboard banner works under A. (It was
+   also broken by the seeded zeros; nobody had noticed.) The per-rank blind spot is unchanged and
+   stays out of scope.
+8. Four cards updated in the same change: `domain/payroll-rules.md` · `domain/payslip-lifecycle.md` ·
+   `domain/money-input-guards.md` · `ops/gate-tiers-and-pins.md`. `check-knowledge: OK — warn 0`.
+
+**Gate** — `bash scripts/verify.sh` → `verify: ALL GREEN`, with the deferred selftest tier **running**
+(`scripts/junit-pins.txt` moved), 16 stages, ~71 s. `bun test`: 116 pass · 3 skip · 0 fail across 11
+files. Stage 5 pushed the new model onto the throwaway postgres and seeded it.
+
+### Counter-test (`scripts/counter-test.sh save … → break → restore`, never `git checkout`)
+
+🔴 **The interesting break is green, and that is the finding.** Re-adding the three `rate: 0` writes to
+`addActivity` — the exact defect this card removes, on top of everything else this change builds —
+leaves **`tsc` clean, `bun test` 0 fail and `verify.sh` ALL GREEN**. Nothing automated watches that
+write path: there is no test lane that can reach a server action (`gate-tiers-and-pins.md`: stage 4 has
+no database, task 015 is the card that would change it), and `check-knowledge` cannot see it because a
+dirty source and a dirty card are both `+Infinity`. ⇒ **the money behaviour of this screen is held by
+review alone.** That is the honest state of it, and it is the strongest argument for the two §9 lanes
+on this diff.
+
+What the new pin *does* bite, proved by three separate breaks of `mergeActivityNames`:
+
+| break | red |
+| --- | --- |
+| an object literal used as the set (the task-034 shape) | 1 test — the prototype-key arm |
+| `.toLowerCase()` folded into the dedupe | 2 tests — trimmed-exact, and the prototype-key arm |
+| only the registry arm read (the "`TeachActivity` *is* the list" shortcut) | 4 of 5 — including the empty-registry arm, i.e. a rate disappearing from the matrix |
+
+Restored with `counter-test.sh restore` — 2/2 files, hashes matched what `save` recorded.
+
+### Decisions the design had not already made
+
+1. **`activityExists()` is a third export of `lib/activities.ts`**, not an inline `listActivities()
+   .includes(...)` in the action, so the trimmed-exact comparison and the "why both guards" reasoning
+   have one home. Four queries run on the add path; at this scale that is cheaper than a second
+   definition of the union.
+2. **Both guards redirect with the same `activityDup` flag.** A pre-check hit and a lost `P2002` race
+   are the same answer to the admin's question; two flags would be two Thai strings for one fact.
+3. **Ordering stays the plain code-unit `.sort()`** the page already used. Presentational only, no
+   amount depends on it, and `localeCompare` would be an unasked behaviour change (the sort-locale gate
+   came out at task 017, so nothing would have flagged it either way).
+4. **`lib/activities.ts` + its test are sourced by `payslip-lifecycle.md`**, not by `payroll-rules.md`:
+   that card's front matter already owns the `rate == null` chain, and it had the 30 lines of headroom
+   the squeeze needed. Both Thai-heavy cards were brought back to exactly **170** by rewriting, not by
+   deleting a lesson — `payroll-rules.md`'s teach bullet and two paragraphs were reflowed, and
+   `payslip-lifecycle.md`'s task-034 section was tightened as its 036 section was added.
+5. **One factual fix taken in passing:** `payroll-rules.md` said `lib/payroll.test.ts`'s junit pin was
+   `33`; `scripts/junit-pins.txt` has said `34` since task 034.
+6. **`scripts/junit-pins.txt` rows must cite `ใบ NNN` literally** — `# task 036 · …` is refused by
+   `check-code-junit.sh`, and while the row is red **19 of the junit selftest's own scenarios fail**
+   because their "a clean tree is green" baseline is not. Worth knowing before reading that output as
+   19 new bugs. The prose in the row is English (§2.5); only the citation token is Thai.
+7. **The page split was needed**: `page.tsx` reached ~470 with this diff, so the pre-decided
+   `_components/rate-table.tsx` was taken (page now **432**, component **71**). `staff-table.tsx` was
+   not needed and was left alone.
+
+### Not done, deliberately
+
+- No delete path for a registered name (the accepted side effect the design records) — still worth its
+  own card, "ลบกิจกรรมที่ไม่มีเรทและไม่มีคาบ".
+- No engine test for the `0`-vs-missing boundary: that is task 037's, in the engine suite, and writing
+  it here would be the duplicate both cards warn about.
+- Not committed, not pushed, card not moved to `done/` — `code-reviewer` + `payroll-auditor` still owe
+  this diff a pass (§9: it touches `prisma/schema.prisma` and a page that writes `TeachRate`).
