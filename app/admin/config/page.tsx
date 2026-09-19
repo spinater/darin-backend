@@ -10,6 +10,7 @@ import { isNextControlFlowError } from "@/lib/next-errors";
 import { Prisma } from "@/generated/prisma/client";
 import { SubmitButton } from "@/app/_components/submit-button";
 import { ActionProgress } from "@/app/_components/action-progress";
+import { AddActivityForm, ACTIVITY_EMPTY } from "./_components/add-activity-form";
 import { AddStaffForm } from "./_components/add-staff-form";
 import { SaveNotice } from "./_components/save-notice";
 import { SheetMappingSections } from "./_components/sheet-mapping";
@@ -128,7 +129,11 @@ export default async function ConfigPage({
     "use server";
     await requireAdmin();
     const activity = String(formData.get("activity") ?? "").trim();
-    if (!activity) return;
+    // 🔴 Refuse **out loud**. This was a bare `return`: the action resolved, React reset the box,
+    // and nothing on the page said the activity had not been added — the same silent refusal task
+    // 027 took out of `addStaff` a few lines down (task 034). The Thai lives in
+    // `_components/add-activity-form.tsx`; the URL carries only the flag.
+    if (!activity) redirect(`/admin/config?err=${ACTIVITY_EMPTY}`);
     for (const rank of RANKS)
       await db.teachRate.upsert({
         where: { activity_rank: { activity, rank } },
@@ -422,15 +427,7 @@ export default async function ConfigPage({
         </div>
       </form>
 
-      <section className="card">
-        <h2 className="mb-2 font-medium">เพิ่มกิจกรรมใหม่</h2>
-        <form action={addActivity} className="flex gap-2">
-          <input name="activity" placeholder="เช่น boxing" className="input" />
-          <SubmitButton className="btn-ghost" pendingLabel="กำลังเพิ่ม…">
-            เพิ่ม
-          </SubmitButton>
-        </form>
-      </section>
+      <AddActivityForm action={addActivity} err={err} />
 
       <AddStaffForm action={addStaff} ranks={RANKS} roles={ROLES} err={err} />
 

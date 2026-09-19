@@ -1,5 +1,8 @@
 ---
 sources:
+  # `buildTeachRates` lives here, and the rule-4 warning it feeds is `computePayslip`'s ⇒ moving the
+  # builder back into the run loop, or softening `rate == null`, must land here as STALE.
+  - lib/payroll.ts
   # The run loop itself: the non-draft guard read *inside* the transaction, the
   # `updateMany … where status: "draft"` that re-checks the predicate, and `staffInPeriodWhere`'s
   # six arms. Re-widening any of those must land here as STALE.
@@ -101,6 +104,36 @@ out and dropped it — the invariant held inside the engine and was violated one
   ([payroll-rules.md](payroll-rules.md) rule 1). **No new UI** —
   it rides 009's surface
   (`PayslipWarning` → count column + banner on `/payslips` → `WarningCard`).
+
+## What the run hands the engine — `buildTeachRates` (task 034)
+
+`runPayroll` loads every `TeachRate` row and folds it into the nested lookup `computePayslip` reads.
+That fold is **`buildTeachRates`, exported and pure**, and it builds a `Map` of `Map`s. It lives in
+**`lib/payroll.ts`**, not in the run loop: it builds `computePayslip`'s own input type, and keeping it
+out of the db-importing module is what lets the engine's test suite build a real rate map without
+pulling `lib/db.ts` (which constructs a `PrismaClient` at module load) into the tests that pin baht.
+`lib/payroll-run.test.ts` still exercises it, because `runPayroll` is its only caller.
+
+🔴 **The `Map` is a domain guard, not a style choice.** An activity name is data an admin types into
+"เพิ่มกิจกรรมใหม่" (§2 rule 7), so there is no closed set to classify it against, and an object
+literal carries `Object.prototype` with it. The name `__proto__` broke both ends: the fold's
+`(rates[activity] ??= {})[rank] = rate` found the *inherited* object, which is not nullish, so the
+rate landed on `Object.prototype` itself — for the whole server process, outliving the request and
+returning on the next boot from the rows still in the table — and every *other* activity then
+inherited it, so the engine's `rate == null` was false and the
+[payroll-rules.md](payroll-rules.md) rule 3 warning never fired. The line that said
+`ไม่มีเรทค่าสอน …` became a 0 ฿ line with `warnings: []`.
+
+`__proto__` is therefore **not** also blocked in `addActivity`: as a key of *this* map it is inert,
+and a second place knowing about it would be one decision in two homes. What `addActivity` *did* gain
+is an out-loud refusal for an empty name.
+
+🔴 **Read that as scoped to the prototype-key class, not as "the activity name is safe".** The name is
+still unvalidated at the write, and two other roads to the same silent zero are open and carded:
+a name containing `|` collides with the bulk-save field encoding `rate|<activity>|<rank>` and
+overwrites a *different* activity's rate with 0 (task 035), and `addActivity` seeds all three ranks at
+rate `0`, so an activity added through the screen is never "unconfigured" and the rule 4 warning above
+can never fire for it (task 036). Both were found by the two review lanes on task 034 itself.
 
 ## Where a warning is shown — and what is not a `PayslipWarning`
 

@@ -140,7 +140,14 @@ sources:
 `base` (เงินเดือนฐาน) + `teachPay` (ค่าสอนรายคาบตาม rank) + `classPay` (คลาสกลุ่ม) +
 `commission` (คอมขาย + incentive) + `otPay` = `net` · ทุกก้อนแตกเป็น `lines[]` ที่ผู้ใช้เห็นได้
 
-- **ค่าสอน** — `teachRates[activity][rank]`; rank คือ `ST`/`CT`/`PT`
+- **ค่าสอน** — `teachRates.get(activity)?.get(rank)`; rank คือ `ST`/`CT`/`PT`
+  - 🔴 **A `Map`, never an object literal (task 034).** The activity name is data an admin types
+    (§2 rule 7), so an object literal let the name `__proto__` put the rate on `Object.prototype`
+    for the whole process, and every other activity inherited it ⇒ an unconfigured rate stopped
+    warning and paid 0 ฿ silently, against rule 3. The fold is `buildTeachRates`, in `lib/payroll.ts`
+    beside the type it builds so the engine's tests need no `lib/db.ts`. ⚠️ It closes the
+    *prototype-key* class only — the name is still unvalidated at the write (tasks 035, 036) ·
+    [payslip-lifecycle.md](payslip-lifecycle.md) carries the chain.
 - **คลาสกลุ่ม** — คนเข้าจริง ≥ `class.minAttendees` ได้เต็ม · 1..min-1 คูณ `class.halfRatio` · 0 คนไม่จ่าย · **negative = pays nothing and warns** (rule 3, task 025)
 - **คอมขาย** — แตกตาม *ใครปิด* และ *ใครส่งลีด* (`comm.pt.selfClosed` · `leadTrainer` · `leadReferrer`
   · `counterSelf`) ⇒ บิลใบเดียวจ่ายได้หลายคน ผ่าน `attributions`

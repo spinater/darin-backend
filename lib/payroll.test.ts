@@ -1,14 +1,24 @@
 import { expect, test, describe } from "bun:test";
-import { computePayslip, type SaleInput, type StaffInput } from "./payroll";
+import { buildTeachRates, computePayslip, type SaleInput, type StaffInput } from "./payroll";
 import { CONFIG_DEFAULTS, num, pct } from "./config-keys";
 
 const config = Object.fromEntries(Object.entries(CONFIG_DEFAULTS).map(([k, v]) => [k, v.value]));
 
-const teachRates = {
+/**
+ * Built through the **real** builder rather than hand-rolled, so the fixture cannot drift from the
+ * shape `runPayroll` actually passes (task 034 turned this from an object literal into a `Map`).
+ * The rows are written as a readable table and flattened, which is also what the DB hands over.
+ */
+const ratesTable: Record<string, Record<string, number>> = {
   pt: { PT: 200, CT: 300, ST: 400 },
   pilates: { PT: 300, CT: 400, ST: 500 },
   swim: { PT: 250, CT: 250, ST: 250 },
 };
+const rows = (table: Record<string, Record<string, number>>) =>
+  Object.entries(table).flatMap(([activity, byRank]) =>
+    Object.entries(byRank).map(([rank, rate]) => ({ activity, rank, rate })),
+  );
+const teachRates = buildTeachRates(rows(ratesTable));
 
 const trainer = (over: Partial<StaffInput> = {}): StaffInput => ({
   id: "t1",
@@ -68,6 +78,31 @@ describe("ค่าสอน 1-on-1 (§1.2)", () => {
     const r = run({ sessions: [{ date: new Date(), activity: "yoga" }] });
     expect(r.teachPay).toBe(0);
     expect(r.warnings.join()).toContain("ไม่มีเรทค่าสอน yoga");
+  });
+
+  /**
+   * 🔴 **Task 034 — the activity name may not reach a rate that was never configured for it.**
+   * An admin can type any name into "เพิ่มกิจกรรมใหม่", and the one name that is also a key of
+   * `Object.prototype` used to turn the warning above into a 0 ฿ line with `warnings: []`: the rate
+   * landed on the prototype and every other activity inherited it. The test is written against the
+   * **worst case** — `__proto__` configured at a real rate, so an inheriting lookup would return a
+   * number and pay it — because a lookup that merely returns `undefined` for the missing activity
+   * would pass even while the write was still polluting the process.
+   */
+  test("กิจกรรมชื่อ __proto__ ไม่รั่วเรทไปหากิจกรรมอื่น (ใบ 034)", () => {
+    const polluted = buildTeachRates([
+      ...rows(ratesTable),
+      { activity: "__proto__", rank: "ST", rate: 999 },
+    ]);
+    const r = run({ sessions: [{ date: new Date(), activity: "yoga" }], teachRates: polluted });
+    // yoga still has no rate ⇒ still a warning, still unpaid — not 999 and not a silent 0.
+    expect(r.teachPay).toBe(0);
+    expect(r.warnings.join()).toContain("ไม่มีเรทค่าสอน yoga");
+    // …and the activity itself is an ordinary key that pays its own configured rate.
+    expect(
+      run({ sessions: [{ date: new Date(), activity: "__proto__" }], teachRates: polluted })
+        .teachPay,
+    ).toBe(999);
   });
 });
 

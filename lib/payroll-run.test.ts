@@ -1,5 +1,10 @@
 import { expect, test, describe } from "bun:test";
 import { RACED_SKIP_REASON, nonDraftSkipReason, staffInPeriodWhere } from "./payroll-run";
+// `buildTeachRates` lives in `lib/payroll.ts` — it builds `computePayslip`’s own input type,
+// and keeping it out of this module is what lets the engine’s test suite build a real rate map
+// without importing `lib/db.ts`. It is exercised *here* because `runPayroll` is its only caller
+// and this file is where that caller’s pure decisions are pinned.
+import { buildTeachRates } from "./payroll";
 
 /**
  * The decisions task 013 items 1 and 3 turn on, tested where they are pure.
@@ -79,5 +84,46 @@ describe("ขอบเขตพนักงานของงวด (ใบ 013 
         { otEntries: { some: { date: jul } } },
       ],
     });
+  });
+});
+
+describe("buildTeachRates — ชื่อกิจกรรมที่แอดมินพิมพ์เองต้องไม่ไปแตะ Object.prototype (ใบ 034)", () => {
+  test("กิจกรรมชื่อ __proto__ ถูกเก็บเป็นคีย์ธรรมดา ไม่ใช่เขียนลง prototype", () => {
+    const built = buildTeachRates([
+      { activity: "pt", rank: "ST", rate: 400 },
+      { activity: "__proto__", rank: "ST", rate: 999 },
+      { activity: "__proto__", rank: "PT", rate: 111 },
+    ]);
+
+    // 🔴 The half that outlives the request. The old object-literal build wrote these two rates onto
+    // `Object.prototype` itself, for the whole server process — so this assertion, not the lookup
+    // below, is the one that catches the pollution at its source. Asserted on a **fresh** object as
+    // well as on the prototype, because that is how the damage was felt: every object in the
+    // process suddenly had an `ST` and a `PT`.
+    expect(Object.hasOwn(Object.prototype, "ST")).toBe(false);
+    expect(Object.hasOwn(Object.prototype, "PT")).toBe(false);
+    expect(({} as Record<string, unknown>).ST).toBeUndefined();
+
+    // The name is data and is kept as data — its own entry, its own rates, reaching nothing else.
+    expect(built.get("__proto__")?.get("ST")).toBe(999);
+    expect(built.get("__proto__")?.get("PT")).toBe(111);
+    expect(built.get("pt")?.get("ST")).toBe(400);
+    // …and no other activity inherits from it: `pt` has no `PT` rate configured, so the lookup
+    // `computePayslip` performs must come back empty and let the §2 rule 4 warning fire.
+    expect(built.get("pt")?.get("PT")).toBeUndefined();
+    expect([...built.keys()].sort()).toEqual(["__proto__", "pt"]);
+  });
+
+  test("หลายแถวของกิจกรรมเดียวกันรวมเข้า Map เดียว ไม่ทับกันทิ้ง", () => {
+    const built = buildTeachRates([
+      { activity: "pt", rank: "PT", rate: 200 },
+      { activity: "pt", rank: "CT", rate: 300 },
+      { activity: "pt", rank: "ST", rate: 400 },
+    ]);
+    expect([...(built.get("pt") ?? [])]).toEqual([
+      ["PT", 200],
+      ["CT", 300],
+      ["ST", 400],
+    ]);
   });
 });

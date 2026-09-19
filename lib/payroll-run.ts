@@ -1,6 +1,6 @@
 import type { Prisma } from "../generated/prisma/client";
 import { db } from "./db";
-import { computePayslip, type PayslipResult } from "./payroll";
+import { buildTeachRates, computePayslip, type PayslipResult } from "./payroll";
 
 /**
  * คาบที่ยังจ่ายไม่ได้ — รวมเคส status=ok แต่ไม่มีผู้สอน (พนักงานถูกลบ)
@@ -117,8 +117,7 @@ export async function runPayroll(period: string) {
   ]);
 
   const cfg = Object.fromEntries(config.map((c) => [c.key, c.value]));
-  const teachRates: Record<string, Record<string, number>> = {};
-  for (const r of rates) (teachRates[r.activity] ??= {})[r.rank] = r.rate;
+  const teachRates = buildTeachRates(rates);
 
   const skipped: { staff: string; reason: string }[] = [];
   const results: { staffId: string; name: string; result: PayslipResult }[] = [];

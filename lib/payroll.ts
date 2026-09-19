@@ -60,6 +60,46 @@ export type PayslipResult = {
 export const money = (n: number) => Math.round(n * 100) / 100;
 
 /**
+ * `TeachRate` rows → the nested lookup `computePayslip` reads, as a **`Map` of `Map`s** (task 034).
+ *
+ * 🔴 **The `Map` is the fix, not a style choice.** `r.activity` is whatever an admin typed into
+ * "เพิ่มกิจกรรมใหม่" — data, not a closed set (§2 rule 7) — so it arrives here unfiltered and there
+ * is nothing to classify it against. Built into an object literal, the one name that is also a key
+ * of `Object.prototype` broke both ends at once:
+ *
+ *   - **the write** — `(rates[activity] ??= {})[rank] = rate` finds the *inherited* object, which is
+ *     not nullish, so `??=` assigned nothing and the rate landed on `Object.prototype` itself. That
+ *     pollutes every object in the server process, outlives the request, and comes back on the next
+ *     boot because the `TeachRate` rows are still there;
+ *   - **the read** — every *other* activity then inherited that rate, so `rate == null` in
+ *     `computePayslip` was false and the §2 rule 4 warning never fired. The line that used to say
+ *     `ไม่มีเรทค่าสอน …` became a 0 ฿ line with `warnings: []` — a silent zero on a payslip, which
+ *     the rulebook calls the most expensive failure this system has.
+ *
+ * A `Map` has no prototype chain to inherit through, so `__proto__` is **inert as a key of this
+ * map** — that is the whole class of bug this removes, and it is why the name is not *also* filtered
+ * in `addActivity`, which would be a second home for one decision (§4). ⚠️ **It does not make the
+ * name validated.** The activity name is still unchecked at the write, and task 035 records a
+ * *different* road to the same silent zero: a name containing `|` collides with the bulk-save field
+ * encoding `rate|<activity>|<rank>` and overwrites another activity's rate with 0.
+ *
+ * Lives here rather than in `payroll-run.ts` so the engine's own test suite can build a real rate
+ * map without importing `lib/db.ts` — §2 rule 2's "no DB" applies to what tests the money too.
+ * Pure: no DB, no env, no clock, and the argument is not mutated.
+ */
+export function buildTeachRates(
+  rates: readonly { activity: string; rank: string; rate: number }[],
+): Map<string, Map<string, number>> {
+  const byActivity = new Map<string, Map<string, number>>();
+  for (const r of rates) {
+    let byRank = byActivity.get(r.activity);
+    if (!byRank) byActivity.set(r.activity, (byRank = new Map()));
+    byRank.set(r.rank, r.rate);
+  }
+  return byActivity;
+}
+
+/**
  * คิดเงินเดือน 1 คน 1 งวด (§1.7 / §2.5)
  *
  * pure function — ไม่แตะ DB ทุกตัวเลขมาจาก config ไม่มี literal ในไฟล์นี้
@@ -72,8 +112,12 @@ export function computePayslip(input: {
   sales: SaleInput[];
   otEntries: OtInput[];
   config: Config;
-  /** teachRates[activity][rank] */
-  teachRates: Record<string, Record<string, number>>;
+  /**
+   * `teachRates.get(activity)?.get(rank)` — built by `buildTeachRates` above, and a **`Map`, never an
+   * object literal**: the activity name is admin-typed data (§2 rule 7), and an object literal let
+   * `__proto__` inherit a rate here, turning the rule 4 warning below into a silent 0 ฿ (task 034).
+   */
+  teachRates: ReadonlyMap<string, ReadonlyMap<string, number>>;
 }): PayslipResult {
   const { staff, sessions, classSessions, sales, otEntries, config, teachRates } = input;
   const lines: Line[] = [];
@@ -104,7 +148,7 @@ export function computePayslip(input: {
   for (const s of sessions) byActivity.set(s.activity, (byActivity.get(s.activity) ?? 0) + 1);
 
   for (const [activity, qty] of [...byActivity].sort()) {
-    const rate = staff.rank ? teachRates[activity]?.[staff.rank] : undefined;
+    const rate = staff.rank ? teachRates.get(activity)?.get(staff.rank) : undefined;
     if (rate == null) {
       warnings.push(
         `ไม่มีเรทค่าสอน ${activity} × ${staff.rank ?? "(ไม่ได้ตั้งระดับ)"} — ${qty} คาบยังไม่ถูกคิดเงิน`,
