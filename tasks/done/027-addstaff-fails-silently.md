@@ -98,7 +98,7 @@ and nobody has seen this screen render. So the claim was dropped rather than shi
 [032](../todo/032-account-page-renders-url-text-and-reads-a-file-as-a-password.md) `/account` renders URL
 text and reads a `File` as a password ·
 [033](../todo/033-addstaff-alias-write-is-silent-both-ways.md) the alias write, silent in both directions ·
-[034](../todo/034-activity-named-proto-pollutes-the-rate-map.md) an activity named `__proto__` turning a
+[034](034-activity-named-proto-pollutes-the-rate-map.md) an activity named `__proto__` turning a
 missing-rate **warning** into a silent 0 ฿ — pre-existing, on the money path, found by the same sweep
 that cleared the rest.
 
