@@ -139,6 +139,12 @@ model TrainerAlias {                 // "PTแพท" → staffId  (แก้ใ
   staffId String
 }
 
+model TeachActivity {                // ทะเบียน "ชื่อกิจกรรม" อย่างเดียว — ไม่มีตัวเลขในตารางนี้
+  id        String @id @default(cuid())
+  name      String @unique            // pt | pilates | swim | yoga | ที่ admin เพิ่มเอง · เทียบแบบตัดช่องว่างหัวท้ายแล้วตรงตัว
+  createdAt DateTime @default(now())
+}                                     // เรทอยู่ที่ TeachRate เท่านั้น · ไม่มีชื่อในทะเบียนก็ยังโชว์ในตารางเรทได้ ถ้ามีเรท/ชีต/คาบสอนอยู่แล้ว
+
 model TeachSession {                 // 1 คาบสอน = 1 เซลล์วันที่
   id           String @id @default(cuid())
   sourceId     String
@@ -299,6 +305,11 @@ computePayslip(input: {
 | `/payslips` `/payslips/[id]` | Owner/Admin | รายการ + รายละเอียดทีละบรรทัด · draft→approved→paid · export CSV/PDF |
 | `/admin/config` | Owner/Admin | **ตารางเรท กิจกรรม×ระดับ** (แก้ทุกช่อง + เพิ่มกิจกรรม/ระดับ) · ราคาคลาส 13 รายการ · % คอมทุกตัว · incentive · OT · ฐานเงินเดือน+เครดิตรายคน · `SheetSource` colMap · `TrainerAlias` · map สี→ความหมาย |
 | `/me` | Trainer | เห็นเฉพาะชั่วโมง/KPI ตัวเอง **ห้ามเห็นเงิน** |
+
+**"เพิ่มกิจกรรม" = ลงทะเบียน *ชื่อ* ไว้ใน `TeachActivity` เท่านั้น ไม่ได้ตั้งเรทให้** ⇒ ช่องทั้งสามระดับขึ้นเป็น
+`ยังไม่ตั้ง` และคาบสอนของกิจกรรมนั้น **ขึ้นเตือนในสลิปและยังไม่ถูกคิดเงิน** จนเจ้าของพิมพ์เรทแล้วกดบันทึก
+(ก่อนหน้านี้ระบบใส่ `0` ให้ทั้งสามระดับ ⇒ กิจกรรมใหม่ "มีเรทแล้ว" ทันที คาบจึงถูกคิดเป็น **0 ฿ โดยไม่มีคำเตือน**)
+· ชื่อที่มีอยู่แล้ว (ในทะเบียน หรือในตารางเรท/ชีต/คาบสอน) จะถูกปฏิเสธพร้อมบอกเหตุผล ไม่ใช่เงียบ ๆ
 
 **Access control**: `middleware.ts` เช็ค session + role ทุก path ยกเว้น `/login` และ `/me`
 เส้นทางเงินเดือนทั้งหมด = Owner/Admin เท่านั้น (§ หัวสเปค)

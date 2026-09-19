@@ -36,6 +36,31 @@ model Session {
 }
 
 // ─────────────────────────────────────────── config (ห้าม hardcode)
+
+/// The registry of teach-activity **names** — one row per name an owner has declared exists.
+///
+/// 🔴 It holds no money and must never hold a number: a rate lives in `TeachRate` alone (§2 rules 2
+/// and 3). Its reason to exist is that "this activity exists" and "this activity has a rate" had to
+/// become two separate facts (task 036) — the full account is in
+/// `.docs/knowledge/domain/payslip-lifecycle.md`.
+///
+/// 🔴 **No FK points here from `TeachRate.activity` or `TeachSession.activity`, on purpose.**
+/// `lib/sync.ts` writes `activity: source.activity` on every synced cell, so a constraint would
+/// turn a data-quality problem into a throw on the sync path — against §2 rule 6, which says
+/// unmatched rows go to the review queue *and the payroll run still completes*. `lib/activities.ts`
+/// therefore treats this table as one arm of a union that only ever **adds** names: an activity with
+/// a rate row, a sheet source or one historical session still renders in the rate matrix even if
+/// this table is empty, so no rate can become invisible because a registry row is missing.
+///
+/// `name` is compared **trimmed-exact — no case folding, no normalizer** (`lib/normalize.ts` is for
+/// trainer names; a second normalizer would be one decision in two homes). `Boxing` and `boxing` are
+/// therefore two names, and the mismatched one warns loudly instead of paying wrong.
+model TeachActivity {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+}
+
 model TeachRate {
   id       String @id @default(cuid())
   activity String // pt | pilates | swim | yoga

@@ -53,20 +53,18 @@ sources:
    คาบสอนของชื่อที่ยังไม่รู้จัก · เรทที่ยังไม่ถูกตั้ง · ยอดที่ไม่มีคนรับส่วนแบ่ง — ทั้งหมดต้องขึ้น
    หน้าจอให้คนเห็น · **นี่คือข้อที่แพงที่สุดถ้าพัง**: เงินที่หายไปเงียบ ๆ ไม่มีใครทักจนกว่าจะถึงวันจ่าย
 
-   - **How that invariant is kept true end-to-end — `PayslipWarning`'s persistence, the status lock,
-     who a run selects, and what a recompute rebuilds — moved to
-     [payslip-lifecycle.md](payslip-lifecycle.md) at task 023** (this card had reached 198/200).
-     Nothing was shortened in the move.
+   - **How that invariant is kept true end-to-end — `PayslipWarning`'s persistence, the status lock, who a
+     run selects, and what a recompute rebuilds — moved to [payslip-lifecycle.md](payslip-lifecycle.md) at
+     task 023** (this card had reached 198/200). Nothing was shortened in the move.
    - **A deactivated staff member is warned about, never zeroed or skipped (task 013).**
      `StaffInput.active` moves **no amount**: paying 0 "because they are inactive" is the silent zero
      this rule forbids, and inventing a daily rate is a literal in a formula (rule 1). Nothing is
      pro-rated for anybody — that is the owner's call, carded as
      [021](../../../tasks/todo-human/021-leaver-base-salary-proration.md). Pinned in
      `lib/payroll.test.ts` by the pair task 013 added in its 24 → 26 raise — the file's junit pin is
-     **33** today and `scripts/junit-pins.txt` is the authority for it — and the second of the two
-     compares the whole result against the same input with `active: true`, so a later "pay them 0"
-     goes red. Who a run selects, and the warning's exact wording, are in
-     [payslip-lifecycle.md](payslip-lifecycle.md).
+     **34** today and `scripts/junit-pins.txt` is the authority for it — and the second of the two compares
+     the whole result against the same input with `active: true`, so a later "pay them 0" goes red. Who a run
+     selects, and the warning's exact wording, are in [payslip-lifecycle.md](payslip-lifecycle.md).
    - **A negative attendance (`noShow > booked`) warns — it is not paid 0 in silence (task 025).**
      `attended = booked − noShow` used to fall into the class formula's `<= 0` arm ⇒ **0 ฿ with
      `warnings: []`** (measured: `{price:400, booked:2, noShow:5}` → `classPay 0`; four such rows in a
@@ -146,8 +144,10 @@ sources:
     for the whole process, and every other activity inherited it ⇒ an unconfigured rate stopped
     warning and paid 0 ฿ silently, against rule 3. The fold is `buildTeachRates`, in `lib/payroll.ts`
     beside the type it builds so the engine's tests need no `lib/db.ts`. ⚠️ It closes the
-    *prototype-key* class only — the name is still unvalidated at the write (tasks 035, 036) ·
-    [payslip-lifecycle.md](payslip-lifecycle.md) carries the chain.
+    *prototype-key* class only — and **task 036 closed the other half of the same silent 0 ฿**: an activity is a **name**
+    (`TeachActivity` · `lib/activities.ts` · never a number) with **no rate row until an owner types one**, so `rate == null`
+    is reachable at last for one added through the screen — `addActivity` used to seed all three ranks at `0`. A `|` in the
+    name is still open (task 035) · [payslip-lifecycle.md](payslip-lifecycle.md) carries the chain.
 - **คลาสกลุ่ม** — คนเข้าจริง ≥ `class.minAttendees` ได้เต็ม · 1..min-1 คูณ `class.halfRatio` · 0 คนไม่จ่าย · **negative = pays nothing and warns** (rule 3, task 025)
 - **คอมขาย** — แตกตาม *ใครปิด* และ *ใครส่งลีด* (`comm.pt.selfClosed` · `leadTrainer` · `leadReferrer`
   · `counterSelf`) ⇒ บิลใบเดียวจ่ายได้หลายคน ผ่าน `attributions`

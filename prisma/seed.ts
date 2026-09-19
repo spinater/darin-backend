@@ -65,6 +65,19 @@ async function main() {
     });
   }
 
+  // The activity **name** registry (task 036). Backfilled from the two lists this file already owns
+  // — the rate matrix and the sheet sources — so `yoga` is registered as a name while deliberately
+  // keeping **no rate** (§7 ข้อ 10 is still open): that is the pair the §2 rule 4 warning exists for.
+  // `update: {}` on purpose — a name that is already registered is never rewritten, and nothing here
+  // ever creates a `TeachRate` row for a name, because seeding a rate is what made an unpriced
+  // activity look priced.
+  for (const activity of new Set([...Object.keys(RATES), ...SOURCES.map((s) => s.activity)]))
+    await db.teachActivity.upsert({
+      where: { name: activity },
+      update: {},
+      create: { name: activity },
+    });
+
   for (const [activity, byRank] of Object.entries(RATES))
     for (const [rank, rate] of Object.entries(byRank))
       await db.teachRate.upsert({

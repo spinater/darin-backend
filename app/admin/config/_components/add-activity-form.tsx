@@ -8,7 +8,16 @@ import { SubmitButton } from "@/app/_components/submit-button";
 export const ACTIVITY_EMPTY = "activityEmpty";
 
 /**
- * "เพิ่มกิจกรรมใหม่" — the form and the one refusal it can report, co-located under the §4 split
+ * The second flag: the name is already there. It exists because task 036 turned the write into a
+ * `create` against a `@unique name` — the old `upsert … update: {}` reported **nothing** either way,
+ * which is the silent-refusal shape tasks 027 and 034 already removed from the two actions beside this
+ * one. Both of the action's guards redirect with this one flag, and deliberately so: the admin's
+ * question is "is it there or not", and a pre-check hit and a lost `P2002` race are the same answer.
+ */
+export const ACTIVITY_DUP = "activityDup";
+
+/**
+ * "เพิ่มกิจกรรมใหม่" — the form and the two refusals it can report, co-located under the §4 split
  * pattern the way `add-staff-form.tsx` is.
  *
  * 🔑 **Why it says anything at all (task 034).** The action used to refuse an empty name with a
@@ -19,10 +28,16 @@ export const ACTIVITY_EMPTY = "activityEmpty";
  *
  * The `err` query param stays a **flag, never the message** (`save-notice.tsx` precedent): the Thai
  * lives here and nothing the URL carries is rendered, so a crafted link cannot put words on an
- * admin's screen. With one refusal to report the test is a string comparison — there is no lookup
- * table here, so the `Object.hasOwn` guard its two neighbours need has nothing to guard. That
- * matters because `/admin/config` has a single `?err=` slot shared by every action on the page, so
- * the flag standing in the address bar is usually one this form knows nothing about.
+ * admin's screen. With two refusals to report the test is still **two `===` comparisons and not a
+ * lookup table** — that is what keeps the `Object.hasOwn` question its two neighbours have to answer
+ * from reappearing here (task 027). That matters because `/admin/config` has a single `?err=` slot
+ * shared by every action on the page, so the flag standing in the address bar is usually one this
+ * form knows nothing about.
+ *
+ * 🔑 **What "เพิ่ม" now does, because the copy has to match it (task 036):** it registers the *name*
+ * and no rate. So the honest thing to say after a successful add is where to go next — the three
+ * boxes read `ยังไม่ตั้ง` and the activity's คาบ warn on the slip until somebody prices them. It used
+ * to write `0` into all three ranks, which read as "priced at 0 ฿" to both the screen and the engine.
  */
 export function AddActivityForm({
   action,
@@ -41,12 +56,23 @@ export function AddActivityForm({
           พิมพ์ชื่อกิจกรรมลงไปแล้วกดเพิ่มอีกครั้ง
         </p>
       )}
+      {err === ACTIVITY_DUP && (
+        <p className="card-warn mb-2 text-sm">
+          ⚠️ มีกิจกรรมชื่อนี้อยู่แล้ว — <b>ยังไม่ได้เพิ่มอะไรใหม่ และไม่มีเรทไหนถูกแก้</b>{" "}
+          ดูแถวของกิจกรรมนี้ในตารางเรทค่าสอนด้านบน (ตัวพิมพ์เล็ก-ใหญ่ถือว่าเป็นคนละชื่อ)
+        </p>
+      )}
       <form action={action} className="flex gap-2">
         <input name="activity" placeholder="เช่น boxing" className="input" required />
         <SubmitButton className="btn-ghost" pendingLabel="กำลังเพิ่ม…">
           เพิ่ม
         </SubmitButton>
       </form>
+      <p className="mt-2 text-xs text-neutral-500">
+        เพิ่มแล้วจะได้ <b>ชื่อกิจกรรม</b> ในตารางเรทค่าสอน โดยยัง <b>ไม่มีเรท</b> (ขึ้นว่า
+        “ยังไม่ตั้ง”) — คาบสอนของกิจกรรมนี้จะยังไม่ถูกคิดเงินและขึ้นเตือนในสลิป
+        จนใส่เรทแล้วกดบันทึกทั้งหมด
+      </p>
     </section>
   );
 }

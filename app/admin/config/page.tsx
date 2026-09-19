@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { listActivities, activityExists } from "@/lib/activities";
 import { normalizeTrainer } from "@/lib/normalize";
 import { hashPassword } from "@/lib/password";
 import { parseConfigNumbers, numericKind } from "@/lib/config-form";
@@ -10,7 +11,8 @@ import { isNextControlFlowError } from "@/lib/next-errors";
 import { Prisma } from "@/generated/prisma/client";
 import { SubmitButton } from "@/app/_components/submit-button";
 import { ActionProgress } from "@/app/_components/action-progress";
-import { AddActivityForm, ACTIVITY_EMPTY } from "./_components/add-activity-form";
+import { AddActivityForm, ACTIVITY_EMPTY, ACTIVITY_DUP } from "./_components/add-activity-form";
+import { RateTable } from "./_components/rate-table";
 import { AddStaffForm } from "./_components/add-staff-form";
 import { SaveNotice } from "./_components/save-notice";
 import { SheetMappingSections } from "./_components/sheet-mapping";
@@ -31,18 +33,22 @@ export default async function ConfigPage({
   // the add-staff form, and nothing the URL carries is rendered (§2.5, `/ot` precedent).
   const { err } = await searchParams;
 
-  const [configs, rates, classes, staff, aliases, sources, colors, saveTime] = await Promise.all([
-    db.payrollConfig.findMany({ orderBy: { key: "asc" } }),
-    db.teachRate.findMany(),
-    db.classPrice.findMany({ orderBy: { name: "asc" } }),
-    db.staff.findMany({ orderBy: [{ active: "desc" }, { name: "asc" }] }),
-    db.trainerAlias.findMany({ include: { staff: true }, orderBy: { alias: "asc" } }),
-    db.sheetSource.findMany({ orderBy: { sheetName: "asc" } }),
-    db.colorRule.findMany({ orderBy: { hex: "asc" } }),
-    db.jobDuration.findUnique({ where: { job: "config-save" } }),
-  ]);
-
-  const activities = [...new Set([...rates.map((r) => r.activity), "yoga"])].sort();
+  const [configs, rates, classes, staff, aliases, sources, colors, saveTime, activities] =
+    await Promise.all([
+      db.payrollConfig.findMany({ orderBy: { key: "asc" } }),
+      db.teachRate.findMany(),
+      db.classPrice.findMany({ orderBy: { name: "asc" } }),
+      db.staff.findMany({ orderBy: [{ active: "desc" }, { name: "asc" }] }),
+      db.trainerAlias.findMany({ include: { staff: true }, orderBy: { alias: "asc" } }),
+      db.sheetSource.findMany({ orderBy: { sheetName: "asc" } }),
+      db.colorRule.findMany({ orderBy: { hex: "asc" } }),
+      db.jobDuration.findUnique({ where: { job: "config-save" } }),
+      // 🔴 The matrix's rows are **names**, not rate rows (task 036) — they used to be
+      // `[...new Set(rates.map(r => r.activity)), "yoga"]`, which forced `addActivity` to write a
+      // rate row just to make an activity visible. The union also dissolves that hardcoded `"yoga"`
+      // into the `SheetSource` arm (§2 rule 7), so a fifth sheet appears by itself.
+      listActivities(),
+    ]);
 
   async function save(formData: FormData) {
     "use server";
@@ -134,12 +140,27 @@ export default async function ConfigPage({
     // 027 took out of `addStaff` a few lines down (task 034). The Thai lives in
     // `_components/add-activity-form.tsx`; the URL carries only the flag.
     if (!activity) redirect(`/admin/config?err=${ACTIVITY_EMPTY}`);
-    for (const rank of RANKS)
-      await db.teachRate.upsert({
-        where: { activity_rank: { activity, rank } },
-        update: {},
-        create: { activity, rank, rate: 0 },
-      });
+
+    // 🔴 **One `TeachActivity` row, and zero `TeachRate` rows** (task 036) — this loop used to seed
+    // all three ranks at `rate: 0`, which is what made `rate == null` unreachable and paid a silent
+    // 0 ฿ (see `.docs/knowledge/domain/payslip-lifecycle.md`). A rate is now created by exactly one
+    // thing: an owner typing a number into the matrix and saving. Nothing here writes a number.
+    //
+    // 🔑 **The pre-check and the unique index are both needed, and are not redundant.**
+    // `activityExists` reads the **union** — `pt` lives in `TeachRate` and `SheetSource` with no
+    // registry row, so the index alone cannot see it and the admin would be told "added" about a name
+    // already in the matrix. The index is what actually holds: a pre-check alone is the TOCTOU race
+    // `addStaff` documents below. Same shape as that action: `P2002` and nothing else is swallowed,
+    // and the `redirect` sits **outside** the `try` so its own throw cannot land in that `catch`.
+    if (await activityExists(activity)) redirect(`/admin/config?err=${ACTIVITY_DUP}`);
+    let created: { id: string } | null = null;
+    try {
+      created = await db.teachActivity.create({ data: { name: activity }, select: { id: true } });
+    } catch (e) {
+      if (isNextControlFlowError(e)) throw e;
+      if (!(e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002")) throw e;
+    }
+    if (!created) redirect(`/admin/config?err=${ACTIVITY_DUP}`);
     revalidatePath("/admin/config");
     redirect("/admin/config");
   }
@@ -267,44 +288,7 @@ export default async function ConfigPage({
       <SaveNotice err={err} />
 
       <form action={save} className="flex flex-col gap-6">
-        <section className="card">
-          <h2 className="mb-2 font-medium">ตารางเรทค่าสอน (กิจกรรม × ระดับ)</h2>
-          <table className="w-full max-w-xl">
-            <thead>
-              <tr>
-                <th className="th">กิจกรรม</th>
-                {RANKS.map((r) => (
-                  <th key={r} className="th">
-                    {r}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {activities.map((a) => (
-                <tr key={a}>
-                  <td className="td">{a}</td>
-                  {RANKS.map((r) => (
-                    <td key={r} className="td">
-                      <input
-                        name={`rate|${a}|${r}`}
-                        type="number"
-                        defaultValue={
-                          rates.find((x) => x.activity === a && x.rank === r)?.rate ?? ""
-                        }
-                        placeholder="ยังไม่ตั้ง"
-                        className="input w-24"
-                      />
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <p className="mt-2 text-xs text-amber-700">
-            ช่องว่าง = ยังไม่มีเรท → คาบของกิจกรรมนั้นจะไม่ถูกคิดเงินและขึ้นเตือนในสลิป
-          </p>
-        </section>
+        <RateTable activities={activities} ranks={RANKS} rates={rates} />
 
         <section className="card">
           <h2 className="mb-2 font-medium">พนักงาน</h2>

@@ -84,7 +84,7 @@ documented meaning, and every other `null` is a refusal.
 | `/admin/config` `addStaff` | `baseSalary`, `classCredit` | 0, the documented default | `err=newstaff` |
 | `/admin/config` `addStaff` | `name`, `username` (trimmed), `password` | refused, one flag each — a `File` part too, never `"[object File]"` | `err=newstaffName` · `err=newstaffUser` · `err=newstaffPass` |
 | `/admin/config` `addStaff` | `username` **vs** the rows already there | — (the `@unique` index, caught as `P2002`) | `err=newstaffDup` |
-| `/admin/config` `addActivity` | `activity` (trimmed) | refused — it used to `return` in silence, the box cleared and nothing said the activity was not added (task 034, the same shape task 027 took out of `addStaff`) | `err=activityEmpty` |
+| `/admin/config` `addActivity` | `activity` (trimmed), and the same name **vs** every one already visible | refused — it used to `return` in silence, the box cleared and nothing said the activity was not added (task 034, the same shape task 027 took out of `addStaff`); a name already in the union is refused too, and the action writes one `TeachActivity` row and **no** `TeachRate` row (task 036) | `err=activityEmpty` · `err=activityDup` |
 | `/admin/config` `save` | every `cfg` box — every rate, threshold and percentage the engine has | refused | `err=cfg` |
 | `/admin/config` `save` | every teach rate, class price and staff salary field of the bulk form | a **rate** blank deletes that rate; every other blank is refused | `err=rate` · `err=class` · `err=staff` |
 
@@ -101,6 +101,8 @@ part old and part new with nothing announcing which. The write loop then runs in
 `db.$transaction`, so "ยังไม่ได้บันทึกอะไรเลยสักช่อง" is true for a DB failure too and not only for a
 bad field. It is bounded by the form (~65 round-trips today), unlike `runPayroll`, which must never
 wrap a whole period — that is why one may and the other may not.
+🔴 **Since task 036 this is the *only* path that writes a teach rate**: `addActivity` used to seed all three ranks at
+`rate: 0` — a number nobody typed, read by screen and engine as a deliberate one — and now registers a **name** only.
 
 🔑 **`addStaff` has real logic too** (task 027) ⇒ `lib/staff-form.ts` (`parseNewStaff`), same shape,
 with the refusals in a **fixed order** — name → username → password → money, first one wins, so two
@@ -138,9 +140,9 @@ orphan draws its `baseSalary` in every run with no sessions to make it look wron
 `addAlias`, `addColor`, `toggleActive` and both `del` actions carry the same redirect for the same
 reason.
 
-`/admin/config` keeps its copy in `_components/save-notice.tsx` and `_components/add-staff-form.tsx`
-rather than the page: the page was at 462 lines against the §4 ceiling of 500, and the add-staff
-form moved out with it.
+`/admin/config` keeps its copy in `_components/` (`save-notice`, `add-staff-form`, `add-activity-form`)
+rather than the page: 462 lines against the §4 ceiling of 500 when the first moved, and the rate matrix
+followed as `rate-table.tsx` at task 036.
 
 ## The one guard that is not a field — `noShow` vs `booked` (task 025)
 
