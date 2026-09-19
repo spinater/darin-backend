@@ -6,6 +6,9 @@ sources:
   # The bulk config form's all-or-nothing parse — the one numeric guard with real logic in it.
   - lib/config-form.ts
   - lib/config-form.test.ts
+  # The add-staff parse — the same shape, on the one form that creates a staff member (task 027).
+  - lib/staff-form.ts
+  - lib/staff-form.test.ts
   # `num()` is the read-time half of the same guard — it must throw on a blank, and the card says so.
   - lib/config-keys.ts
   # The five actions this card claims are guarded. Re-introducing a bare `Number(formData.get(x))`
@@ -79,6 +82,8 @@ documented meaning, and every other `null` is a refusal.
 | `/classes` `add` | `noShow` | 0 — what `?? 0` and `defaultValue={0}` already said | `err=noShow` |
 | `/classes` `add` | `noShow` **vs** `booked` | — (a *pair*, not a field) | `err=noShowOverBooked` |
 | `/admin/config` `addStaff` | `baseSalary`, `classCredit` | 0, the documented default | `err=newstaff` |
+| `/admin/config` `addStaff` | `name`, `username` (trimmed), `password` | refused, one flag each — a `File` part too, never `"[object File]"` | `err=newstaffName` · `err=newstaffUser` · `err=newstaffPass` |
+| `/admin/config` `addStaff` | `username` **vs** the rows already there | — (the `@unique` index, caught as `P2002`) | `err=newstaffDup` |
 | `/admin/config` `save` | every `cfg` box — every rate, threshold and percentage the engine has | refused | `err=cfg` |
 | `/admin/config` `save` | every teach rate, class price and staff salary field of the bulk form | a **rate** blank deletes that rate; every other blank is refused | `err=rate` · `err=class` · `err=staff` |
 
@@ -95,6 +100,13 @@ part old and part new with nothing announcing which. The write loop then runs in
 `db.$transaction`, so "ยังไม่ได้บันทึกอะไรเลยสักช่อง" is true for a DB failure too and not only for a
 bad field. It is bounded by the form (~65 round-trips today), unlike `runPayroll`, which must never
 wrap a whole period — that is why one may and the other may not.
+
+🔑 **`addStaff` has real logic too** (task 027) ⇒ `lib/staff-form.ts` (`parseNewStaff`), same shape,
+with the refusals in a **fixed order** — name → username → password → money, first one wins, so two
+bad fields always report the same one. Its money arm is task 013's `newstaff`, unchanged; the three
+identity flags replaced a bare `return` and the duplicate an unhandled **throw** — it is the one
+refusal the parse cannot make: caught as **only** `P2002` on the `create` (no `findUnique` pre-check
+— a TOCTOU race), everything else rethrown so a real failure still reaches `app/error.tsx` honestly.
 
 🔴 **The `cfg` boxes were the largest hole of the five, and they are plain text inputs with no
 `required`.** Clearing one stored `""`, and `num()` answered `Number("") === 0`. Measured through

@@ -3,9 +3,11 @@ import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { normalizeTrainer } from "@/lib/normalize";
-import { hashPassword, MIN_PASSWORD_LEN } from "@/lib/password";
-import { finiteNumber, isBlank, INT_COLUMN_MAX } from "@/lib/form-number";
+import { hashPassword } from "@/lib/password";
 import { parseConfigNumbers, numericKind } from "@/lib/config-form";
+import { parseNewStaff } from "@/lib/staff-form";
+import { isNextControlFlowError } from "@/lib/next-errors";
+import { Prisma } from "@/generated/prisma/client";
 import { SubmitButton } from "@/app/_components/submit-button";
 import { ActionProgress } from "@/app/_components/action-progress";
 import { AddStaffForm } from "./_components/add-staff-form";
@@ -144,37 +146,45 @@ export default async function ConfigPage({
   async function addStaff(formData: FormData) {
     "use server";
     await requireAdmin();
-    const name = String(formData.get("name") ?? "").trim();
-    const username = String(formData.get("username") ?? "").trim();
-    const password = String(formData.get("password") ?? "");
+    // 🔴 **Every refusal is decided before anything is written** — `parseNewStaff` in
+    // `lib/staff-form.ts` carries the reasoning and the tests, `kind` is a closed set so it is a
+    // safe URL flag, and the Thai for each one lives in `_components/add-staff-form.tsx`. It
+    // replaced a bare `return` that revalidated, cleared the form and said **nothing** (task 027).
+    const parsed = parseNewStaff(formData);
+    if (!parsed.ok) redirect(`/admin/config?err=${parsed.kind}`);
+    const { name, username, password, baseSalary, classCredit } = parsed.values;
     const role = String(formData.get("role") ?? "trainer");
-    if (!name || !username || password.length < MIN_PASSWORD_LEN) return;
+    const passwordHash = await hashPassword(password);
 
-    // 🔴 These two become this person's `net` on **every future run**, so an unreadable one refuses
-    // the whole add instead of creating a staff record around a `NaN` that nobody looks at again.
-    // A field left blank keeps the documented default of 0 — the same answer `?? 0` gave before —
-    // but a field that was filled in and cannot be read is a rejection, not a 0.
-    // Same `Int`-column rules the bulk form applies to these two columns (`lib/config-form.ts`):
-    // a fraction is **truncated** by Prisma rather than refused (`15000.5` → `15000`), and an
-    // overflow throws at the write.
-    const INT_COLUMN = { int: true, max: INT_COLUMN_MAX };
-    const baseRaw = formData.get("baseSalary");
-    const creditRaw = formData.get("classCredit");
-    const baseSalary = isBlank(baseRaw) ? 0 : finiteNumber(baseRaw, INT_COLUMN);
-    const classCredit = isBlank(creditRaw) ? 0 : finiteNumber(creditRaw, INT_COLUMN);
-    if (baseSalary === null || classCredit === null) redirect("/admin/config?err=newstaff");
-
-    const created = await db.staff.create({
-      data: {
-        name,
-        username,
-        passwordHash: await hashPassword(password),
-        role,
-        rank: role === "trainer" ? String(formData.get("rank") ?? "PT") : null,
-        baseSalary,
-        classCredit,
-      },
-    });
+    let created: { id: string } | null = null;
+    try {
+      created = await db.staff.create({
+        data: {
+          name,
+          username,
+          passwordHash,
+          role,
+          rank: role === "trainer" ? String(formData.get("rank") ?? "PT") : null,
+          baseSalary,
+          classCredit,
+        },
+      });
+    } catch (e) {
+      // `redirect()` signals by **throwing** — nothing in this block throws one today, and this
+      // keeps that true if one is ever added (`app/ot/page.tsx` precedent).
+      if (isNextControlFlowError(e)) throw e;
+      // 🔴 **`P2002` and nothing else.** `Staff.username` is `@unique`, and this violation used to
+      // leave the action unhandled ⇒ since task 020 it renders `app/error.tsx`, whose Thai copy
+      // says a config value is not set — a wrong explanation, worse than a generic one. Anything
+      // else (dropped connection, statement timeout) is rethrown so it still reaches that boundary
+      // honestly rather than sending the admin to edit a username that is fine. `instanceof` is
+      // the narrow test on purpose: not matching shows the error page, which is honest, while a
+      // looser guess could claim a duplicate that is not one. And no `findUnique` pre-check —
+      // that is a TOCTOU race and the unique index is the real guard.
+      if (!(e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002")) throw e;
+    }
+    // Outside the `try` on purpose, so this `redirect()`'s own throw cannot land in that `catch`.
+    if (!created) redirect("/admin/config?err=newstaffDup");
 
     // ชื่อที่พนักงานใช้จดในชีต (เว้นว่าง = ใช้ชื่อพนักงาน)
     const sheetNames = [String(formData.get("sheetName") ?? "").trim() || name];
@@ -189,7 +199,7 @@ export default async function ConfigPage({
     }
     revalidatePath("/admin/config");
     // 🔴 Not optional here. Refused → admin fixes the field → submits again → the `create`
-    // **succeeds** while `?err=newstaff` is still in the address bar, so "ยังไม่ได้เพิ่มพนักงานคนนี้"
+    // **succeeds** while an `?err=newstaff…` flag is still in the address bar, so its notice
     // renders over a staff member who now exists ⇒ they add the person a second time. Two active
     // `Staff` rows for one human, the alias follows the newer one, and the orphan draws its
     // `baseSalary` in every run with no sessions to make it look wrong.
@@ -422,7 +432,7 @@ export default async function ConfigPage({
         </form>
       </section>
 
-      <AddStaffForm action={addStaff} ranks={RANKS} roles={ROLES} rejected={err === "newstaff"} />
+      <AddStaffForm action={addStaff} ranks={RANKS} roles={ROLES} err={err} />
 
       <SheetMappingSections
         aliases={aliases}

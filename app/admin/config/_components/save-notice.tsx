@@ -5,6 +5,12 @@
  * the Thai copy lives here, nothing the URL carries is rendered, and an unknown flag renders
  * nothing at all — so a crafted link cannot put words on an admin's screen.
  *
+ * 🔴 **"Unknown" is decided by `Object.hasOwn`, not by `REASONS[err]` being falsy** (task 027).
+ * This is an object literal, so it carries `Object.prototype`: `?err=__proto__` used to hand back
+ * an object whose `where` and `rule` are `undefined` and print *"มีช่องใน “undefined” undefined"*,
+ * and `?err=constructor` a function. Same one-liner as `add-staff-form.tsx`, same reason — a
+ * crafted link must reach the same nothing an ordinary unknown flag does.
+ *
  * 🔴 The wording all four share is the load-bearing part: **nothing was saved**. That form posts
  * several dozen fields at once, so the question the admin actually has after a refusal is "how much
  * of it went in?" — and the answer is only trustworthy because the action validates every field
@@ -32,7 +38,7 @@ const REASONS: Record<string, { where: string; rule: string }> = {
 };
 
 export function SaveNotice({ err }: { err?: string }) {
-  const reason = err ? REASONS[err] : undefined;
+  const reason = err !== undefined && Object.hasOwn(REASONS, err) ? REASONS[err] : undefined;
   if (!reason) return null;
   return (
     <p className="card-warn text-sm">
