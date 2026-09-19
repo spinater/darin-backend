@@ -79,7 +79,7 @@ the run loop and the two payslip screens and dropped exactly those sources.
   `buildTeachRates` lives in `lib/payroll.ts`, the "not also blocked in `addActivity`" ruling and the
   task-034 provenance are all still present. The only text removed was the sentence describing task
   036 as still open, correctly replaced by the fix.
-- Related but **not the same card**: [037](../todo/037-split-payroll-test-and-pin-the-zero-vs-missing-rate-boundary.md)
+- Related but **not the same card**: [037](037-split-payroll-test-and-pin-the-zero-vs-missing-rate-boundary.md)
   splits `lib/payroll.test.ts` for the §4 ceiling and carries the junit-pin argument. This one is §5
   and prose. They can ship in either order; neither blocks the other.
 - ⚠️ This is a prose card, so nothing here changes a baht figure and it does not need the

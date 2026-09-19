@@ -140,7 +140,7 @@ re-derives them, are listed in [task 035](../todo/035-activity-name-with-a-pipe-
   is never "unconfigured" and the §2 rule 4 warning this card just restored can never fire for it. A
   12-session ST trainer is 4,800 ฿ short with `warnings: []`. Needs `architect` first — the two ways
   out are a schema change and a listing-mechanism change.
-- [037](../todo/037-split-payroll-test-and-pin-the-zero-vs-missing-rate-boundary.md) — both lanes:
+- [037](037-split-payroll-test-and-pin-the-zero-vs-missing-rate-boundary.md) — both lanes:
   `lib/payroll.test.ts` at the §4 warn line (468 after this commit), and the `0`-vs-missing boundary
   unpinned, so `?? 0` or `if (!rate)` would reintroduce this card's own bug **green**. The split and
   the two arms go together because the split is what pays for the arms.
