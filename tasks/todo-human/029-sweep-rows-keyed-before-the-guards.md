@@ -55,7 +55,7 @@ Run on the real database, read-only first, and report counts before changing any
   default error page the moment this lands, and a production build **redacts** the message, so the
   new Thai text reaches only the container log. `/admin/config` does not call `num()`, so it stays
   reachable and its notice names the blank ⇒ the repair path exists, but only for someone who knows
-  to go there. See [020](../todo/020-no-error-boundary-anywhere.md) — this is the first concrete case of the
+  to go there. See [020](../done/020-no-error-boundary-anywhere.md) — this is the first concrete case of the
   hole that card names.
   This is why the order is: sweep → fix → deploy. `develop` deploys with no gate in front of it
   (§6 "Deploy"), so nothing else will catch it.
