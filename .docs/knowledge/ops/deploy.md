@@ -95,6 +95,35 @@ now decides **once, before any write**, which of three databases it is looking a
   mark, and the next run counts 7 staff and records `adopted`. The column is informational (nothing
   reads it), but do not take it as evidence that the fixture arrived from somewhere else.
 
+## เครื่องของ linus (local) — **คนละ compose project กับบนเซิร์ฟเวอร์** (วัด 2026-09-20)
+
+ข้อนี้ไม่เคยถูกบันทึก และมันขัดกับสิ่งที่หัวข้อ "กับดัก" ข้างล่างบอกให้เช็ค:
+
+| | บนเซิร์ฟเวอร์ | บนเครื่อง linus |
+|---|---|---|
+| compose project | `darin` (จาก `name:`) | **`darin-local`** (รันด้วย `-p darin-local`) |
+| คอนเทนเนอร์ | `darin-web` · `darin-pg` | `darin-local-app-1` · `darin-local-db-1` |
+| volume | `darin_pgdata` | **`darin-local_pgdata`** — เป็น volume darin ตัวเดียวบนเครื่องนี้ |
+| พอร์ต | `127.0.0.1:30100` | `127.0.0.1:30300` |
+
+🔴 **`docker compose up -d` เปล่า ๆ ในรีโปนี้บนเครื่อง linus = สแตกที่สองที่ฐานว่างเปล่า** —
+`name: darin` จะชนะ แล้วสร้าง `darin_pgdata` ใหม่ ขณะที่ข้อมูลจริงค้างอยู่ใน
+`darin-local_pgdata` โดยไม่มีอะไรแดง ⇒ **บนเครื่อง local ต้องใส่ `-p darin-local` เสมอ**
+(บนเซิร์ฟเวอร์ห้ามใส่ — ที่นั่น `darin` คือของจริง)
+
+⚠️ **แอปที่รันอยู่บนเครื่อง linus สร้างเมื่อ 2026-09-17** ⇒ มันไม่มีอะไรที่คอมมิตหลังจากวันนั้น
+ถ้ามีใครเปิดดูแล้วบอกว่า "หน้าจอยังเป็นแบบเดิม" นั่นคือเหตุผล ไม่ใช่โค้ดไม่ทำงาน
+
+## ✅ อิมเมจ build ผ่านที่ HEAD — พิสูจน์แล้วครั้งแรก (2026-09-20)
+
+§7 ของ `CLAUDE.md` เขียนไว้ว่า **ไม่มีเกตไหน build `Dockerfile`** ⇒ "เกตเขียว" ไม่เคยแปลว่า
+อิมเมจขึ้นได้ · วัดเองรอบนี้: `docker build --target runner .` ที่ b0a6cf0 → **สำเร็จ 414MB**
+ทั้ง `bunx --bun prisma generate` และ `bunx next build` ผ่านในอิมเมจจริง
+
+⚠️ `docker compose build` **ล้มก่อนถึง build** ถ้าเชลล์อ่าน `.env` ไม่ได้ — compose interpolate
+ทั้งไฟล์ก่อน รวม `POSTGRES_PASSWORD:?` ของ service `db` ที่ไม่ได้จะ build ด้วยซ้ำ
+⇒ ถ้าอยากพิสูจน์แค่ว่าอิมเมจขึ้นได้ ใช้ `docker build` ตรง ๆ ไม่ต้องผ่าน compose
+
 ## กับดักที่กัดจริง
 
 - 🔴 **`name: darin` ใน `docker-compose.yml` ห้ามหาย** — compose หาชื่อโปรเจกต์ตามลำดับ
