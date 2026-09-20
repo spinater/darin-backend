@@ -283,7 +283,7 @@ dashboard — where before it was a `0 ฿/คาบ` line with `warnings: []` a
 
 **Not fixed here — carded, with the reason each one is not this card's:**
 
-- [040](../todo/040-seed-recreates-a-rate-the-owner-deliberately-deleted.md) — 🔴 the one the auditor found
+- [040](040-seed-recreates-a-rate-the-owner-deliberately-deleted.md) — 🔴 the one the auditor found
   that this diff *created a promise against*: the new amber note says a blank rate box means "no
   rate, and the คาบ warn", and `lib/config-form.ts` duly deletes the row — then `prisma/seed.ts`'s
   `upsert … update: {}` **re-creates it on every deploy**. An owner who removes pt×PT gets it back at

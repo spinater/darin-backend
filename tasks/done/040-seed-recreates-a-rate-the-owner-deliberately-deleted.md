@@ -1,7 +1,7 @@
 # The seed re-creates a rate the owner deliberately deleted — on every deploy, paying silently
 
-- status: todo
-- commit:
+- status: done
+- commit: 208e499
 
 ## Goal
 
@@ -35,7 +35,7 @@ The warning appears exactly as promised, and for the rest of that month the slip
 🔴 `update: {}` is the trap. It looks like "never overwrite the owner", and it is — for a value that
 was *changed*. It does nothing for a value that was *deleted*, because `upsert` cannot tell "this row
 was removed on purpose" from "this row has never existed". That is the same shape as
-[task 036](../done/036-addactivity-seeds-rate-zero-so-the-warning-can-never-fire.md) itself: a number nobody
+[task 036](036-addactivity-seeds-rate-zero-so-the-warning-can-never-fire.md) itself: a number nobody
 typed, arriving where the engine reads it as a choice.
 
 ## Decision (architect lane, 2026-09-19)
@@ -141,7 +141,7 @@ never by failing.
   `addColor` in `app/admin/config/page.tsx`. Do **not** start seeding it here: that would contradict
   a card whose subject is "the seed asserts too much", and colour→meaning is a business fact nobody
   in the repo has. It has its own card,
-  [043](043-nothing-seeds-colorrule-so-a-fresh-database-pays-every-colour.md) — a fresh database has
+  [043](../todo/043-nothing-seeds-colorrule-so-a-fresh-database-pays-every-colour.md) — a fresh database has
   zero `ColorRule` rows, `lib/sync.ts` resolves every colour to `undefined`, and
   `_components/sheet-mapping.tsx` states the consequence (*"ไม่งั้นระบบจะจ่ายให้ทุกสี"*).
 - **`TrainerAlias` and `SheetSource` are overwritten on every deploy today** — `update: { staffId }`
@@ -161,7 +161,7 @@ never by failing.
   ⚠️ **Closed, not narrowed — but two residuals are not this card's**: `@@unique([spreadsheetId,
   sheetName])` still *permits* the pair for any future writer, and a database already carrying one
   keeps it forever. Both are
-  [047](047-sheetsource-unique-key-permits-two-rows-for-one-sheet-name.md) (a one-way schema call ⇒
+  [047](../todo/047-sheetsource-unique-key-permits-two-rows-for-one-sheet-name.md) (a one-way schema call ⇒
   architect), with the one-off pre-deploy check in
   [todo-human/002](../todo-human/002-deploy-host-setup.md).
 
@@ -226,7 +226,7 @@ executed + the mark). On the one path where an upsert can execute without creati
 retry after a first boot that crashed before the mark — it over-counts on purpose: the number exists
 to be zero or not zero, and a retry must not read as a no-op.
 
-⚠️ The deploy pipeline has **never reached the host** ([018](018-deploy-docs-claim-a-pipeline-that-never-ran.md),
+⚠️ The deploy pipeline has **never reached the host** ([018](../todo/018-deploy-docs-claim-a-pipeline-that-never-ran.md),
 [002](../todo-human/002-deploy-host-setup.md)), so this has not fired in production yet. That is a
 reason to fix it *before* the pipeline is armed, not a reason to defer it — the day the ssh key lands
 is the day a deploy starts rewriting owner decisions.
@@ -236,17 +236,17 @@ is the day a deploy starts rewriting owner decisions.
 Four of them exist because this card **withholds** writes it used to make, and the fifth because
 the review found a residual the fix does not cover:
 
-- [043](043-nothing-seeds-colorrule-so-a-fresh-database-pays-every-colour.md) — nothing seeds
+- [043](../todo/043-nothing-seeds-colorrule-so-a-fresh-database-pays-every-colour.md) — nothing seeds
   `ColorRule`, so a fresh database resolves every colour to `undefined` and pays cancelled คาบ.
-- [044](044-admin-config-renders-only-rows-that-exist-so-a-missing-key-has-no-box.md) —
+- [044](../todo/044-admin-config-renders-only-rows-that-exist-so-a-missing-key-has-no-box.md) —
   `/admin/config` should render `CONFIG_DEFAULTS ∪ rows`, so a missing key has a box. This card's
   `CONFIG_DEFAULTS` exception exists *because* it does not.
-- [045](045-a-config-value-nobody-reviewed-never-reaches-the-banner.md) — a config value that
+- [045](../todo/045-a-config-value-nobody-reviewed-never-reaches-the-banner.md) — a config value that
   arrived from `CONFIG_DEFAULTS` at deploy time and nobody has reviewed should reach the dashboard
   banner.
-- [046](046-no-screen-can-add-a-class-price-or-a-sheet-source.md) — no screen can add a
+- [046](../todo/046-no-screen-can-add-a-class-price-or-a-sheet-source.md) — no screen can add a
   `ClassPrice` or a `SheetSource`, which is the entire cost of withholding those two tables.
-- [047](047-sheetsource-unique-key-permits-two-rows-for-one-sheet-name.md) — the `SheetSource`
+- [047](../todo/047-sheetsource-unique-key-permits-two-rows-for-one-sheet-name.md) — the `SheetSource`
   unique key still permits two rows for one sheet name (architect; one-way schema call).
 
 ## Who reviews this

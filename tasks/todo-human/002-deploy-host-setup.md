@@ -72,6 +72,26 @@ never been touched by CI. The day the secret is added, that stops being true in 
 - 🔴 Task 009 also has a **required post-deploy step**: run payroll once per open period so the 21
   existing draft payslips get their warnings backfilled. Do it before approving anything.
 
+## One-off check on the live database before the first landing deploy (added 2026-09-20, task 040)
+
+Two `SheetSource` rows sharing one `sheetName` (different `spreadsheetId`) make `lib/sync.ts` write
+the same คาบ twice under two `sourceId`s — 40 คาบ paid as 16,000 ฿ instead of 8,000 ฿, both rows
+`status: "ok"`, `warnings: []`, and nothing in the repo looks for the pair. The route that created
+one is closed as of task 040, but a database that already carries a pair keeps it forever.
+
+```sql
+SELECT "sheetName" FROM "SheetSource" GROUP BY 1 HAVING count(*) > 1;
+```
+
+- Run it **from inside the container that already holds the credentials** —
+  `docker compose exec -T db psql …` — never by composing a command from `.env` on the host
+  (CLAUDE.md §6, "Secrets during testing").
+- Expected: **no rows.** Anything returned is resolved by hand (decide which id is current, and
+  what happens to the `TeachSession` rows under the stale one) *before* the deploy, and before
+  [047](../todo/047-sheetsource-unique-key-permits-two-rows-for-one-sheet-name.md) can consider a
+  unique key on `sheetName` — a unique constraint added over an existing duplicate **fails the
+  `db push`**, which fails `migrate`, which stops `app` from starting at all.
+
 ## Notes
 
 - ตรวจว่า deploy ลงจริงอย่างไร: [.docs/knowledge/ops/deploy.md](../../.docs/knowledge/ops/deploy.md)
