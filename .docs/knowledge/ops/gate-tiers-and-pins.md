@@ -56,6 +56,16 @@ merge, not a removal), and item 4 of the same card added `lib/form-number.test.t
 `lib/config-form.test.ts` at **7** and raised `lib/ot-import.test.ts` 6 → **7**; its review round
 then raised all three again — `lib/form-number.test.ts` → **13**, `lib/config-form.test.ts` → **12**
 and `lib/payroll.test.ts` 26 → **30**; task 025 then took `lib/payroll.test.ts` 30 → **33**.
+**ใบ 058** added `lib/gymmo.test.ts` at **16** — the reader for the Gymmo trainer-worklog export.
+Sixteen is what it takes to pin the two things that fail *quietly* in a worklog reader: a date that
+parses into the **wrong month** (`31 SEP` rolls to 1 OCT under `Date.UTC`, moving a session across
+the boundary payroll buckets by), and a row that is **dropped instead of reported** — a session
+nobody gets paid for, the §2 rule 4 silent zero. Three of the sixteen are a `test.each` over the
+three unreadable columns (date · type · counts) asserting the row is *reported*, not skipped; one
+pins `Attendees` staying verbatim, because a real row reads `เอรา,อลัน เอรา,อลัน` and splitting on
+the comma invents people (task 049 §8.3); one pins that `attendedOf` does **not** clamp a negative,
+because clamping hides the row from the task 025 guard in `lib/payroll.ts` that warns on it.
+
 What each raise bought:
 
 | Pin | Raise | What it is worth |
