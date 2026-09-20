@@ -66,6 +66,16 @@ pins `Attendees` staying verbatim, because a real row reads `เอรา,อล
 the comma invents people (task 049 §8.3); one pins that `attendedOf` does **not** clamp a negative,
 because clamping hides the row from the task 025 guard in `lib/payroll.ts` that warns on it.
 
+และ `lib/gymmo-map.test.ts` at **15** — the naming seam between that export and this database.
+The arm that earns its keep is **"an exact name wins over an alias"**: it is what lets a real
+`ClassPrice` row named as Gymmo spells it retire an alias *by existing*, so the table cannot rot
+into a graveyard nobody dares delete from. Two more pin the direction of failure — a class with no
+price and an alias pointing at a price that does not exist are both **refused with a reason**, never
+guessed, because a guessed class name pays the wrong ราคา silently. One pins that the alias targets
+are distinct, so no two Gymmo names can quietly collapse onto one priced class. And three pin
+`(Deleted)`: Gymmo marks a trainer who has left by appending it to the sheet name, and their past
+คาบ are still owed — dropping that sheet is the §2 rule 4 silent zero wearing a different hat.
+
 What each raise bought:
 
 | Pin | Raise | What it is worth |
