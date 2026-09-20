@@ -18,6 +18,14 @@ sources:
   # The one screen that creates an activity and the one that prices it — the amber note's two halves
   # (blank = no rate ⇒ warns · `0` = chosen ⇒ pays 0 with a line) are this card's contract on screen.
   - app/admin/config/page.tsx
+  # The deploy-time half of the same money (task 040): the seed used to re-create a `TeachRate` row
+  # the owner had deleted, on every deploy, and `lib/seed-policy.ts` holds the decision that stopped
+  # it. A seed that starts asserting the rate matrix again must land here as STALE.
+  - prisma/seed.ts
+  - lib/seed-policy.ts
+  # The pin on that decision — `seedMode` and the report builder are pure, so the three
+  # modes are fixed without a database. A rewritten arm must land here as STALE too.
+  - lib/seed-policy.test.ts
 ---
 
 # How a teach rate is found — and why a name is not a rate
@@ -85,3 +93,36 @@ screen-added activity was never "unconfigured": `teachRates.get(a)?.get("ST")` a
 - ⚠️ **Not fixed here**: `app/page.tsx`'s banner flags an activity only when **no** rank has a rate,
   so `pt` priced for PT but not ST still passes it (the slip warns); and the `0`-vs-missing engine
   boundary is task 037's pin, not this card's.
+
+## A deleted rate stays deleted — across deploys too (task 040)
+
+`lib/config-form.ts` deletes the `TeachRate` row when the box is blanked, and the amber note under
+the matrix promises exactly that. `prisma/seed.ts` then put it back: it runs on **every** deploy
+(compose service `migrate` → `prisma db push && bun run prisma/seed.ts`), and `upsert … update: {}`
+protects a value that was *edited* while doing nothing for one that was *deleted* — `upsert` cannot
+tell "removed on purpose" from "never existed". Worked shape: a blanked `pt × PT` came back at
+**200 ฿** and paid a PT trainer with 40 คาบ **8,000 ฿** with `warnings: []`. Same defect class as
+task 036 one layer out — a number nobody typed, arriving where the engine reads it as a choice —
+and the screen had just started promising the opposite in writing.
+
+The seed now plants the reference fixture **only on a database it can prove it is initialising**:
+`no SeedMark row` **and** `Staff.count() === 0`, both read before any write (`lib/seed-policy.ts`,
+pure so the decision is pinned without a database). Otherwise it withholds everything and says so —
+`seed: teach rates NOT re-asserted — the rate matrix has belonged to the owner since first boot`.
+
+- **The one exception is the `CONFIG_DEFAULTS` key set**, and the test that earns it is *if this row
+  is missing, does the product throw or merely show less?* `num()` throws on a missing key at page
+  render and `/admin/config` renders a box only for a row that exists ⇒ no human can create it
+  through the product. Its **keys** are schema; its **value** is still written once and never again,
+  so rule 1 of [payroll-rules.md](payroll-rules.md) holds literally.
+- 🔴 **The seed has no delete path, ever.** A key removed from the repo leaves its row alone; never
+  "reconcile the database to the code".
+- ⚠️ **Not closed here:** a `CONFIG_DEFAULTS` value that arrived at deploy time has still been
+  reviewed by nobody at this branch —
+  [045](../../../tasks/todo/045-a-config-value-nobody-reviewed-never-reaches-the-banner.md), because
+  it needs a per-key "reviewed" fact that does not exist. The asymmetry that makes it wait: that value was typed by a developer in a reviewed
+  commit, whereas a re-created `TeachRate` contradicts a decision the owner made *after* it.
+
+The ops half — the three modes, the footprint on the host's first post-fix deploy, why no branch of
+this policy may exit non-zero, and the one crash window a retry cannot repair — is
+[../ops/deploy.md](../ops/deploy.md).

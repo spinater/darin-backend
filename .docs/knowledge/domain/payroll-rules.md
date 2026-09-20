@@ -43,7 +43,7 @@ sources:
 
 1. **ทุกเรท/เกณฑ์/% อยู่ที่ `lib/config-keys.ts` ที่เดียว — ห้าม literal ในสูตร**
    ค่าใน `CONFIG_DEFAULTS` ใช้ **ตอน seed เท่านั้น**; runtime อ่านจากตาราง `PayrollConfig` เสมอ
-   ⇒ เจ้าของแก้เรทเองได้จากหน้า `/admin/config` โดยไม่ต้อง deploy · 🔴 **ใบ 013 item 4: `num()` ต้อง
+   ⇒ เจ้าของแก้เรทเองได้จากหน้า `/admin/config` โดยไม่ต้อง deploy · ใบ 040: seed เขียน *ค่า* ครั้งเดียวตลอดอายุฐาน ไม่เคยลบ ([teach-rate-lookup.md](teach-rate-lookup.md)) · 🔴 **ใบ 013 item 4: `num()` ต้อง
    throw เมื่อค่าว่าง/ไม่ finite** — เดิมเช็คแค่ `Number.isNaN` ⇒ `""` อ่านเป็น **0** เงียบ ๆ (วัดจริง: ล้าง
    `comm.pt.selfClosed` = คอม **0 ฿** แทน 2,000 ฿ บนบิล 20,000 ฿ · ล้าง `incentive.threshold` = 12%
    ย้อนหลังเข้าทุกคนทุกเดือน · ทั้งคู่ `warnings: []`) · ฝั่งเขียน: [money-input-guards.md](money-input-guards.md)

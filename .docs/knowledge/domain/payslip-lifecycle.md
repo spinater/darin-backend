@@ -113,3 +113,8 @@ out and dropped it — the invariant held inside the engine and was violated one
   `unmatched` for a username nobody has, `invalidHours` for an hours field that is not a usable
   number), and a sheet whose grid did not arrive lives one sync run (`SyncResult.missingGrid`).
   Neither belongs in `PayslipWarning`.
+- **`SeedMark` (task 040) is not part of this lifecycle at all.** One row, written last by
+  `prisma/seed.ts` to record that this database's reference fixture has been planted or adopted.
+  It holds **no money and no payslip state**, and nothing on the run path reads it — it is named
+  here only so a new table in `prisma/schema.prisma` is not mistaken for something a slip depends
+  on. What it governs is [../ops/deploy.md](../ops/deploy.md).

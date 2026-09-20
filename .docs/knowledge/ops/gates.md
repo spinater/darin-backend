@@ -44,7 +44,7 @@ It is also item 6 of the open-holes list at the bottom of this card.
 
 | groove-clinic | ที่นี่ | ทำไม |
 |---|---|---|
-| `check-code.sh` = cargo fmt + clippy + test + tsc/bun | `check-code.sh` = tsc + prisma validate + bun test + db push/seed | ไม่มี Rust ในรีโปนี้ |
+| `check-code.sh` = cargo fmt + clippy + test + tsc/bun | `check-code.sh` = tsc + prisma validate + bun test + db push/seed, the seed run **twice** (ใบ 040) | ไม่มี Rust ในรีโปนี้ |
 | `scripts/lib/rust-image.sh` (หมุด Rust 1.98) | `scripts/lib/bun-image.sh` + `scripts/check-bun-pin.sh` | เหตุผลของการปักหมุดเหมือนเดิมทุกตัวอักษร — เปลี่ยนแค่ว่าปักหมุดอะไร · และที่นี่ **มีเกตเทียบสองบ้าน** (lib กับ `Dockerfile`) ซึ่ง groove ไม่มี |
 | `check-sql-coverage.sh` (trigger/constraint ต้องมีเทส) | — | schema ที่นี่เป็น Prisma + `db push` ไม่มีไฟล์ migration ให้กวาดชื่อ constraint · **ช่องนี้เปิดอยู่จริง ไม่ได้ปิดไปด้วยเหตุผล** |
 | `check-txn-discharge.sh` (ทุก txn ปิดทางเดียว) | — | เป็นของ sqlx โดยเฉพาะ (`Drop` แค่ *คิว* ROLLBACK) — Prisma `$transaction` ไม่มีรูปนั้น |
@@ -103,7 +103,8 @@ sourced with `.` like the junit layer): fastest red, needs no DB and no generate
 4. **The formatter watches shape, never content** — `prettier --check` is green on code that is
    wrong, and it does not look at shell, SQL, YAML or Markdown at all.
 5. **No test in this repo reaches a database** — see [gate-tiers-and-pins.md](gate-tiers-and-pins.md). Stage 5 proves
-   the schema pushes and seeds; **no gate proves any write against it is correct.**
+   the schema pushes and seeds, and since ใบ 040 that a **second** seed run writes nothing at all
+   (`seed: mode=already-initialized created=0`); **no gate proves any other write against it is correct.**
 6. **สี่ช่องที่ใบ 017 เปิดคืน** — พาธที่ไม่ใช่ ASCII ที่ `core.quotePath` quote แล้วเกตที่เหลือ
    ข้ามไปเงียบ ๆ **ก่อนตัวนับของตัวเองจะขยับ** (วันนี้ยังไม่มีพาธแบบนั้นในรีโป ⇒ แฝงอยู่ ไม่ได้ปิด) ·
    ไฟล์ที่ตั้งใจเป็น text แต่ไบต์อ่านว่า binary ⇒ ด่านเนื้อหาข้ามทั้งไฟล์ · พาธในเครื่องหมาย

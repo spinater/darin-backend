@@ -4,6 +4,11 @@ sources:
   - Dockerfile
   - .github/workflows/deploy-dev.yml
   - nginx/local.conf
+  # What the `migrate` service actually runs. Task 040 made its behaviour depend on the database it
+  # finds, and the three modes below are claims about this file — a seed that starts writing on a
+  # database it did not create must land here as STALE, not pass under a card still promising
+  # "fixture withheld". The decision itself and its money half: `.docs/knowledge/domain/teach-rate-lookup.md`.
+  - prisma/seed.ts
 ---
 
 # Deploy & environment
@@ -40,6 +45,55 @@ project คนละ vhost) · ตรวจสดเมื่อ 2026-09-17: `/l
 ยังไม่มี `/root/app/deploy-darin.sh`, ไม่มีกุญแจใน `authorized_keys`, ไม่มี secret `DEPLOY_SSH_KEY`
 ⇒ workflow ยิงแล้วล้มที่ ssh · **ของที่วิ่งอยู่ตอนนี้ถูก deploy ด้วยมือ**
 ⚠️ **`verify.sh` ยังไม่อยู่ใน CI** ⇒ เกตบนเครื่องคือเกตเดียวที่มี
+
+## What `migrate` does to a database that is already in use (task 040)
+
+`migrate` is `prisma db push && bun run prisma/seed.ts`, and it runs on **every** deploy. Until task
+040 the seed re-asserted the whole reference fixture each time, so a deploy silently undid owner
+decisions — a deleted teach rate came back and paid, a re-pointed `TrainerAlias` was pushed back, a
+corrected `spreadsheetId` produced a **second** `SheetSource` row for the same sheet name. The seed
+now decides **once, before any write**, which of three databases it is looking at:
+
+| Evidence | Mode | What it writes |
+|---|---|---|
+| no `SeedMark` row · `Staff.count() === 0` | `initialize` | the full fixture, then the mark **last** |
+| no `SeedMark` row · staff exist | `adopt` | the mark, and no reference data — this host, exactly once |
+| `SeedMark` row exists | `already-initialized` | missing `CONFIG_DEFAULTS` keys only |
+
+- **This host's first post-fix deploy is `adopt`**: `db push` creates `SeedMark` empty, the staff
+  rows are already there, all 18 config keys already exist ⇒ **no reference data written · 18
+  `note` refreshes · one new row**. The `note` refresh is an `UPDATE` over every
+  `CONFIG_DEFAULTS` key and runs in **every** mode: `note` is code-owned (it renders as a `<span>`,
+  never an input, so there is no owner edit of it to overwrite), `PayrollConfig` has no
+  `updatedAt`, and no `value` is in that update. It is not "zero writes", and this card is about
+  being exact on what a deploy writes to a live database.
+  Net footprint in reference data on the live database: **one row in one new table.**
+- 🔴 **No branch of this policy may exit non-zero.** `app` has
+  `depends_on: migrate: condition: service_completed_successfully` ⇒ a seed that refuses to start
+  takes the **whole site** down on deploy. The policy is enforced by withholding writes and printing
+  what it withheld, never by failing. (A real `db push` mismatch must still fail loudly — do not
+  give `main()` a blanket `.catch()` to "make this safe".)
+- **Read the deploy log for the last line**: `seed: mode=<mode> created=<n>`. `created=0` on a
+  redeploy is the correct and expected reading. The same line is what `scripts/check-code.sh` greps
+  out of a **second** seed run on the throwaway Postgres every gate round.
+- ⚠️ **`OWNER_PASSWORD` now only matters on an `initialize` run** — the owner row is planted on that
+  branch alone, so a value passed to `migrate` on any later deploy is read and ignored.
+- 🔴 **A crashed first boot is re-attempted, with one hole that is not closable.** Whether the next
+  run re-plants is decided by `Staff.count()`, not by the mark, so the `Staff` + `TrainerAlias`
+  block is one `db.$transaction`, written after every other fixture table: the count reads **0**
+  (nothing committed ⇒ the whole fixture is re-attempted over upserts on unique keys) or **7**
+  (committed over a complete fixture ⇒ the retry adopts, and nothing is missing). What survives is
+  a crash **between that commit and the line that prints the generated owner password**: the owner
+  row then exists holding a credential nobody ever saw, the next run reads `adopt` and will not
+  print it, and nobody can log in to `/admin/config`. Printing before the commit would hand out a
+  password for a run that may roll back, so the fix is operational, not structural — **pass
+  `OWNER_PASSWORD` to `migrate`** and the window costs nothing. The database is `prisma db push`
+  with no down path (§2 rule 8), so the repair for a boot that lands in it is a restore, not a
+  re-run.
+- ⚠️ **`SeedMark.mode` can read `adopted` on a database this seed actually planted** — the same
+  crash window seen from the audit trail: the run that planted the fixture died before writing the
+  mark, and the next run counts 7 staff and records `adopted`. The column is informational (nothing
+  reads it), but do not take it as evidence that the fixture arrived from somewhere else.
 
 ## กับดักที่กัดจริง
 

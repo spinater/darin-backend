@@ -283,3 +283,31 @@ model PayslipWarning {
 
   @@unique([payslipId, seq])
 }
+
+// ─────────────────────────────────────────── bootstrap
+
+/// Written once, by `prisma/seed.ts`, at the **end** of the run that first planted — or adopted —
+/// this database. Its **absence** is the only thing that lets the seed write reference data; its
+/// presence makes every later deploy read-only outside the `CONFIG_DEFAULTS` key set (task 040).
+///
+/// Written last on purpose, and paired with a second witness: a first boot that crashes leaves no
+/// mark, and whether the next run re-attempts the fixture is decided by `Staff.count()`, not by
+/// this row. The `Staff` + `TrainerAlias` block is therefore one `db.$transaction` and is written
+/// after every other fixture table, so that count can only read **0** (nothing committed ⇒ the
+/// whole fixture is re-attempted over upserts on unique keys) or **7** (committed over a complete
+/// fixture ⇒ the retry adopts and withholds nothing that is missing).
+///
+/// ⚠️ **The retry is not idempotent in one respect, and it cannot be made so.** A crash between
+/// that commit and the credential `console.log` leaves an owner row holding a generated password
+/// that was never printed; the next run reads `adopt` and will not print it, so nobody can log in
+/// to `/admin/config`. Printing before the commit would hand out a credential for a run that may
+/// roll back. Pass `OWNER_PASSWORD` to `migrate` and the window costs nothing.
+///
+/// The row itself is written with `createMany … skipDuplicates`: two overlapping `migrate`
+/// containers both reach it, and a bare `create` would fail the loser with P2002 and take `app`
+/// down with it (`depends_on: … service_completed_successfully`).
+model SeedMark {
+  name String   @id // "bootstrap"
+  mode String // "planted" | "adopted"
+  at   DateTime @default(now())
+}
