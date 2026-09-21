@@ -1,9 +1,9 @@
 # Three knowledge cards are in the §5 warn band — split each at the seam it already draws
 
-- status: todo
-- commit:
+- status: done
+- commit: 13316c9 · e6a0637 · 06bfd3d
 - opened by ใบ 065, which pushed all three over 170 · the precedent is
-  [042](../done/042-split-payroll-rules-card-at-the-engine-screen-seam.md), shipped the same day
+  [042](042-split-payroll-rules-card-at-the-engine-screen-seam.md), shipped the same day
 
 ## Goal
 

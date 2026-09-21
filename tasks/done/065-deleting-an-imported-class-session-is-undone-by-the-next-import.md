@@ -161,6 +161,6 @@ that disagrees with the price table it cites stops being evidence the next time 
 - **`del`'s `confirm` guard has no pin** — a server action, so it is in the same reviewed-not-pinned
   zone as `applyGymmoImport`'s transaction ([015](../todo/015-db-test-lane.md)).
 - **Three knowledge cards and one module are in the warn band**, all pushed there by these six
-  rounds: [068](../todo/068-three-cards-in-the-warn-band-split-them.md).
+  rounds: [068](068-three-cards-in-the-warn-band-split-them.md).
 - The eight-column problem table has never had a `uxui-designer` pass — both lanes said so and
   neither gated on it. Worth `/design-review` on `/classes` before an admin sees it.
