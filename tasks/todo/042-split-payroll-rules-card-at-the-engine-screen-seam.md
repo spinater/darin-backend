@@ -1,11 +1,11 @@
-# `payroll-rules.md` is at 186/200 and warning — split it at the engine/screen seam
+# `payroll-rules.md` is at 189/200 and warning — split it at the engine/screen seam
 
 - status: todo
 - commit:
 
 ## Goal
 
-`.docs/knowledge/domain/payroll-rules.md` is **186 lines** against `scripts/check-knowledge.sh`'s
+`.docs/knowledge/domain/payroll-rules.md` is **189 lines** against `scripts/check-knowledge.sh`'s
 warn at `> 170` (hard cap 200). It was 170 at HEAD and 170 through most of task 037, because that
 card paid for its own additions by **shortening a `sources:` comment** rather than by making the
 card smaller — parking it one line below the brake it exists to receive. The three lines the review
@@ -22,8 +22,10 @@ rule) and quotes that file's figures, while `sources:` listed only `ot.test.ts` 
 (it compares counts, not content) **and** `check-knowledge` silent.
 
 That fix is what took the card from 170 to **173**, which is why the §5 warn now fires and why this
-<!-- task 063 took it to **186** (3 lines for the import seam, then 4 more for the zero-base warning
-     its review round added). 14 lines from the hard cap ⇒ nothing else may be added before this split. -->
+<!-- task 063 took it to 186 (3 lines for the import seam, then 4 more for the zero-base warning its
+     review round added); task 064 added one bullet ⇒ **189**. 🔴 **11 lines from the hard cap.** Every
+     card that lists `prisma/schema.prisma` has to move on a schema change, and this is the one of them
+     that cannot grow — so the next schema card pays for this split whether it wants to or not. -->
 card exists. The warn is the honest signal, not a regression: the card was only ever at 170 because
 task 037 paid for its own additions by trimming a `sources:` comment.
 
