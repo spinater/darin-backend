@@ -17,6 +17,10 @@ sources:
 
 # The class-import queue — where a Gymmo row that never became a คาบ lives
 
+> 📌 **ใบ 064 ปิดแล้ว** (`c628748`) — การ์ดใบงานย้ายไป `tasks/done/` และลิงก์ในโค้ดถูกเขียนตาม
+> โดย `scripts/task-move.sh` · สิ่งที่ยัง**ไม่**ปิดคือผู้ใช้ของคิวนี้: ไม่มีอะไรเรียก
+> `applyGymmoImport` จนกว่าหน้าอัปโหลด (ใบ 063 ข้อ 4) จะลง และใบ 065 ต้องลงก่อนหน้านั้น
+
 Read [gymmo-import.md](gymmo-import.md) first: that card is about **identity and refusals** on the way
 in. This one is about **what a refused row is and how it is stored** — task **064**. Its other half, the
 `/payslips` count and the rows that never clear, is

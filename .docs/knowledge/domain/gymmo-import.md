@@ -20,6 +20,10 @@ sources:
 
 # Importing Gymmo คาบ — why a row has an identity
 
+> 📌 **ใบ 064 ปิดแล้ว** (`c628748`) — การ์ดใบงานย้ายไป `tasks/done/` และลิงก์ในโค้ดถูกเขียนตาม
+> โดย `scripts/task-move.sh` · สิ่งที่ยัง**ไม่**ปิดคือผู้ใช้ของคิวนี้: ไม่มีอะไรเรียก
+> `applyGymmoImport` จนกว่าหน้าอัปโหลด (ใบ 063 ข้อ 4) จะลง และใบ 065 ต้องลงก่อนหน้านั้น
+
 Four files, and only the last one writes: `lib/gymmo.ts` reads cells into rows · `lib/gymmo-map.ts`
 answers *which staff, which price* · `lib/gymmo-import.ts` decides *what may be written* ·
 `lib/gymmo-import-run.ts` writes it (058, then **063**). Read

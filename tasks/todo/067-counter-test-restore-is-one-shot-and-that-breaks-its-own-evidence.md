@@ -2,7 +2,7 @@
 
 - status: todo
 - commit:
-- found while running task [064](064-gymmo-import-problems-have-no-home.md) · confirmed by
+- found while running task [064](../done/064-gymmo-import-problems-have-no-home.md) · confirmed by
   `payroll-auditor` in the same review
 
 ## What happened

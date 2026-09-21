@@ -72,7 +72,7 @@ model ClassSession {
 ## 5. What landed — items 1, 2, 3 and 5 (item 4 is still open)
 
 🔴 **Item 4 (the upload screen) is blocked on two cards, and must not be built before them:**
-[064](064-gymmo-import-problems-have-no-home.md) — an import `problem` is persisted nowhere, so a
+[064](../done/064-gymmo-import-problems-have-no-home.md) — an import `problem` is persisted nowhere, so a
 คาบ that cannot be matched leaves no trace once the request ends · and
 [065](065-deleting-an-imported-class-session-is-undone-by-the-next-import.md) — deleting an imported
 คาบ is re-created by the next import, so the remediation for a duplicate re-doubles the pay.
@@ -144,7 +144,7 @@ Nine findings, all landed in the same change. Three money findings (1–3) ⇒ b
 | 3 🔴 | seed gave the two new trainers `classCredit: 5000` on a base of 0 — §1.3 deducts the credit *because the base contains it* ⇒ ประพัฒน์ paid 3,400 of 8,400, **5,000/month short**, and it answered ใบ 062 §5 against the person | both seeded `classCredit: 0`, `TRAINERS` carries the field per row, and the closing note asks for **ฐาน + เครดิต as one pair** with the direction of each error spelled out |
 | 4 | `gymmo: null` meant two different things; ประพัฒน์/เกวลี resolved only because `aliasesOf` normalises `username` ⇒ giving them a nickname later would silently send every คาบ to `problems` | both carry their Gymmo name **explicitly** (`aliasesOf` de-dupes, so no extra row). `null` now means one thing: teaches no classes |
 | 5 | `parseGymmoGrids`'s own rejected rows were invisible in the type the screen is built from | `planGymmoImport` takes the whole `GymmoParse`; parse problems are converted to `{ where, reason }` and come **first** in one list. +1 arm |
-| 6 | `applyGymmoImport` returned counts only ⇒ problems had no home after the write | it returns `problems` too (interim; persisting them is [064](064-gymmo-import-problems-have-no-home.md)) |
+| 6 | `applyGymmoImport` returned counts only ⇒ problems had no home after the write | it returns `problems` too (interim; persisting them is [064](../done/064-gymmo-import-problems-have-no-home.md)) |
 | 7 | nothing said a period was **closed** — a คาบ imported onto an approved slip reports `created: 1` and the next run skips that slip with a reason no screen renders | `GymmoImportPreview.closedPeriods` = non-draft `Payslip` rows in the periods the plan writes into, and the module header says the confirm screen must show it |
 | 8 | only `handKeyedInRange`; no mirror | `importedInRangeNotInFile` — rows in range already imported that this file does not mention, floored at 0. The only screen-side signal for a moved `sourceKey` |
 | 9 | `readExisting` re-declared `ExistingSession` structurally · "all six mappings are measured" over four `gymmo` values · pin note said เจ็ดอาร์ม · `gymmoRowLabel` exported with one caller · §4 caveat missing | type imported · reworded to "six sheet names resolve — four through a `gymmo` value, two because the sheet name **is** the username" (same wording in the card and above) · pin note counts fixed · unexported · caveat added below |

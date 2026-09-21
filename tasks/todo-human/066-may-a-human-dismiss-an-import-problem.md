@@ -2,7 +2,7 @@
 
 - status: todo-human
 - รอ: **linus** (เป็นนโยบาย ไม่ใช่เรื่องที่โค้ดตัดสินได้)
-- ยกขึ้นโดยเลน `architect` ตอนออกแบบ [064](../todo/064-gymmo-import-problems-have-no-home.md) §6(a)
+- ยกขึ้นโดยเลน `architect` ตอนออกแบบ [064](../done/064-gymmo-import-problems-have-no-home.md) §6(a)
 
 ## คำถาม
 

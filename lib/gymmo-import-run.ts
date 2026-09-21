@@ -207,7 +207,7 @@ export async function previewGymmoImport(plan: GymmoImportPlan): Promise<GymmoIm
  * `lib/ot-import.ts`: the rejected rows are decided before the write and must survive it, or the
  * only screen that ever showed them was the preview and the operator has nothing to act on after
  * confirming. Persisting them so they outlive the request is
- * [task 064](../tasks/todo/064-gymmo-import-problems-have-no-home.md).
+ * [task 064](../tasks/done/064-gymmo-import-problems-have-no-home.md).
  *
  * 🔴 **`closedPeriods` is on the result too, re-read inside the transaction**, and it is the same
  * reasoning one step further: on the preview alone it is a number a screen can forget, and a slip can

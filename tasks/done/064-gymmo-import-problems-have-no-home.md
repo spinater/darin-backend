@@ -1,10 +1,10 @@
 # An import problem is loud once and then has no home at all
 
-- status: todo
-- commit:
-- found by `payroll-auditor` while reviewing [063](063-import-gymmo-sessions-into-the-database.md) ·
+- status: done
+- commit: `c628748` (งาน) · `774a179` (ใบ 066/067 ที่รีวิวใบนี้เปิดขึ้น)
+- found by `payroll-auditor` while reviewing [063](../todo/063-import-gymmo-sessions-into-the-database.md) ·
   designed by `architect` (`.scratch/064-architect-design.md`) · implemented by `backend-dev`
-- 🔴 **blocks [063](063-import-gymmo-sessions-into-the-database.md) item 4** (the upload screen).
+- 🔴 **blocks [063](../todo/063-import-gymmo-sessions-into-the-database.md) item 4** (the upload screen).
   Today nothing can import, so this hole is harmless; **the hour the upload screen lands it goes live
   and silent**. That is the whole reason this was allowed to be deferred rather than fixed inline.
 
@@ -25,7 +25,7 @@ screen cannot lose them. That is a screen that shows them **once**, not a queue.
 
 `Pilates Flow` is one of the five prices task 063 adds, and seed **withholds** it on the live
 database while `ClassPrice` still has no add screen (task
-[046](046-no-screen-can-add-a-class-price-or-a-sheet-source.md)). So on the real system every
+[046](../todo/046-no-screen-can-add-a-class-price-or-a-sheet-source.md)). So on the real system every
 `Pilates Flow` คาบ resolves to `ไม่รู้จักคลาส "Pilates Flow" — ยังไม่มีราคาในระบบ`.
 
 ประพัฒน์'s ~20 such คาบ/month become `problem` rows. The admin reads them, closes the page, and the
@@ -203,22 +203,22 @@ therefore recorded nothing; `runPayroll` never ran again; the approval moved the
 where it ever would. 064 cannot see it — its inputs are the file and the slip's status *now*.
 
 That is the **stale-draft hole**, and it belongs to
-[013](013-payslip-lifecycle-integrity.md): approving a slip is the moment something has to notice that
+[013](../todo/013-payslip-lifecycle-integrity.md): approving a slip is the moment something has to notice that
 its inputs changed since it was computed. Found by `payroll-auditor` on this card's fix round.
 
 ## Out of scope, named so nobody re-derives it
 
-- **`/classes` rendering the queue** is [065](065-deleting-an-imported-class-session-is-undone-by-the-next-import.md).
+- **`/classes` rendering the queue** is [065](../todo/065-deleting-an-imported-class-session-is-undone-by-the-next-import.md).
   Until it lands, the `/payslips` warning links to a screen that does **not** yet list the rows —
   the count is honest, the destination is incomplete. ⇒ **065 must land before
-  [063](063-import-gymmo-sessions-into-the-database.md) item 4**, or the first admin to follow that
+  [063](../todo/063-import-gymmo-sessions-into-the-database.md) item 4**, or the first admin to follow that
   link learns the count lies, and a count people ignore is worse than no count.
 - **`listClassImportProblems()` has no caller.** It was written for 065's screen, which does not
   exist, so it ships **unused and unexercised** — its `orderBy` tie-break has never run. That is
   deliberate (the design asked for the read side with the table), and it is written down here so a
   later reader does not mistake it for something that has been proven to work. If 065 wants a
   different shape, rewrite it freely — nothing depends on it.
-- **The upload screen** is [063](063-import-gymmo-sessions-into-the-database.md) item 4, still
+- **The upload screen** is [063](../todo/063-import-gymmo-sessions-into-the-database.md) item 4, still
   blocked. Nothing calls `applyGymmoImport` yet, so nothing writes this table on the live system.
 - **`/classes` writing `sourceKey` for a hand-keyed คาบ** (design §6b) — the better answer to 066,
   recommended not decided.
