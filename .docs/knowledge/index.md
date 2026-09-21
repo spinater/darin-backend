@@ -41,6 +41,7 @@ Card ยาว 40–120 บรรทัด (**เตือนที่ 170 · �
 | [domain/form-refusals.md](domain/form-refusals.md) | ฝั่ง policy ของการ์ดข้างล่าง (แยกที่ใบ 068): action ไหนปฏิเสธช่องไหน · ช่องว่างแปลว่าอะไรในแต่ละที่ · `?err=` ที่ใช้ร่วมกัน · สองด่านที่เป็น *คู่* ไม่ใช่ช่องเดียว |
 | [domain/money-input-guards.md](domain/money-input-guards.md) | ตัวเลขที่มาจากฟอร์ม: `finiteNumber`/`isBlank` · 5 action ที่ปฏิเสธก่อนเขียน · รูปแบบ `?err=` ที่ใช้ร่วมกัน |
 | [domain/gymmo-import.md](domain/gymmo-import.md) | กลไกนำคาบจากไฟล์ Gymmo ลง `ClassSession`: `sourceKey` เข้ารหัสแบบชนกันไม่ได้และ normalize ชื่อครูเหมือนชั้นที่จับคู่ · แถวซ้ำในไฟล์เดียวกัน · สามอย่างที่หน้ายืนยันต้องโชว์ก่อนเขียน |
+| [domain/gymmo-import-preview.md](domain/gymmo-import-preview.md) | สามสัญญาณที่หน้ายืนยันต้องโชว์ก่อนเขียน (แยกจากการ์ดบนที่ใบ 068): คาบที่คีย์เองแล้วไฟล์จะซ้ำ · คาบที่นำเข้าแล้วแต่ไฟล์ไม่มี · งวดที่สลิปปิดแล้ว |
 | [domain/class-import-queue.md](domain/class-import-queue.md) | ที่อยู่ของแถว Gymmo ที่ไม่ได้กลายเป็นคาบ: `ClassImportProblem` · คีย์สามทรงแยกกันด้วยจำนวนสมาชิก · ลบ-แล้ว-ใส่ในทรานแซกชันเดียวกับคาบ (ตัวนับแยกไปการ์ดข้างล่าง) |
 | [domain/class-import-blockers.md](domain/class-import-blockers.md) | ตัวเลขที่กั้นการคิดเงินเดือน: `runBlockers` สองตัวเลขไม่รวมกัน · กฎการยกเว้นของตัวนับ · แถวที่ไม่มีทางหายเอง และแถวที่นับหายแต่เหตุผลยังค้าง |
 | [domain/gymmo-import-data.md](domain/gymmo-import-data.md) | ข้อมูลที่เส้นทางนั้นต้องมีในฐาน: alias 6 แถว · ราคาคลาส 5 แถว · คู่ ฐานเงินเดือน/เครดิตสอนคลาส · และอะไรที่ยังไม่ได้พิสูจน์ |

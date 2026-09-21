@@ -48,7 +48,8 @@ absent or still `draft`, because a closed slip is never recomputed ⇒ the ค�
 ⚠️ An arity-3/1 key can never equal a 4-tuple `sourceKey`, so a `"row"` problem is never excluded by
 construction — the same fact that means nothing clears it.
 
-🔑 **This is set membership, not the subtraction [gymmo-import.md](gymmo-import.md) forbids.** That bug
+🔑 **This is set membership, not the subtraction
+[gymmo-import-preview.md](gymmo-import-preview.md) forbids.** That bug
 had a subtrahend (`matched`, no date filter) that was **not a subset** of its minuend (`imported`,
 range-confined), so twelve out-of-range rows cancelled twelve in-range orphans. Here the second query
 is `sourceKey: { in: keys }` — keyed by the **first query's own output** — so the excluded set is a

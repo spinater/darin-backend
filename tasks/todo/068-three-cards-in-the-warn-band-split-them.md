@@ -13,7 +13,7 @@
 |---|---|---|
 | `ops/gate-tiers-and-pins.md` | ~~194~~ → **106** ✅ | — |
 | `domain/money-input-guards.md` | ~~189~~ → **76** ✅ | — |
-| `domain/gymmo-import.md` | **190** | **10** |
+| `domain/gymmo-import.md` | ~~190~~ → **154** ✅ | — |
 
 🔴 **All three moved inside ใบ 065's five review rounds alone** — `gate-tiers-and-pins.md`
 183 → 194, `money-input-guards.md` 171 → 189, `gymmo-import.md` 165 → 190, because every card that
@@ -71,6 +71,25 @@ trim to stay under. The warn is the brake working.
    (it was 172 then): *the key and the write* against *the three preview signals*, which is where
    ใบ 065's eight lines went and where item 4 of ใบ 063 will add more. `gymmo-import-data.md` is the
    worked precedent — that split came out of this same card.
+
+   ✅ **Done** — `domain/gymmo-import-preview.md` (**69**) takes *"three things the preview must show
+   before anybody confirms"*, sourced by `lib/gymmo-import-run.ts` (**also** the parent's, and that
+   is correct rather than a leftover: one file, two genuinely different claims — the transaction and
+   the preview — so touching it should stale both) plus `lib/gymmo-hand-keyed.*`, which came out of
+   the parent with the prose. Parent **190 → 154**. Two things fixed on the way: the heading *"What
+   reaches the screen instead of being decided"* was about the **planner's** refusals, not the
+   screen, and now says so; and the two cards citing the moved claims — `class-import-blockers.md`
+   (the `imported − matched` shape) and `class-import-queue.md` (signal 1 on the result) — point at
+   the new card. ⚠️ 154 is over §5's band: the remainder is the key **and** the write, which cannot
+   be cut apart — `sourceKey`'s whole justification is what `diffGymmoPlan` and `applyGymmoImport`
+   then do with it, and a reader who has one without the other re-derives the wrong half.
+
+## Result
+
+All three ✅ · `check-knowledge: warn 0` for the first time since ใบ 058. Every card in the repo is
+now under 170, and the three that grow — pin history, per-action refusals, preview signals — each
+have their own file, so the next card to add a test, a form or a preview signal lands in a card with
+room instead of in one six lines from the cap.
 
 ## Rules for each (§5)
 

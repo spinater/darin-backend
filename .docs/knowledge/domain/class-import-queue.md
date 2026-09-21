@@ -97,7 +97,8 @@ nothing about the amount and the count never excludes it · `"row"` has no `sour
 ⚠️ **ใบ 065 changed one field of the preview this module returns and nothing about this table**:
 `handKeyedInRange` (a count) became `handKeyedMatches` (the rows a planned write would duplicate)
 plus `handKeyedUnmatchedInRange` (the residual), and both are now on `GymmoImportResult` as well,
-re-read inside this same transaction — see [gymmo-import.md](gymmo-import.md). The queue's own read
+re-read inside this same transaction — see
+[gymmo-import-preview.md](gymmo-import-preview.md). The queue's own read
 side gained a three-valued `state` per row, in
 [class-import-blockers.md](class-import-blockers.md).
 
