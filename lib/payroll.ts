@@ -142,6 +142,26 @@ export function computePayslip(input: {
   const base = staff.baseSalary;
   if (base) lines.push({ group: "base", label: "ฐานเงินเดือน", qty: 1, rate: base, amount: base });
 
+  // 🔴 **A base of 0 emits no line at all, and an absent line is the weakest signal a payslip has.**
+  // Measured on real data (task 063): ประพัฒน์ พันธุ์โยศรี taught 5 คาบ in 1–21 Sep, every one with 0
+  // attendees ⇒ `net 0.00` with `warnings: []` — a zero-baht slip for a man who taught five classes,
+  // and nothing on it saying a number was never configured. That is the §2 rule 4 shape exactly: the
+  // engine cannot know whether 0 is a choice, so it says so instead of rendering an empty slip.
+  //
+  // **Only for a `trainer`**, and the predicate is the point: the `owner` row is seeded at 0 on
+  // purpose (`prisma/seed.ts`) and warning about it would train people to ignore this line. A
+  // `counter` is left out for the same reason — nobody has said a counter must carry a base.
+  //
+  // ⚠️ It does **not** also warn about `classCredit` on a 0 base, though that pair is the more
+  // expensive one (a credit deducts class value that a base never contained — card 062 §5 is that
+  // question, open with linus). `/admin/config` renders both fields in one row, so the human who
+  // follows this warning sees both; a second warning that pre-judges an undecided rule would be the
+  // engine taking the owner's decision.
+  if (staff.role === "trainer" && !base)
+    warnings.push(
+      "ยังไม่ได้ตั้งฐานเงินเดือนของเทรนเนอร์คนนี้ (0 บาท) — สลิปใบนี้จึงไม่มีบรรทัดฐานเงินเดือน ⇒ ตั้งฐานเงินเดือน (และเครดิตสอนคลาส) ที่หน้า /admin/config ก่อนอนุมัติ",
+    );
+
   // 2 ── ค่าสอน 1-on-1 (Σ คาบ × เรทตามกิจกรรม/ระดับ)
   let teachPay = 0;
   const byActivity = new Map<string, number>();

@@ -181,7 +181,7 @@ model TeachSession {
   @@index([date, staffId, status])
 }
 
-// ─────────────────────────────────────────── คีย์มือ
+// ─────────────────────────────────────────── คีย์มือ + นำเข้าจาก Gymmo
 model ClassSession {
   id      String   @id @default(cuid())
   date    DateTime
@@ -189,6 +189,28 @@ model ClassSession {
   staffId String
   booked  Int
   noShow  Int      @default(0)
+
+  /// The identity of **one row of one Gymmo worklog export** — sheet + date + `timeText` + the raw
+  /// class name, JSON-encoded as a 4-tuple by `gymmoSourceKey()` (`lib/gymmo-import.ts`).
+  ///
+  /// 🔴 **It exists so that importing the same file twice cannot pay twice** (task 063 §1). Before
+  /// it, `ClassSession` had no key but `id`, so a second upload doubled every คาบ with nothing
+  /// going red — money that is only noticed at payday, the most expensive failure this system has
+  /// (§2 rule 4).
+  ///
+  /// **`booked`/`noShow` are deliberately NOT part of the key.** Gymmo lets staff correct
+  /// attendance after the fact, so the same session arriving with a new count must **update** this
+  /// row, never insert a second one.
+  ///
+  /// ⛔ **`date + classId + staffId` was rejected as the key**: the date is UTC midnight with the
+  /// clock kept in `timeText` (see `lib/gymmo.ts`), and one trainer really does teach the same
+  /// class twice in a day — that key would swallow one of the two คาบ silently.
+  ///
+  /// `null` for a row keyed by hand at `/classes`: it has no row in any file to be the identity of.
+  /// A null is exempt from `@unique` in PostgreSQL, so hand-keyed rows never collide with each
+  /// other — and never with an imported one either, which is why the import also reports how many
+  /// hand-keyed คาบ already sit in the range it is about to write (`lib/gymmo-import-run.ts`).
+  sourceKey String? @unique
 
   class ClassPrice @relation(fields: [classId], references: [id])
   staff Staff      @relation(fields: [staffId], references: [id])

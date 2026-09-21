@@ -28,6 +28,35 @@ describe("สูตรรวม (§1.7)", () => {
   });
 });
 
+describe("ฐานเงินเดือน 0 (ใบ 063)", () => {
+  // 🔴 `if (base) lines.push(...)` means a 0 base emits **no line**, and nothing else in the engine
+  // mentions it ⇒ before this arm, a trainer nobody had configured got a slip with no base line and
+  // `warnings: []`. Measured on real data: ประพัฒน์ พันธุ์โยศรี taught 5 คาบ in 1–21 Sep, all with 0
+  // attendees ⇒ `net 0.00`, and the slip said nothing at all was missing. The seed plants two such
+  // trainers on purpose (nobody has said what they are paid), so this is behaviour task 063 newly
+  // depends on and nothing pinned it.
+  test("เทรนเนอร์ที่ฐานเป็น 0 ต้องเตือน — สลิปว่างเปล่าไม่ใช่คำตอบ", () => {
+    const r = run({ staff: trainer({ baseSalary: 0 }) });
+    // Exact text: the trainer reads this on their own payslip, and it has to name the field and
+    // where to fix it. A reworded warning is a product change, not a refactor.
+    expect(r.warnings).toEqual([
+      "ยังไม่ได้ตั้งฐานเงินเดือนของเทรนเนอร์คนนี้ (0 บาท) — สลิปใบนี้จึงไม่มีบรรทัดฐานเงินเดือน ⇒ ตั้งฐานเงินเดือน (และเครดิตสอนคลาส) ที่หน้า /admin/config ก่อนอนุมัติ",
+    ]);
+    // It moves no money and adds no line — the warning is the whole change (§2 rule 4).
+    expect(r.base).toBe(0);
+    expect(r.lines.filter((l) => l.group === "base")).toEqual([]);
+  });
+
+  // The predicate is `role === "trainer"`, not `!base`: the seeded `owner` row is 0 on purpose, and
+  // a warning on every owner slip would teach people to ignore the line above.
+  test("owner/counter ที่ฐานเป็น 0 ไม่เตือน (ตั้งใจให้เป็น 0)", () => {
+    for (const role of ["owner", "counter"])
+      expect(run({ staff: trainer({ role, baseSalary: 0, classCredit: 0 }) }).warnings).toEqual([]);
+    // …and a trainer WITH a base stays silent too, so the arm above is about 0 and not about role.
+    expect(run({ staff: trainer({ baseSalary: 10000 }) }).warnings).toEqual([]);
+  });
+});
+
 describe("พนักงานที่ถูกปิดการใช้งาน (ใบ 013 ข้อ 3)", () => {
   // Deliberately the same rich input as the สูตรรวม case above: every block of the formula is
   // non-zero, so "not one figure moved" is a claim about the whole engine rather than about an

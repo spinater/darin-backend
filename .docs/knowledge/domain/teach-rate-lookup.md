@@ -126,3 +126,12 @@ pure so the decision is pinned without a database). Otherwise it withholds every
 The ops half — the three modes, the footprint on the host's first post-fix deploy, why no branch of
 this policy may exit non-zero, and the one crash window a retry cannot repair — is
 [../ops/deploy.md](../ops/deploy.md).
+
+⚠️ **Task 063 added rows to that fixture and changed none of this policy.** Five `ClassPrice` names,
+a second `TrainerAlias` per trainer (their Gymmo sheet name), and two trainer rows — all planted on
+`initialize` only and **withheld on every later run**, so nothing re-creates what an owner deleted.
+Two knock-on facts live in [gymmo-import.md](gymmo-import.md): the witness `Staff.count()` now reads
+**0 or 9** rather than 0 or 7, and the two new trainers are seeded **`baseSalary: 0` and
+`classCredit: 0` as one pair** — nobody has said what they are paid, a salary the seed invented would
+be paid silently every month, and a 5,000 credit on a base of 0 would cancel pay the base never
+contained (5,000 a month short, `warnings: []`).

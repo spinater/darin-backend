@@ -82,7 +82,7 @@ now decides **once, before any write**, which of three databases it is looking a
   run re-plants is decided by `Staff.count()`, not by the mark, so the `Staff` + `TrainerAlias`
   block is one `db.$transaction`, written after every other fixture table: the count reads **0**
   (nothing committed ⇒ the whole fixture is re-attempted over upserts on unique keys) or **7**
-  (committed over a complete fixture ⇒ the retry adopts, and nothing is missing). What survives is
+  (committed over a complete fixture ⇒ the retry adopts, and nothing is missing) — **9 since task 063 added two trainer rows**. What survives is
   a crash **between that commit and the line that prints the generated owner password**: the owner
   row then exists holding a credential nobody ever saw, the next run reads `adopt` and will not
   print it, and nobody can log in to `/admin/config`. Printing before the commit would hand out a

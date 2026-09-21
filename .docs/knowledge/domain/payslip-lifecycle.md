@@ -118,3 +118,10 @@ out and dropped it — the invariant held inside the engine and was violated one
   It holds **no money and no payslip state**, and nothing on the run path reads it — it is named
   here only so a new table in `prisma/schema.prisma` is not mistaken for something a slip depends
   on. What it governs is [../ops/deploy.md](../ops/deploy.md).
+- **`ClassSession.sourceKey` (task 063) is not part of this lifecycle either.** It is the identity of
+  one row of one Gymmo export, `@unique` so a second import cannot pay the same คาบ twice. A run
+  reads `ClassSession` exactly as before — through `include: { class: true }`, with no regard for how
+  the row arrived — and `null` (a คาบ keyed by hand) is ordinary. The one thing to know before
+  writing `ClassSession` from anywhere new: a null is exempt from `@unique`, so a hand-keyed row and
+  an imported one **can both exist for the same session and the slip pays both**.
+  See [gymmo-import.md](gymmo-import.md).

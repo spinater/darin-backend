@@ -40,7 +40,8 @@ const DEFAULTS: Readonly<Record<string, { readonly value: string; readonly note:
  * 🔴 `staffCount` is not decoration. On "no mark" alone, the host's first post-fix deploy would
  * count as fresh and plant the fixture over a live database — the fix shipping as the bug, once, on
  * the only database with real money in it. It is a sound witness because the seed itself creates
- * seven staff and the product has **no delete-staff path** (`toggleActive` deactivates;
+ * nine staff (owner + the eight of `TRAINERS`; seven until task 063 added the two trainers who
+ * have no sales book) and the product has **no delete-staff path** (`toggleActive` deactivates;
  * `TeachSession.staffId` is `onDelete: Restrict`). It stays permanently: dropping it later silently
  * re-opens the hole for any database restored from a pre-mark backup.
  */

@@ -99,8 +99,9 @@ returns `{ ok: false, kind }` on the first bad one, because the old field-by-fie
 **half-written**: the fields before the bad one were already committed, leaving a config that is
 part old and part new with nothing announcing which. The write loop then runs inside one
 `db.$transaction`, so "ยังไม่ได้บันทึกอะไรเลยสักช่อง" is true for a DB failure too and not only for a
-bad field. It is bounded by the form (~65 round-trips today), unlike `runPayroll`, which must never
-wrap a whole period — that is why one may and the other may not.
+bad field. It is bounded by the form (~75 round-trips on a fresh database since ใบ 063 added 5 class
+prices and 2 staff rows), unlike `runPayroll`, which must never wrap a whole period — that is why one
+may and the other may not.
 🔴 **Since task 036 this is the *only* path that writes a teach rate**: `addActivity` used to seed all three ranks at
 `rate: 0` — a number nobody typed, read by screen and engine as a deliberate one — and now registers a **name** only.
 

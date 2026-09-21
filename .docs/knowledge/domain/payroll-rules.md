@@ -82,6 +82,19 @@ sources:
      took the engine suite 30 → **33** — both directions, plus one warning **per row** (`byClass`
      merges the *lines* by class name; the warnings deliberately do not follow). The door that
      refuses this pair before it ever stores: [money-input-guards.md](money-input-guards.md)
+    ⇒ **the Gymmo import writes both counts verbatim and clamps neither** (task 063): "repairing" a
+    negative on the way in would hide the row from this very warning —
+    [gymmo-import.md](gymmo-import.md)
+  - **A trainer whose `baseSalary` is 0 is warned about (task 063).** `if (base) lines.push(...)`
+    emits **no line** for a 0 base, and an absent line is the weakest signal a slip has: measured on
+    real data, a trainer nobody had configured taught 5 คาบ with 0 attendees and got `net 0.00` with
+    `warnings: []`. The predicate is `role === "trainer"` and not `!base` — the seeded `owner` row is
+    0 on purpose, and warning on every owner slip would teach people to ignore the line. It moves no
+    money and adds no line; the warning names ฐานเงินเดือน, mentions เครดิตสอนคลาส as its pair, and
+    points at `/admin/config`. Pinned in `lib/payroll/slip.test.ts` (**3 → 5**: the warning, and the
+    role predicate, which a `!base`-only version passes). ⚠️ It deliberately does **not** judge a
+    `classCredit` sitting on a 0 base — that is whether a smaller base carries a smaller obligation,
+    open with linus at [062](../../../tasks/todo-human/062-teaching-credit-is-an-obligation-not-a-deduction.md) §5
    - 🔴 **`invalidHours` exists because `NaN` is not a loud failure.** `OtEntry.hours` is a `Float`
      ⇒ `double precision`, which **accepts `NaN`**; one bad character would write it, and §2.4's
      `Math.max(0, NaN − threshold)` turns that staff member's `otPay`, `net` and whole month into

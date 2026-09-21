@@ -73,8 +73,8 @@ export default async function ConfigPage({
     // 🔴 **One transaction around the loop**, so "ยังไม่ได้บันทึกอะไรเลยสักช่อง" stays true for a
     // failure *during* the writes and not only for a bad field found before them. Unlike
     // `runPayroll` — which must never wrap its whole period, because the work per staff member is
-    // unbounded — this loop is bounded by the size of the form: ~65 round-trips for today's 18
-    // config keys, 9 rates, 13 class prices, 7 staff and 4 sheets, which at 1–3 ms each sits well
+    // unbounded — this loop is bounded by the size of the form: ~75 round-trips for today's 18
+    // config keys, 9 rates, 18 class prices, 9 staff and 4 sheets, which at 1–3 ms each sits well
     // inside the **5 s Prisma applies by default** — no `timeout` is passed here, so that number is
     // the default and not something this code states. Overrunning it is a **rollback** plus an
     // error page (P2028), i.e. the same "nothing was saved" the notice promises, minus the notice —
