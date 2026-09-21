@@ -38,6 +38,7 @@ Card ยาว 40–120 บรรทัด (**เตือนที่ 170 · �
 | [domain/money-on-screen.md](domain/money-on-screen.md) | ฝั่งหน้าจอของกติกาปัดเศษ (แยกจากการ์ดบนที่ใบ 042): หน้าจอ *แสดง* ยอดที่เก็บไว้ได้ แต่ห้าม *คำนวณ* · อ่านเรทนอกเอนจินด้วย `num()` · residue ใบ 019 ที่ยังเหลือ |
 | [domain/payslip-lifecycle.md](domain/payslip-lifecycle.md) | วงจรชีวิตของสลิป: `PayslipWarning` · ล็อก `Payslip.status` สองฝั่ง · ใครเข้ารอบ (leaver arms) · อะไรถูกคิดใหม่ |
 | [domain/teach-rate-lookup.md](domain/teach-rate-lookup.md) | หาเรทค่าสอนยังไง: `buildTeachRates` เป็น `Map` · ชื่อกิจกรรมกับเรทเป็นคนละเรื่อง · ทำไม `__proto__` กับเรท 0 เคยจ่ายเงียบ |
+| [domain/form-refusals.md](domain/form-refusals.md) | ฝั่ง policy ของการ์ดข้างล่าง (แยกที่ใบ 068): action ไหนปฏิเสธช่องไหน · ช่องว่างแปลว่าอะไรในแต่ละที่ · `?err=` ที่ใช้ร่วมกัน · สองด่านที่เป็น *คู่* ไม่ใช่ช่องเดียว |
 | [domain/money-input-guards.md](domain/money-input-guards.md) | ตัวเลขที่มาจากฟอร์ม: `finiteNumber`/`isBlank` · 5 action ที่ปฏิเสธก่อนเขียน · รูปแบบ `?err=` ที่ใช้ร่วมกัน |
 | [domain/gymmo-import.md](domain/gymmo-import.md) | กลไกนำคาบจากไฟล์ Gymmo ลง `ClassSession`: `sourceKey` เข้ารหัสแบบชนกันไม่ได้และ normalize ชื่อครูเหมือนชั้นที่จับคู่ · แถวซ้ำในไฟล์เดียวกัน · สามอย่างที่หน้ายืนยันต้องโชว์ก่อนเขียน |
 | [domain/class-import-queue.md](domain/class-import-queue.md) | ที่อยู่ของแถว Gymmo ที่ไม่ได้กลายเป็นคาบ: `ClassImportProblem` · คีย์สามทรงแยกกันด้วยจำนวนสมาชิก · ลบ-แล้ว-ใส่ในทรานแซกชันเดียวกับคาบ (ตัวนับแยกไปการ์ดข้างล่าง) |

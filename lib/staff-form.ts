@@ -7,7 +7,8 @@ import { MIN_PASSWORD_LEN } from "./password";
  *
  * - **`newstaff` keeps its spelling on purpose.** It is the flag task 013 item 4 shipped for the
  *   two money fields: it is in `add-staff-form.tsx`, in URLs admins already have, and in the table
- *   in `.docs/knowledge/domain/money-input-guards.md`. Renaming it buys nothing and invalidates
+ *   in `.docs/knowledge/domain/form-refusals.md` (that table was `money-input-guards.md`'s until the
+ *   ใบ 068 split). Renaming it buys nothing and invalidates
  *   that row.
  * - **`newstaffDup` is the one arm this parse can never return.** `Staff.username` is `@unique`, so
  *   a duplicate is decided by the database at the `create` and not by reading the form: the action

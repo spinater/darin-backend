@@ -37,7 +37,8 @@ about its **callers** in `app/**`. Nothing was shortened in the move.
 - The engine's half is **rule 4** there (`money()` rounds once, at the end) and **rule 1** (every
   rate, threshold and percentage lives in `lib/config-keys.ts` and is read at runtime).
 - The **write** side — the guards a number passes before it is stored — is
-  [money-input-guards.md](money-input-guards.md).
+  [money-input-guards.md](money-input-guards.md) (the predicate) and
+  [form-refusals.md](form-refusals.md) (which action refuses what, and how it says so).
 
 ## No screen computes money (task 011 — linus's ruling, option 1)
 

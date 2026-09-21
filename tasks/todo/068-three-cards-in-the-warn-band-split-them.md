@@ -12,7 +12,7 @@
 | Card | Lines | Headroom |
 |---|---|---|
 | `ops/gate-tiers-and-pins.md` | ~~194~~ → **106** ✅ | — |
-| `domain/money-input-guards.md` | **189** | **11** |
+| `domain/money-input-guards.md` | ~~189~~ → **76** ✅ | — |
 | `domain/gymmo-import.md` | **190** | **10** |
 
 🔴 **All three moved inside ใบ 065's five review rounds alone** — `gate-tiers-and-pins.md`
@@ -56,6 +56,17 @@ trim to stay under. The warn is the brake working.
    `lib/config-form.ts`, `lib/staff-form.ts` and their tests) against the *per-screen* half (the
    action table, the `?err=` surface, the two pair guards on `/classes`). The second half is the one
    that grows as screens land, exactly as `money-on-screen.md` was to `payroll-rules.md` at ใบ 042.
+
+   ✅ **Done** — the seam was exactly as sketched. `domain/form-refusals.md` (**143**) takes the
+   per-action table, the `?err=` surface and the two *pair* guards (`noShow` vs `booked`, and ใบ 065's
+   `confirm=imported`), with `lib/config-form.ts` · `lib/staff-form.ts` · their tests ·
+   `lib/ot-import.ts` and the four screens moving **out** of the parent's `sources:` with the prose
+   (§5). Parent **189 → 76**: the predicate alone, which is one decision and does not grow. Citations
+   re-pointed — `payroll-rules.md` ×2, `money-on-screen.md`, and the `newstaff` flag comment in
+   `lib/staff-form.ts`, which names the table it must not be renamed out of. ⚠️ 143 is over §5's
+   40–120 band and under the 170 warn: the remainder is one topic (per-action policy) and the only
+   cut below this seam would separate an action's *refusal* from how it *reports* it, which is the
+   pair a reader needs together.
 3. **`domain/gymmo-import.md`** — ใบ 063 already named this boundary and chose not to act on it
    (it was 172 then): *the key and the write* against *the three preview signals*, which is where
    ใบ 065's eight lines went and where item 4 of ใบ 063 will add more. `gymmo-import-data.md` is the

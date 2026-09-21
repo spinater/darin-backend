@@ -69,7 +69,7 @@ sources:
      ordinary case §1.4 covers and must **not** warn. Three tests (now `lib/payroll/class.test.ts`)
      took the engine suite 30 → **33** — both directions, plus one warning **per row** (`byClass`
      merges the *lines* by class name; the warnings deliberately do not follow). The door that
-     refuses this pair before it ever stores: [money-input-guards.md](money-input-guards.md)
+     refuses this pair before it ever stores: [form-refusals.md](form-refusals.md)
     ⇒ 🔴 **the repair the warning names depends on where the คาบ came from (ใบ 065)**, which is why
     `ClassSessionInput` carries `sourceKey` — read there and nowhere else, and it moves no amount. A
     hand-keyed row is deleted and re-keyed at `/classes`; telling a reader to do that to an
@@ -97,7 +97,8 @@ sources:
      ⇒ **every write path into `OtEntry.hours` carries that guard, not just the paste** — task 013
      put the one-row form, the paste parser and four more money-writing actions on one predicate,
      `finiteNumber` (`lib/form-number.ts`), which also refuses a **negative** value (`-5` stored, then
-     paid nothing). Per-site rules and the shared `?err=` surface: [money-input-guards.md](money-input-guards.md).
+     paid nothing). The predicate is [money-input-guards.md](money-input-guards.md); the per-site rules
+     and the shared `?err=` surface are [form-refusals.md](form-refusals.md).
 4. **ปัดเศษที่เดียว** — `money()` ปัดทศนิยม 2 ตำแหน่ง · ห้ามปัดกลางทางแล้วปัดซ้ำ
    ⇒ สลิปคือที่เดียวที่ **คำนวณ** เงิน · หน้าจอ **แสดง** ยอดที่เก็บไว้/ตั้งค่าไว้ได้ แต่ห้ามคิดเองสักตัว
    และเรท/เกณฑ์ที่อ่านนอกเอนจินต้องอ่านด้วย `num()` ตามข้อ 1 — กติกาฝั่งหน้าจอทั้งชุด (ใบ 011 ·
