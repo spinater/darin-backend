@@ -208,7 +208,7 @@ its inputs changed since it was computed. Found by `payroll-auditor` on this car
 
 ## Out of scope, named so nobody re-derives it
 
-- **`/classes` rendering the queue** is [065](../todo/065-deleting-an-imported-class-session-is-undone-by-the-next-import.md).
+- **`/classes` rendering the queue** is [065](065-deleting-an-imported-class-session-is-undone-by-the-next-import.md).
   Until it lands, the `/payslips` warning links to a screen that does **not** yet list the rows —
   the count is honest, the destination is incomplete. ⇒ **065 must land before
   [063](../todo/063-import-gymmo-sessions-into-the-database.md) item 4**, or the first admin to follow that
