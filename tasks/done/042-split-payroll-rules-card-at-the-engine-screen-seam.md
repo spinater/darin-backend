@@ -1,7 +1,7 @@
 # `payroll-rules.md` is at 189/200 and warning — split it at the engine/screen seam
 
 - status: done
-- commit: 0c677fb
+- commit: 6873b38
 
 ## Goal
 
