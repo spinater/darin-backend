@@ -48,6 +48,21 @@ they claim (two rows both attributing kills to the same key-derivation mutant). 
 at a time on a clean tree**, and record **failing test names** rather than a count — a count cannot be
 checked afterwards by anyone, which is how this went unnoticed in the first place.
 
+## Second sighting — ใบ 043, 2026-09-21
+
+It happened again, unprompted, to a lane that had **not** read this card: a three-mutant loop of
+`save` → mutate → test → `restore` per iteration. The first `restore` succeeded and consumed the
+store; the second and third printed *"ไม่มีคลังของสายนี้"* to a `>/dev/null 2>&1` and returned, so
+mutant 2 was never undone and mutant 3 landed on top of it. Mutant 1's evidence is clean, mutant 2's
+is clean, **mutant 3's was worthless** and had to be re-run.
+
+🔑 **What makes this worth recording:** the file was `lib/color-rules.ts`, **new and not yet
+`git add`ed**, so `git checkout` could not have recovered it either (§6 rule 8) — the repair was by
+hand. The damage a silent `restore` does is therefore not bounded by "you can always go back to
+HEAD". And the loop that produced it is the obvious way to write a multi-mutant counter-test, which
+is the argument for "Starting a second mutant without restoring the first is refused", below, over
+merely making the second `restore` louder.
+
 ## Done when
 
 - A second `restore` cannot be mistaken for a successful one.

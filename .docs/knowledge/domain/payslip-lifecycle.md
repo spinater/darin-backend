@@ -141,3 +141,9 @@ what a recompute rebuilds changed.
   missing". `ClassImportProblem` is **not** payslip state and holds no money —
   [class-import-queue.md](class-import-queue.md) · the count is [class-import-blockers.md](class-import-blockers.md). Making the slip itself warn would change
   `computePayslip`'s input contract and is a later card (design §6c).
+
+⚠️ **A third box sits above the run button since ใบ 043**, and it is not a queue: สีพื้นในชีตที่ยังไม่มีกฎ
+([colour-gap-states.md](colour-gap-states.md)). Nothing in this card's lifecycle can catch it —
+an unruled colour syncs as `status: "ok"`, so the คาบ is ordinary input, `computePayslip` has no
+reason to warn, and the slip is **correct for the input it was given**. The only place to say it is
+before the run.

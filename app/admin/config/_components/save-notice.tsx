@@ -37,7 +37,27 @@ const REASONS: Record<string, { where: string; rule: string }> = {
   },
 };
 
+/**
+ * The two ways `addColor` refuses (ใบ 043). Separate from `REASONS` because the sentence differs in
+ * the only part that matters: those four are *"several dozen fields, none of them saved"*, these are
+ * **one row that was not written** — and saying "ยังไม่ได้บันทึกอะไรเลยสักช่อง" about a one-field
+ * form would read as a system fault rather than as a refusal the admin can act on.
+ *
+ * 🔴 Both refusals exist because the value would have been **paid silently**, so the notice has to
+ * say what would have happened, not just that it did not: a rule the owner believes is in force is
+ * exactly the state ใบ 043 exists to prevent, and a silent `return` recreates it one level up. Same
+ * precedent as the silent `return`s taken out of `addActivity` (ใบ 034) and `addStaff` (ใบ 027).
+ */
+const COLOR_REASONS: Record<string, string> = {
+  colorMeaning:
+    "ต้องเลือกความหมายของสีก่อน (จ่ายปกติ / ไม่จ่าย / ให้คนตรวจ) — ยังไม่ได้บันทึกกฎสีนั้น ถ้าปล่อยไว้ ระบบจะจ่ายให้ทุกคาบที่ใช้สีนี้",
+  colorNeutral:
+    "ตั้งกฎให้สีขาว (#ffffff) ไม่ได้ — เซลล์ที่ไม่ได้ทาสีกับเซลล์ที่ทาขาวเป็นค่าเดียวกันในชีต กฎนี้จึงจะไปโดนทุกแถวทั้งชีต ไม่ใช่เฉพาะแถวที่ตั้งใจ",
+};
+
 export function SaveNotice({ err }: { err?: string }) {
+  if (err !== undefined && Object.hasOwn(COLOR_REASONS, err))
+    return <p className="card-warn text-sm">⚠️ {COLOR_REASONS[err]}</p>;
   const reason = err !== undefined && Object.hasOwn(REASONS, err) ? REASONS[err] : undefined;
   if (!reason) return null;
   return (

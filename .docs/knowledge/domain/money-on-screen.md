@@ -94,3 +94,16 @@ on the 011 card).
 `<p>` text this way: `num()` throws when a key is missing, so the screen's copy fails the same way
 the payroll run does, instead of a screen inventing a value and looking right while the run dies
 on it.
+
+## A screen may also be the only place a **silence** is reported
+
+The banner blocks on `/` and `/payslips` are not arithmetic, but they are on this card because they
+are the screen's half of §2 rule 4. Two of them say the run will pay **short**; ใบ 043 added the one
+that says it will pay **long** — สีพื้นที่ยังไม่มีใครรับรอง, from `runBlockers().colorGaps`
+([colour-gap-states.md](colour-gap-states.md)). 🔑 **It has to be a screen and cannot be a
+`PayslipWarning`**: such a คาบ looks ordinary in the row, so the slip has nothing to warn about and
+the engine is right not to. 🔑 And the banner must survive the owner *answering* — a colour ruled
+"ไม่จ่าย" whose คาบ have not been re-synced is still being paid, which is the moment the money is
+most wrong and the last moment a screen should go quiet. The copy names the direction out loud rather than borrowing
+the wording of the two beside it — "จะจ่ายขาด" and "จะจ่ายเกิน" are opposite instructions to the
+person reading them.

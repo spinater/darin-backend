@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ColorSwatches } from "@/app/_components/color-swatches";
 import { currentStaff } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { periodRange } from "@/lib/payroll-run";
@@ -34,6 +35,9 @@ export default async function Dashboard({
   ]);
 
   const rates = await db.teachRate.findMany();
+  // Split rather than one list: the two states need different instructions (`ColorSwatches`).
+  const unapplied = blockers.colorGaps.filter((c) => c.state === "unapplied");
+  const unruled = blockers.colorGaps.filter((c) => c.state === "unruled");
   const activitiesWithoutRate = missingRate
     .map((a) => a.activity)
     .filter((a) => !rates.some((r) => r.activity === a));
@@ -75,6 +79,7 @@ export default async function Dashboard({
 
       {(blockers.sheetReview > 0 ||
         blockers.classImport > 0 ||
+        blockers.colorGaps.length > 0 ||
         missingRank > 0 ||
         activitiesWithoutRate.length > 0) && (
         <div className="card-warn text-sm">
@@ -96,6 +101,34 @@ export default async function Dashboard({
                   คาบสอนคลาส
                 </Link>{" "}
                 — สลิปจะขาดค่าสอนคาบพวกนี้ โดยไม่มีคำเตือนในสลิป
+              </li>
+            )}
+            {/* 🔴 The only lines here that report pay going out **too high**: a คาบ whose colour
+                has no rule — or has one the stored rows do not obey — syncs as `ok`, so it is on
+                the slip already with no warning beside it (`lib/color-rules.ts`, card 043). Two
+                items, not one: "nobody answered" and "you answered and it has not taken effect"
+                are different actions, and the second is the one the owner thinks is closed. */}
+            {unapplied.length > 0 && (
+              <li>
+                <b>{unapplied.length} สีมีกฎแล้วแต่คาบเก่ายังไม่ถูกจัดตาม</b> — กฎสีมีผลตอน sync
+                เท่านั้น ต้อง{" "}
+                <Link href="/sync" className="underline">
+                  sync ใหม่
+                </Link>{" "}
+                คาบพวกนี้ถึงจะเปลี่ยน · 🔴 ส่วนคาบที่<b>ตรวจด้วยมือแล้ว</b> sync จะข้ามตลอดไป และ
+                <b>ยังไม่มีหน้าจอไหนแก้ได้</b> (ใบ 070) — ต้องรอทางแก้ ห้ามตั้งสีเป็น
+                &quot;จ่ายปกติ&quot; เพื่อให้คำเตือนหาย <ColorSwatches colors={unapplied} />
+              </li>
+            )}
+            {unruled.length > 0 && (
+              <li>
+                สีพื้นในชีต {unruled.length} สีที่ยังไม่มีใครบอกว่าแปลว่าอะไร — ระบบ
+                <b>จ่ายให้ทุกสีที่ยังไม่ได้ตั้งกฎ</b> ถ้าสีนั้นแปลว่า ยกเลิก / จ่ายแล้ว /
+                คนอื่นสอนแทน (REQUIREMENTS §1.6) คาบพวกนี้กำลังจ่ายผิดอยู่{" "}
+                <ColorSwatches colors={unruled} /> →{" "}
+                <Link href="/admin/config" className="underline">
+                  ตั้งค่า
+                </Link>
               </li>
             )}
             {missingRank > 0 && (

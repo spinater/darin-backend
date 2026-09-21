@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { listActivities, activityExists } from "@/lib/activities";
+import { colorGapsSeen } from "@/lib/color-rules";
 import { normalizeTrainer } from "@/lib/normalize";
 import { hashPassword } from "@/lib/password";
 import { parseConfigNumbers, numericKind } from "@/lib/config-form";
@@ -16,6 +17,7 @@ import { RateTable } from "./_components/rate-table";
 import { AddStaffForm } from "./_components/add-staff-form";
 import { SaveNotice } from "./_components/save-notice";
 import { SheetMappingSections } from "./_components/sheet-mapping";
+import { addAlias, addColor } from "./_actions";
 import { timed } from "@/lib/job-timing";
 
 export const dynamic = "force-dynamic";
@@ -33,22 +35,35 @@ export default async function ConfigPage({
   // the add-staff form, and nothing the URL carries is rendered (§2.5, `/ot` precedent).
   const { err } = await searchParams;
 
-  const [configs, rates, classes, staff, aliases, sources, colors, saveTime, activities] =
-    await Promise.all([
-      db.payrollConfig.findMany({ orderBy: { key: "asc" } }),
-      db.teachRate.findMany(),
-      db.classPrice.findMany({ orderBy: { name: "asc" } }),
-      db.staff.findMany({ orderBy: [{ active: "desc" }, { name: "asc" }] }),
-      db.trainerAlias.findMany({ include: { staff: true }, orderBy: { alias: "asc" } }),
-      db.sheetSource.findMany({ orderBy: { sheetName: "asc" } }),
-      db.colorRule.findMany({ orderBy: { hex: "asc" } }),
-      db.jobDuration.findUnique({ where: { job: "config-save" } }),
-      // 🔴 The matrix's rows are **names**, not rate rows (task 036) — they used to be
-      // `[...new Set(rates.map(r => r.activity)), "yoga"]`, which forced `addActivity` to write a
-      // rate row just to make an activity visible. The union also dissolves that hardcoded `"yoga"`
-      // into the `SheetSource` arm (§2 rule 7), so a fifth sheet appears by itself.
-      listActivities(),
-    ]);
+  const [
+    configs,
+    rates,
+    classes,
+    staff,
+    aliases,
+    sources,
+    colors,
+    saveTime,
+    activities,
+    colorGaps,
+  ] = await Promise.all([
+    db.payrollConfig.findMany({ orderBy: { key: "asc" } }),
+    db.teachRate.findMany(),
+    db.classPrice.findMany({ orderBy: { name: "asc" } }),
+    db.staff.findMany({ orderBy: [{ active: "desc" }, { name: "asc" }] }),
+    db.trainerAlias.findMany({ include: { staff: true }, orderBy: { alias: "asc" } }),
+    db.sheetSource.findMany({ orderBy: { sheetName: "asc" } }),
+    db.colorRule.findMany({ orderBy: { hex: "asc" } }),
+    db.jobDuration.findUnique({ where: { job: "config-save" } }),
+    // 🔴 The matrix's rows are **names**, not rate rows (task 036) — they used to be
+    // `[...new Set(rates.map(r => r.activity)), "yoga"]`, which forced `addActivity` to write a rate
+    // row just to make an activity visible. The union also dissolves that hardcoded `"yoga"` into
+    // the `SheetSource` arm (§2 rule 7), so a fifth sheet appears by itself.
+    listActivities(),
+    // Every colour on a payable คาบ that nobody has vouched for — `lib/color-rules.ts` (ใบ 043).
+    // All-time, not period-scoped: a colour answered once is answered for every period.
+    colorGapsSeen(),
+  ]);
 
   async function save(formData: FormData) {
     "use server";
@@ -244,38 +259,6 @@ export default async function ConfigPage({
     redirect("/admin/config");
   }
 
-  async function addAlias(formData: FormData) {
-    "use server";
-    await requireAdmin();
-    const alias = normalizeTrainer(String(formData.get("alias") ?? ""));
-    const staffId = String(formData.get("staffId") ?? "");
-    if (!alias || !staffId) return;
-    await db.trainerAlias.upsert({
-      where: { alias },
-      update: { staffId },
-      create: { alias, staffId },
-    });
-    revalidatePath("/admin/config");
-    redirect("/admin/config");
-  }
-
-  async function addColor(formData: FormData) {
-    "use server";
-    await requireAdmin();
-    const hex = String(formData.get("hex") ?? "")
-      .trim()
-      .toLowerCase();
-    const meaning = String(formData.get("meaning") ?? "");
-    if (!hex) return;
-    await db.colorRule.upsert({
-      where: { hex },
-      update: { meaning, note: String(formData.get("note") ?? "") },
-      create: { hex, meaning, note: String(formData.get("note") ?? "") },
-    });
-    revalidatePath("/admin/config");
-    redirect("/admin/config");
-  }
-
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-xl font-semibold">ตั้งค่า</h1>
@@ -418,6 +401,7 @@ export default async function ConfigPage({
       <SheetMappingSections
         aliases={aliases}
         colors={colors}
+        colorGaps={colorGaps}
         staff={staff}
         addAlias={addAlias}
         addColor={addColor}

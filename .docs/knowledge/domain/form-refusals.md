@@ -16,6 +16,9 @@ sources:
   - app/sales/page.tsx
   - app/classes/page.tsx
   - app/admin/config/page.tsx
+  # ใบ 043 split `addAlias`/`addColor` out of the page when the refusals below pushed it past the
+  # 450-line warn (§4). The colour refusals live here now; the rest of the screen's actions do not.
+  - app/admin/config/_actions.ts
   # ใบ 065's `confirm=imported` two-step: the ordinary delete form must NOT carry that field, which
   # is half of why the guard holds. [money-on-screen.md](money-on-screen.md) sources this file for a
   # different claim (nothing on that table is derived); both are true and both go stale together.
@@ -141,3 +144,27 @@ explicit post from the table's disclosure carries `confirm=imported`; the ordina
 does not, so one click can never do it. **The only guard on this screen a human may deliberately
 pass** — every other one refuses outright — because it is the only one where refusing also loses.
 
+### ใบ 043 — `addColor` gained a second entry point **and its first two refusals**
+
+`/admin/config` renders one `<form action={addColor}>` per colour in the gap list: hidden hex, a
+`meaning` dropdown with **no default** ([colour-gap-states.md](colour-gap-states.md)). ⚠️ `addColor`
+/`addAlias` moved to `app/admin/config/_actions.ts` (the page had hit the 450-line warn), each
+re-asserting `requireAdmin()` because a server action is its own entry point · `note` is written only
+when the field is present (`formData.has`) — the quick form carries none and `?? ""` blanked the
+rule's reason. The two **refusals**, both silent-*overpay* guards:
+
+- **`meaning` must be in `COLOR_MEANINGS`** → `?err=colorMeaning`. `lib/sync.ts` branches on
+  `=== "skip"`/`=== "review"` and falls through everything else ⇒ `""` or a typo stores a rule that
+  pays every คาบ of that colour while the owner believes they answered. 🔑 The dropdown's empty
+  placeholder and this refusal are a **pair**: without it the placeholder's `""` would be stored.
+- **`#ffffff` is refused outright** → `?err=colorNeutral`. An unstyled cell and a deliberate white
+  fill are the same bytes ⇒ the rule cannot be aimed: `skip` on white takes a month of ~320 payable
+  คาบ out of every slip. The only guard here refusing a value no wording could make safe.
+🔴 **Both are loud**; they shipped silent and both review lanes called it — a refusal the owner does
+not see leaves them believing a rule is in force, ใบ 043's own defect through the form (same reason
+as ใบ 034's `addActivity` and ใบ 027's `addStaff`). ⚠️ Their copy is a **separate** map
+(`COLOR_REASONS` in `save-notice.tsx`): the four `REASONS` all say *"ยังไม่ได้บันทึกอะไรเลยสักช่อง"*
+about a form of several dozen fields, which about a one-field form reads as a fault, not a refusal.
+⚠️ The empty-hex `return` stays silent, made unreachable by `required` rather than given a third
+flag — a missing value, not one that would have paid. 🔴 **Still no guard on the hex's *shape***:
+`"ฟ้า"` is stored as a rule no cell can match; pre-existing, and the quick path cannot make one.

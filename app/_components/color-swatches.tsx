@@ -1,0 +1,87 @@
+import { COLOR_MEANING_LABELS, type ColorGap } from "@/lib/color-rules";
+
+/**
+ * The sheet background colours a payroll run is about to pay without anyone having vouched for
+ * them — swatch, hex, the คาบ count that still disagrees, and (when there *is* a rule the rows do
+ * not obey) what that rule says.
+ *
+ * One component rather than three chains of classes, because the same list is read on three screens
+ * — the dashboard banner, the `/payslips` run screen and `/admin/config` — and an owner who learns
+ * to recognise a colour on one of them must see the identical thing on the next (CLAUDE.md §4: one
+ * decision, one home).
+ *
+ * 🔴 **`unapplied` is styled apart from `unruled` on purpose.** "Nobody has answered" and "you
+ * answered and it has not taken effect" need different actions — the second is the one where the
+ * owner believes the matter is closed, so a list that rendered them the same would read as
+ * progress.
+ *
+ * 🔴 **`pending` is the actionable count, never the exposure.** It is the คาบ that *openly* disagree
+ * with what is known about the colour, so it is what the eye should land on — but every payable คาบ
+ * is named, always: the reviewed share is called out separately in both directions, `stranded` under
+ * a `skip` rule (rows no screen in this app can repair — card 070) and `unseen` under a `review` one
+ * (rows a human cleared without ever being shown the colour). ⚠️ `pending === 0` is **not**
+ * "resolved" and never hides a colour — `lib/color-rules.ts` carries why `reviewed: true` is not
+ * evidence about a colour at all.
+ *
+ * ⚠️ Neither sentence may point at `/sync/review`: its listing is `NEEDS_ATTENTION`, and a
+ * hand-reviewed payable row matches neither arm of it.
+ *
+ * ⚠️ The inline `background` is the **only** hex this project writes outside `app/globals.css`, and
+ * it is not a design decision: it is the datum. A swatch that renders an approximation of the cell's
+ * colour is a swatch the owner cannot match against their own sheet.
+ */
+export function ColorSwatches({ colors }: { colors: ColorGap[] }) {
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1 align-middle">
+      {colors.map((c) => {
+        // Two different things a hand-reviewed คาบ can mean, and they get different sentences.
+        //
+        // `stranded` — under a `skip` rule those rows openly contradict the rule and **no screen in
+        // this app can repair them** (ใบ 070). Only on `unapplied`: on an *unruled* colour the claim
+        // would be premature, since it is true only if the answer turns out to be ไม่จ่าย.
+        //
+        // `unseen` — under a `review` rule they are not in open conflict, but nobody vouched for
+        // them either: `/sync/review` never renders `bgColor`, so whoever cleared them was never
+        // shown this colour (`lib/color-rules.ts`). Neutral wording, not red, because the repair is
+        // a re-queue rather than an ข้าม.
+        const stranded = c.state === "unapplied" && c.meaning !== "review" ? c.reviewedSessions : 0;
+        const unseen = c.state === "unapplied" && c.meaning === "review" ? c.reviewedSessions : 0;
+        return (
+          <span
+            key={c.hex}
+            className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 font-mono text-xs ${
+              c.state === "unapplied"
+                ? "border-red-300 bg-red-50 text-red-800"
+                : "border-neutral-200 bg-white text-neutral-700"
+            }`}
+          >
+            <span className="size-3 rounded-sm border" style={{ background: c.hex }} />
+            {c.hex}
+            {/* `pending: 0` happens on a `review` colour whose คาบ were all hand-cleared — the
+                colour is still listed, but "0 คาบ" as the lead number would read as nothing to do.
+                The `unseen` sentence below carries the whole meaning in that case. */}
+            {c.pending > 0 && (
+              <span className={c.state === "unapplied" ? "" : "text-neutral-500"}>
+                {c.pending} คาบ
+              </span>
+            )}
+            {c.state === "unapplied" && c.meaning && (
+              <span className="font-sans font-medium">
+                ตั้งไว้ว่า &quot;{COLOR_MEANING_LABELS[c.meaning]}&quot; แต่ยังจ่ายอยู่
+              </span>
+            )}
+            {stranded > 0 && (
+              <span className="font-sans">· {stranded} คาบตรวจมือแล้ว ยังไม่มีหน้าจอไหนแก้ได้</span>
+            )}
+            {unseen > 0 && (
+              <span className="font-sans text-neutral-600">
+                · {unseen} คาบถูกตรวจด้วยมือไว้ โดยหน้าคิวรอตรวจ<b>ไม่เคยแสดงสีให้คนตรวจเห็น</b> ⇒
+                ยังไม่มีใครดูมันด้วยกฎสีนี้ (ใบ 070)
+              </span>
+            )}
+          </span>
+        );
+      })}
+    </span>
+  );
+}

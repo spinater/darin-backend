@@ -28,9 +28,15 @@ and the write. This card owns **the number a human reads before running payroll*
 can lie in either direction. Task **064**; `prisma/schema.prisma` is deliberately **not** a source here —
 the storage decisions live on the other card.
 
-**One function, two labelled numbers.** `runBlockers(period)` in `lib/run-blockers.ts` is the one home
-for "is this period clean enough to run", read by **both** `/payslips` and `/`. 🔴 Never summed: a total
-reads as one queue and hides which screen to open, and the two repairs are different actions.
+**One function, three labelled members — and no total.** `runBlockers(period)` in
+`lib/run-blockers.ts` is the one home for "is this period clean enough to run", read by **both**
+`/payslips` and `/`. 🔴 Never summed: a total reads as one queue and hides which screen to open, and
+each repair is a different action. The two counts this card owns both say pay will come out
+**short**; the third member, `colorGaps` (ใบ 043, [colour-gap-states.md](colour-gap-states.md)),
+is a **list** and says it will come out **long** — a คาบ whose colour nobody has vouched for syncs as
+`status: "ok"`, so it is already on the slip. It is a list because the owner answers per colour and
+each entry carries *which* repair it needs (answer the colour, or re-sync a colour already answered),
+so a count alone could not be acted on.
 
 ## The count on `/payslips`, and why its exclusion is not `imported − matched`
 

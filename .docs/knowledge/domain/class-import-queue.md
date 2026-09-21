@@ -52,8 +52,10 @@ regenerated. Everything in `ClassImportProblem` is derived: re-uploading rebuild
 and correct modelling pointed the same way.
 
 What is unified is the **meaning**, and it has exactly one home: `runBlockers(period)` in
-`lib/run-blockers.ts`, read by both `/payslips` and `/`. 🔴 **Two labelled numbers, never one total** —
-a sum reads as one queue and hides which screen to open.
+`lib/run-blockers.ts`, read by both `/payslips` and `/`. 🔴 **Labelled members, never one total** —
+a sum reads as one queue and hides which screen to open. Three of them since ใบ 043, and the third is
+a *list* of colours rather than a count ([colour-gap-states.md](colour-gap-states.md)); what that
+proves about this one is that the shape of a member follows the repair, not the other way round.
 
 ## `key` — three shapes in one column, kept apart by arity
 

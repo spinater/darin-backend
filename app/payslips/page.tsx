@@ -7,6 +7,7 @@ import { runPayroll } from "@/lib/payroll-run";
 import { runBlockers } from "@/lib/run-blockers";
 import { SubmitButton } from "@/app/_components/submit-button";
 import { ActionProgress } from "@/app/_components/action-progress";
+import { ColorSwatches } from "@/app/_components/color-swatches";
 import { timed } from "@/lib/job-timing";
 
 export const dynamic = "force-dynamic";
@@ -130,6 +131,36 @@ export default async function PayslipsPage({
           (แก้ราคาคลาส หรือผูกชื่อเทรนเนอร์ก่อน) · แถวที่สลิปงวดนั้นปิดแล้ว ต้อง
           <b>เปิดสลิปกลับเป็นร่าง คำนวณใหม่ แล้วนำเข้าไฟล์ซ้ำ</b> · ส่วนแถวที่ตัวอ่านอ่านไม่ออก
           <b>ไม่หายเองแม้แก้ไฟล์แล้ว</b>
+        </p>
+      )}
+
+      {/* The third box, and the only one that reports the error in the **other** direction: the two
+          above are คาบ that will be paid short, this one is คาบ that are already being paid when
+          nobody has vouched for them. `syncSources()` treats a colour it has no rule for as ordinary
+          work, and it applies a rule **only at sync time** — skipping a hand-reviewed row before the
+          lookup — so these rows carry `status: "ok"` and `warnings: []` and nothing else on this
+          screen, or in the slip, mentions them (`lib/color-rules.ts`, card 043). */}
+      {blockers.colorGaps.length > 0 && (
+        <p className="card-warn text-sm">
+          ⚠️ งวดนี้กำลังจะจ่ายคาบที่ใช้สีพื้น <b>{blockers.colorGaps.length}</b> สีที่
+          <b>ยังไม่มีใครรับรอง</b> — ระบบจ่ายให้ทุกสีที่ไม่มีกฎ ถ้าสีนั้นแปลว่า ยกเลิก / จ่ายแล้ว /
+          คนอื่นสอนแทน (REQUIREMENTS §1.6) <b>คาบพวกนี้จะขึ้นสลิปโดยไม่มีคำเตือน</b> ตั้งความหมายที่{" "}
+          <Link href="/admin/config" className="underline">
+            ตั้งค่า
+          </Link>
+          {blockers.colorGaps.some((c) => c.state === "unapplied") && (
+            <>
+              {" "}
+              · 🔴 สีที่ขึ้น<b>แดง</b>คือ<b>ตั้งกฎไว้แล้วแต่คาบเก่ายังไม่ถูกจัดตาม</b> — กฎมีผลตอน
+              sync เท่านั้น ต้อง{" "}
+              <Link href="/sync" className="underline">
+                sync ใหม่
+              </Link>{" "}
+              ส่วนคาบที่<b>ตรวจด้วยมือแล้ว</b> sync จะข้ามตลอดไป และ<b>ยังไม่มีหน้าจอไหนแก้ได้</b>{" "}
+              (ใบ 070)
+            </>
+          )}{" "}
+          <ColorSwatches colors={blockers.colorGaps} />
         </p>
       )}
 

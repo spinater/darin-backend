@@ -144,3 +144,10 @@ contained (5,000 a month short, `warnings: []`).
 **no number at all** (no rate, no baht — §2 rules 2–3), and has no FK onto anything; the `TeachActivity`
 precedent above is exactly what it cites for having none. It is not a rate lookup and it is not in the
 engine's input: [class-import-queue.md](class-import-queue.md).
+
+📌 **ใบ 043 added a section to `/admin/config` and touched no rate.** สีพื้น → ความหมาย is not a
+rate lookup: `ColorRule` holds no number, and the sync reads it to decide whether a คาบ is *input at
+all*, before any rate is asked for ([sheet-colour-rules.md](sheet-colour-rules.md)). 🔑 The shape is
+worth knowing here anyway, because it is this card's own trap from the other side — a colour with no
+rule is paid, where an activity with no rate is **not** paid and warns. Same missing-configuration
+cause, opposite direction, and only one of the two is loud by itself.

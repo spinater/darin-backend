@@ -1,4 +1,6 @@
+import { ColorSwatches } from "@/app/_components/color-swatches";
 import { SubmitButton } from "@/app/_components/submit-button";
+import { COLOR_MEANINGS, COLOR_MEANING_LABELS, type ColorGap } from "@/lib/color-rules";
 
 /**
  * The two tables that say **how the Google Sheet's own text and colour map onto our data** — the
@@ -13,12 +15,14 @@ import { SubmitButton } from "@/app/_components/submit-button";
 export function SheetMappingSections({
   aliases,
   colors,
+  colorGaps,
   staff,
   addAlias,
   addColor,
 }: {
   aliases: { alias: string; staff: { name: string } }[];
   colors: { hex: string; meaning: string }[];
+  colorGaps: ColorGap[];
   staff: { id: string; name: string }[];
   addAlias: (formData: FormData) => Promise<void>;
   addColor: (formData: FormData) => Promise<void>;
@@ -71,12 +75,74 @@ export function SheetMappingSections({
             </span>
           ))}
         </div>
+        {/* 🔴 The half that was missing until card 043: the swatches above are the colours someone
+            has already answered for, and on their own they cannot show what is **not** there. These
+            are the colours on คาบ this payroll would **pay** with nobody vouching for them — no rule
+            at all, or a rule the stored rows do not obey yet. Each row is its own one-click form so
+            the answer costs a dropdown, not a hex typed back in by hand; the dropdown has no default
+            because the default would be the answer that pays. */}
+        {colorGaps.length > 0 && (
+          <div className="card-warn mb-3 text-sm">
+            <p className="mb-2 font-medium">
+              {colorGaps.length} สีที่ยังไม่มีใครรับรอง — ระบบจ่ายให้ทุกสีที่ไม่มีกฎ
+            </p>
+            <ul className="flex flex-col gap-1">
+              {colorGaps.map((c) => (
+                // 🔴 An `unapplied` colour is **not** waiting on an answer — it has one. The form
+                // stays so a wrong answer can be corrected, but the button says so, because a
+                // bare "บันทึก" beside an empty dropdown reads as "this colour is unanswered" and
+                // the only selection that makes the red entry disappear is `pay` — the trap this
+                // card removed from the dropdown, re-entered one level up (code-reviewer, รอบ 2).
+                <li key={c.hex} className="flex flex-wrap items-center gap-2">
+                  <ColorSwatches colors={[c]} />
+                  <form action={addColor} className="flex gap-2">
+                    <input type="hidden" name="hex" value={c.hex} />
+                    {/* 🔴 **Nothing is preselected, and `addColor` refuses the empty value.** With
+                        "จ่ายปกติ" preselected, clearing this whole queue is one click per row and
+                        the colour that meant ยกเลิก is retired to `pay` for ever — the card's own
+                        failure ("a queue everyone learns to click through") reached through the
+                        screen instead of through the engine. The cost of the extra click is one
+                        click; the cost of the default is a month of คาบ. */}
+                    <select name="meaning" defaultValue="" className="input" required>
+                      <option value="" disabled>
+                        — เลือกความหมาย —
+                      </option>
+                      {COLOR_MEANINGS.map((m) => (
+                        <option key={m} value={m}>
+                          {COLOR_MEANING_LABELS[m]}
+                        </option>
+                      ))}
+                    </select>
+                    <SubmitButton className="btn-ghost" pendingLabel="กำลังบันทึก…">
+                      {c.state === "unapplied" ? "เปลี่ยนความหมาย" : "บันทึก"}
+                    </SubmitButton>
+                  </form>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 text-xs">
+              ตั้งเป็น &quot;จ่ายปกติ&quot; ก็ได้ถ้าสีนั้นไม่ได้แปลว่าอะไร — ที่ต้องการคือให้ทุกสี
+              <b>ถูกคนตอบหนึ่งครั้ง</b> ไม่ใช่ให้ระบบเดาแทน · 🔴{" "}
+              <b>ตั้งกฎแล้วคาบเก่ายังไม่เปลี่ยน</b> กฎสีมีผลตอน sync เท่านั้น ⇒ ต้อง sync ใหม่
+              (สีที่ขึ้น<b>แดง</b>ด้านบนคือสีที่อยู่ในสภาพนี้) · ส่วนคาบที่<b>ตรวจด้วยมือแล้ว</b>{" "}
+              sync จะข้ามตลอดไป และ<b>ยังไม่มีหน้าจอไหนแก้ได้</b> (ใบ 070) — 🔴{" "}
+              <b>ห้ามตั้งสีนั้นเป็น &quot;จ่ายปกติ&quot; เพื่อให้คำเตือนหาย</b>{" "}
+              นั่นคือการประกาศว่าสีนั้นจ่ายจริงตลอดไป
+            </p>
+          </div>
+        )}
+
         <form action={addColor} className="flex gap-2">
-          <input name="hex" placeholder="#b6d7a8" className="input w-32 font-mono" />
-          <select name="meaning" className="input">
-            <option value="pay">จ่ายปกติ</option>
-            <option value="skip">ไม่จ่าย (ข้าม)</option>
-            <option value="review">ให้คนตรวจ</option>
+          <input name="hex" placeholder="#b6d7a8" className="input w-32 font-mono" required />
+          <select name="meaning" defaultValue="" className="input" required>
+            <option value="" disabled>
+              — เลือกความหมาย —
+            </option>
+            {COLOR_MEANINGS.map((m) => (
+              <option key={m} value={m}>
+                {COLOR_MEANING_LABELS[m]}
+              </option>
+            ))}
           </select>
           <input name="note" placeholder="หมายเหตุ" className="input" />
           <SubmitButton className="btn-ghost" pendingLabel="กำลังเพิ่ม…">

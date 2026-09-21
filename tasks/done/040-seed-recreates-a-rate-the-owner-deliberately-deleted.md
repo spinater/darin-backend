@@ -141,7 +141,7 @@ never by failing.
   `addColor` in `app/admin/config/page.tsx`. Do **not** start seeding it here: that would contradict
   a card whose subject is "the seed asserts too much", and colour→meaning is a business fact nobody
   in the repo has. It has its own card,
-  [043](../todo/043-nothing-seeds-colorrule-so-a-fresh-database-pays-every-colour.md) — a fresh database has
+  [043](043-nothing-seeds-colorrule-so-a-fresh-database-pays-every-colour.md) — a fresh database has
   zero `ColorRule` rows, `lib/sync.ts` resolves every colour to `undefined`, and
   `_components/sheet-mapping.tsx` states the consequence (*"ไม่งั้นระบบจะจ่ายให้ทุกสี"*).
 - **`TrainerAlias` and `SheetSource` are overwritten on every deploy today** — `update: { staffId }`
@@ -236,7 +236,7 @@ is the day a deploy starts rewriting owner decisions.
 Four of them exist because this card **withholds** writes it used to make, and the fifth because
 the review found a residual the fix does not cover:
 
-- [043](../todo/043-nothing-seeds-colorrule-so-a-fresh-database-pays-every-colour.md) — nothing seeds
+- [043](043-nothing-seeds-colorrule-so-a-fresh-database-pays-every-colour.md) — nothing seeds
   `ColorRule`, so a fresh database resolves every colour to `undefined` and pays cancelled คาบ.
 - [044](../todo/044-admin-config-renders-only-rows-that-exist-so-a-missing-key-has-no-box.md) —
   `/admin/config` should render `CONFIG_DEFAULTS ∪ rows`, so a missing key has a box. This card's
