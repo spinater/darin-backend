@@ -11,7 +11,7 @@
 
 | Card | Lines | Headroom |
 |---|---|---|
-| `ops/gate-tiers-and-pins.md` | **194** | **6** |
+| `ops/gate-tiers-and-pins.md` | ~~194~~ → **106** ✅ | — |
 | `domain/money-input-guards.md` | **189** | **11** |
 | `domain/gymmo-import.md` | **190** | **10** |
 
@@ -42,7 +42,16 @@ trim to stay under. The warn is the brake working.
    adds a test. Split at the `## The junit pin layer` heading; `scripts/verify.sh` and
    `scripts/tests/check-verify-summary-selftest.sh` stay with the tiers, `scripts/check-code.sh`,
    `scripts/lib/check-code-junit.sh` and `scripts/junit-pins.txt` go with the pins. 🔴 **Do this one
-   first** — it is the one with seven lines and the one every future test card has to touch.
+   first** — it is the one with six lines and the one every future test card has to touch.
+
+   ✅ **Done.** The seam taken is **not** the one sketched above, and the difference is the point: the
+   tier half does not grow, the **pin history** does — five review rounds of ใบ 065 added eleven
+   lines to this card and every one of them was a table row. So `## The junit pin layer`'s *rules*
+   stayed and its *history* left: `ops/junit-pin-history.md` (**115**) holds the card-by-card
+   paragraphs and the "what each raise bought" table, with `scripts/junit-pins.txt` as its **only**
+   source — and that source came **out** of the parent (§5), so a new test file now goes stale on one
+   card instead of two. Parent **194 → 106**. The filename is unchanged on purpose: 22 citations in
+   13 files point at it and all but one are about the half that stayed.
 2. **`domain/money-input-guards.md`** — the *field* guards (`lib/form-number.ts`,
    `lib/config-form.ts`, `lib/staff-form.ts` and their tests) against the *per-screen* half (the
    action table, the `?err=` surface, the two pair guards on `/classes`). The second half is the one

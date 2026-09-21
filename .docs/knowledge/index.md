@@ -27,6 +27,7 @@ Card ยาว 40–120 บรรทัด (**เตือนที่ 170 · �
 |---|---|
 | [ops/deploy.md](ops/deploy.md) | ปลายทาง (`darin.rocketlabth.com`), compose, CI, กับดักที่กัดจริง |
 | [ops/gates.md](ops/gates.md) | เกตทั้งชุดของรีโปนี้: ใครเฝ้าอะไร · อะไรไม่ได้พอร์ตมาและทำไม |
+| [ops/junit-pin-history.md](ops/junit-pin-history.md) | ประวัติหมุด junit (แยกจากการ์ดข้างล่างที่ใบ 068): หมุดแต่ละตัวขึ้นมาเพราะอะไรและซื้ออะไรมา · `scripts/junit-pins.txt` เป็นเจ้าของตัวเลข การ์ดนี้เป็นเจ้าของเหตุผล |
 | [ops/gate-tiers-and-pins.md](ops/gate-tiers-and-pins.md) | สองชั้นของเกต (ใบ 017): ด่านไหนรันทุกรอบ · selftest รันเมื่อไร · ชั้นหมุด junit กับข้อสรุปว่าไม่มีเทสใบไหนถึงฐานข้อมูล |
 
 ## Domain cards

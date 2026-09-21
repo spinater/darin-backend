@@ -102,7 +102,8 @@ sourced with `.` like the junit layer): fastest red, needs no DB and no generate
 3. **`verify.sh` ยังไม่อยู่ใน CI** — push develop แล้ว deploy เลยโดยไม่มีเกตขวาง
 4. **The formatter watches shape, never content** — `prettier --check` is green on code that is
    wrong, and it does not look at shell, SQL, YAML or Markdown at all.
-5. **No test in this repo reaches a database** — see [gate-tiers-and-pins.md](gate-tiers-and-pins.md). Stage 5 proves
+5. **No test in this repo reaches a database** — see [gate-tiers-and-pins.md](gate-tiers-and-pins.md)
+   (what each pin bought is [junit-pin-history.md](junit-pin-history.md) since ใบ 068). Stage 5 proves
    the schema pushes and seeds, and since ใบ 040 that a **second** seed run writes nothing at all
    (`seed: mode=already-initialized created=0`); **no gate proves any other write against it is correct.**
 6. **สี่ช่องที่ใบ 017 เปิดคืน** — พาธที่ไม่ใช่ ASCII ที่ `core.quotePath` quote แล้วเกตที่เหลือ
