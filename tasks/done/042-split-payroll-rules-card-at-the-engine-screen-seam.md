@@ -1,7 +1,7 @@
 # `payroll-rules.md` is at 189/200 and warning — split it at the engine/screen seam
 
-- status: todo
-- commit:
+- status: done
+- commit: 0c677fb
 
 ## Goal
 
@@ -46,8 +46,52 @@ task 037 paid for its own additions by trimming a `sources:` comment.
 
 - Raised by `code-reviewer` (findings 1 and 8) and `payroll-auditor` (findings 3 and 7)
   reviewing task 037, 2026-09-19.
-- [task 023](../done/023-split-two-oversized-knowledge-cards.md) is the worked precedent for a §5
+- [task 023](023-split-two-oversized-knowledge-cards.md) is the worked precedent for a §5
   split in this repo, including the trap it hit: a number written fresh during a split that
   disagreed with `scripts/junit-pins.txt`, the authority. **Quote the authority, do not restate it.**
 - Do **not** fold this into a card that is also changing engine behaviour. A §5 split is provable by
   reading — a card's claims moved, none invented — and burying it under a money diff costs that.
+
+---
+
+## What landed
+
+The seam is the one the card named: claims about **`lib/payroll.ts`** stayed, claims about its
+**callers in `app/**`** moved to a new card.
+
+| | `payroll-rules.md` | `money-on-screen.md` (new) |
+|---|---|---|
+| lines | 189 → **136** | **85** |
+| `sources:` | `lib/payroll.ts` · `lib/config-keys.ts` · the three `lib/payroll/*.test.ts` · `prisma/schema.prisma` | `app/ot/page.tsx` · `app/classes/page.tsx` · `app/payslips/page.tsx` · `app/page.tsx` · `lib/payroll/ot.test.ts` |
+| rule 4 | `money()` ปัดครั้งเดียว, then four lines pointing at the new card | *No screen computes money* (011) · computed-vs-displayed · the task-019 residue · why the deleted columns were dangerous · `num()` outside the engine |
+
+Nothing was shortened and nothing was invented: the five paragraphs moved verbatim apart from
+cross-references that would otherwise have pointed at prose no longer in the card they name.
+
+**`lib/payroll/ot.test.ts` is a source of both.** The prose moved and its numbers moved with it —
+the 13.33 · qty 0.33 · 266.67 reference answer is now quoted only by `money-on-screen.md`, so that
+card lists the file (§5, the same fix task 037 made for `class.test.ts`). It stays on the parent
+because rule 4's one-rounding rule is still pinned there. `scripts/junit-pins.txt`'s comment for
+that file named `payroll-rules.md` rule 4 as the card quoting the figures and now names the new
+one — which is why `ops/gate-tiers-and-pins.md` moved in this commit too (that file is its source).
+
+**Re-pointed** (`grep -rn "payroll-rules" .docs .claude scripts app lib prisma`):
+`payslip-lifecycle.md:32` cited rule 4 as *"no screen computes money · round once"*, two claims that
+now live in two cards, and names both.
+
+### 136 is over §5's 40–120 band, on purpose
+
+The gate warns at 170 and the card is well under it. The remainder is **one topic** — the engine —
+and §5's remedy is a split *by a clear boundary*; below this seam there is none that does not cut
+rule 3 (the `warnings` invariant, the most-cited thing in the repo) in half. Splitting it further to
+hit a number would be the "แตกการ์ดแบบลวก ๆ เพื่อผ่านเกต" `check-knowledge.sh` says in its own header
+it refuses to force.
+
+### One pointer left deliberately
+
+`lib/payroll.ts:58` still reads *"See `payroll-rules.md` rule 4"* over the comment that is now the
+new card's subject. The trail is unbroken (rule 4 points on), and editing `lib/payroll.ts` here
+would make this docs-only commit touch the engine and drag four more cards' `sources:` with it —
+exactly what this card's Notes forbid. **Card 065 re-points it**, since it is already in that file.
+
+- gate: `bash scripts/verify.sh` → `verify: ALL GREEN` (selftest tier ran — `scripts/**` moved)

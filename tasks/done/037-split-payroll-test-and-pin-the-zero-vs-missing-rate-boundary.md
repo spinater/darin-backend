@@ -118,7 +118,7 @@ byte-identical to HEAD throughout — this card pins a branch, it does not chang
 - Both lanes independently flagged that the split had dropped `lib/payroll/class.test.ts` out of
   `payroll-rules.md`'s `sources:` while the card still quotes its figures ⇒ rewriting the ใบ 025
   class arms would have left the pin green (counts, not content) **and** `check-knowledge` silent.
-  Restored, which took the card 170 → **173** and fired the §5 warn ⇒ **[task 042](../todo/042-split-payroll-rules-card-at-the-engine-screen-seam.md)**.
+  Restored, which took the card 170 → **173** and fired the §5 warn ⇒ **[task 042](042-split-payroll-rules-card-at-the-engine-screen-seam.md)**.
 
 `bash scripts/verify.sh` → `ALL GREEN` (selftest tier ran, `scripts/**` moved), with the one expected
 new warn: `payroll-rules.md` 173 > 170.

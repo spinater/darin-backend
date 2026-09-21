@@ -34,6 +34,7 @@ Card ยาว 40–120 บรรทัด (**เตือนที่ 170 · �
 | Card | ครอบคลุม |
 |---|---|
 | [domain/payroll-rules.md](domain/payroll-rules.md) | สูตรค่าสอน/คอม/OT/incentive · ที่มาของตัวเลข · จุดที่ห้าม hardcode |
+| [domain/money-on-screen.md](domain/money-on-screen.md) | ฝั่งหน้าจอของกติกาปัดเศษ (แยกจากการ์ดบนที่ใบ 042): หน้าจอ *แสดง* ยอดที่เก็บไว้ได้ แต่ห้าม *คำนวณ* · อ่านเรทนอกเอนจินด้วย `num()` · residue ใบ 019 ที่ยังเหลือ |
 | [domain/payslip-lifecycle.md](domain/payslip-lifecycle.md) | วงจรชีวิตของสลิป: `PayslipWarning` · ล็อก `Payslip.status` สองฝั่ง · ใครเข้ารอบ (leaver arms) · อะไรถูกคิดใหม่ |
 | [domain/teach-rate-lookup.md](domain/teach-rate-lookup.md) | หาเรทค่าสอนยังไง: `buildTeachRates` เป็น `Map` · ชื่อกิจกรรมกับเรทเป็นคนละเรื่อง · ทำไม `__proto__` กับเรท 0 เคยจ่ายเงียบ |
 | [domain/money-input-guards.md](domain/money-input-guards.md) | ตัวเลขที่มาจากฟอร์ม: `finiteNumber`/`isBlank` · 5 action ที่ปฏิเสธก่อนเขียน · รูปแบบ `?err=` ที่ใช้ร่วมกัน |

@@ -29,7 +29,8 @@ is the **run loop around it** — how a warning survives to the database, how `P
 an actual lock, who a run selects, and what a recompute rebuilds. Read **both** before changing
 `lib/payroll-run.ts` **or either payslip screen**. The teach-rate lookup itself moved to
 [teach-rate-lookup.md](teach-rate-lookup.md) at task 039. This card never restates
-[payroll-rules.md](payroll-rules.md) rule 4 (*no screen computes money · round once*), and a
+[payroll-rules.md](payroll-rules.md) rule 4 (*round once*) or its screen half,
+[money-on-screen.md](money-on-screen.md) (*no screen computes money*), and a
 screen that re-derives a total obeys that rule or breaks money whatever this card says. A rule
 broken here is broken money just as surely as a wrong formula.
 

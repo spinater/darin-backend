@@ -158,7 +158,7 @@ cannot fail for the reason the real run is most likely to — an unpriced or un-
 ⚠️ Two things I did **not** do: `domain/gymmo-import.md` ships at **172/200**, inside the cap but in
 the warn band — the clean split boundary is the *"What the seed plants"* + *"What is NOT proven"*
 half, whose only source is `prisma/seed.ts`; I left it whole rather than open a card nobody asked
-for. And `domain/payroll-rules.md` is at **186/200** after finding 2's four lines — [042](042-split-payroll-rules-card-at-the-engine-screen-seam.md)
+for. And `domain/payroll-rules.md` is at **186/200** after finding 2's four lines — [042](../done/042-split-payroll-rules-card-at-the-engine-screen-seam.md)
 is that split and is now the next thing that should happen before anyone adds to it.
 
 ---
@@ -188,4 +188,4 @@ list (§5: shrink `sources:` with the prose). Both cards have index rows and cro
 
 Item 4 (the upload screen) is untouched and is the only scope item left; 064/065 are yours. The two
 `baseSalary`/`classCredit` pairs still read 0 and the seed says so out loud. `domain/payroll-rules.md`
-sits at **186/200** — [042](042-split-payroll-rules-card-at-the-engine-screen-seam.md) is that split.
+sits at **186/200** — [042](../done/042-split-payroll-rules-card-at-the-engine-screen-seam.md) is that split.
