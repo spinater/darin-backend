@@ -74,12 +74,12 @@ model ClassSession {
 🔴 **Item 4 (the upload screen) is blocked on two cards, and must not be built before them:**
 [064](../done/064-gymmo-import-problems-have-no-home.md) — an import `problem` is persisted nowhere, so a
 คาบ that cannot be matched leaves no trace once the request ends · and
-[065](065-deleting-an-imported-class-session-is-undone-by-the-next-import.md) — deleting an imported
+[065](../done/065-deleting-an-imported-class-session-is-undone-by-the-next-import.md) — deleting an imported
 คาบ is re-created by the next import, so the remediation for a duplicate re-doubles the pay.
 Both are harmless **only** because nothing can import today: `planGymmoImport`, `previewGymmoImport`
 and `applyGymmoImport` have zero callers. They arm themselves the hour item 4 lands.
 
-🔴 **[065](065-deleting-an-imported-class-session-is-undone-by-the-next-import.md) must land
+🔴 **[065](../done/065-deleting-an-imported-class-session-is-undone-by-the-next-import.md) must land
 *before* item 4, not merely with it.** Task 064 put a count on `/payslips` and `/` whose text reads
 *"ดูเหตุผลรายแถวที่ คาบสอนคลาส"* and links to `/classes` — and `/classes` cannot list those rows until
 065. Ship item 4 first and the admin sees "20 คาบ หาย", clicks through to a screen showing nothing,
@@ -92,7 +92,7 @@ cut the copy to *"แก้ที่ต้นทาง (ราคาคลาส
 | 1 `sourceKey` | `prisma/schema.prisma` | ✅ `sourceKey String? @unique`, reasoning in the doc comment · pushed on the gate's throwaway postgres, **never against real data** |
 | 2 pure planner | `lib/gymmo-import.ts` | ✅ `planGymmoImport` · `gymmoSourceKey` · `diffGymmoPlan` · `gymmoPlanRange` — no DB, no clock, no env |
 | 3 thin caller | `lib/gymmo-import-run.ts` | ✅ `loadGymmoLookups` · `previewGymmoImport` · `applyGymmoImport` (one `$transaction`) |
-| 4 upload screen | — | ❌ **not started** — the plan / problem / preview types are exported and serializable for it |
+| 4 upload screen | — | ❌ **not started** — the plan / problem / preview types are exported and serializable for it. ⚠️ **ใบ 065 changed the contract**: `handKeyedInRange` (a count) named below is history — the screen must render `handKeyedMatches` (the named rows) **and** `handKeyedUnmatchedInRange` (the residual), whose exact Thai copy is dictated in `lib/gymmo-import-run.ts` |
 | 5 seed rows | `prisma/seed.ts` | ✅ 5 `ClassPrice` · 6 Gymmo `TrainerAlias` (2 new staff rows to hang two of them on) · `classCredit: 5000` (already there, now on all eight) |
 
 Tests: `lib/gymmo-import.test.ts` **20** · `lib/payroll/slip.test.ts` **3 → 5**, both pinned in
