@@ -13,6 +13,10 @@ sources:
   # The screen that names the count, so a run cannot look complete while คาบ are missing. Kept here
   # too: the copy this card's "no clearing path" facts are rendered as lives on it.
   - app/payslips/page.tsx
+  # ใบ 065: the second screen rendering this card's "what clears a row of this kind" facts — including
+  # the `kind: "row"` one that clears never (ใบ 066). Editing that copy must land here as STALE, the
+  # same reason `app/payslips/page.tsx` is listed.
+  - app/classes/_components/import-problems.tsx
 ---
 
 # The class-import queue — where a Gymmo row that never became a คาบ lives
@@ -89,6 +93,13 @@ red across two files (counter-tested on a clean tree — see `scripts/junit-pins
 **`kind`** — `"session"` clears on a clean import into an **open** period · `"duplicate"` has a real
 `sourceKey` too, but the file disagrees with itself about the head count, so an existing คาบ proves
 nothing about the amount and the count never excludes it · `"row"` has no `sourceKey` at all.
+
+⚠️ **ใบ 065 changed one field of the preview this module returns and nothing about this table**:
+`handKeyedInRange` (a count) became `handKeyedMatches` (the rows a planned write would duplicate)
+plus `handKeyedUnmatchedInRange` (the residual), and both are now on `GymmoImportResult` as well,
+re-read inside this same transaction — see [gymmo-import.md](gymmo-import.md). The queue's own read
+side gained a three-valued `state` per row, in
+[class-import-blockers.md](class-import-blockers.md).
 
 ## The write: delete-then-insert, keyed, inside the import's own transaction
 

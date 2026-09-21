@@ -92,6 +92,17 @@ red across the two files, named in the pin row. ⚠️ The transaction that does
 structural reason below (no test here reaches a database), which is also why
 `applyGymmoImport`'s `!writes.length && !problems.length` guard has to be read by eye.
 
+**ใบ 065** raised `lib/payroll/class.test.ts` **6 → 7** and added `lib/gymmo-hand-keyed.test.ts` at
+**5**, then `lib/class-problems-copy.test.ts` at **7** and `lib/gymmo-import.test.ts` **22 → 24**
+across its five review rounds (22 test files → 24).
+🔑 **That last file is the lesson of the round**: the same defect BLOCKed twice — an exit instruction
+keyed on too little state, telling the admin to re-import a คาบ already in the database — and both
+times it was reachable only by reading, because the strings lived in a `.tsx`. Moving them to a pure
+`(kind, state)` grid is what made a pin possible at all; one arm walks every cell. The arm worth naming is the `|`-collision one: `2026-08-04|"s-o|c-core"|"x"`
+and `2026-08-04|"s-o"|"c-core|x"` are different triples with one joined key, so a joined key reports a
+duplicate คาบ that does not exist and a human deletes a real row — the ใบ 035 bug class on a new key.
+Counter-tested, all three breaks named in the pin rows.
+
 🔴 **The fix round's lesson about pins, worth more than the three numbers: a pin cannot see an
 assertion getting weaker.** Raising `lib/gymmo-import.test.ts` 20 → 22 was honest, and in the same
 round two `toEqual`s were quietly downgraded to `toMatchObject` — so the file ran two *more* tests

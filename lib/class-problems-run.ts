@@ -17,7 +17,8 @@
  * ⚠️ **No role check lives here**, same as its sibling: `requireAdmin()` belongs to the page and the
  * server action, and no gate watches that (`.docs/knowledge/ops/gates.md`).
  */
-import { utcPeriodOf } from "./class-problems";
+import { utcPeriodOf, type ClassProblemState } from "./class-problems";
+import { problemIsCleared } from "./class-problems-copy";
 import { db } from "./db";
 import { periodRange } from "./payroll-run";
 
@@ -76,6 +77,29 @@ export type ClassImportProblemView = {
   date: Date | null;
   timeText: string | null;
   seenAt: Date;
+  /**
+   * Where this row's คาบ actually stands — `null` only for `kind: "row"`, whose arity-3/1 reader key
+   * can never equal a 4-tuple `sourceKey`, so no lookup is possible even in principle.
+   *
+   * 🔴 **Three states, not two, and the third is the one that costs money** (card 065 review round).
+   * A `kind: "session"` row is written for two different situations and `kind` cannot tell them
+   * apart: the คาบ never became a `ClassSession` (no price, unknown trainer) **or** it was written
+   * and its slip was already closed (`closedSlipOutcome`). Collapsed to a boolean, both read as
+   * *"ไม่มีอยู่ในฐานข้อมูล"* with *"แก้ต้นทางแล้วนำเข้าซ้ำ"* as the exit — and for the second that is
+   * two wrong claims. Re-uploading writes into a still-closed period, `closedSlipOutcome` re-emits
+   * the same key and the row does not move; meanwhile *"ไม่มีอยู่ในฐานข้อมูล"* invites the admin to key
+   * those คาบ by hand, which puts a second row beside the imported one (a null `sourceKey` is exempt
+   * from `@unique`) — ประพัฒน์'s twenty 08/2026 `Pilates Flow` คาบ, **8,000 ฿ paid twice**, through
+   * the other door of the very trap this card closes. `app/payslips/page.tsx` already names all
+   * three categories; this is the screen it links to, and it may not name fewer.
+   *
+   * `"accountedFor"` additionally means **the stored `reason` is no longer true and must NOT be
+   * printed**: a closed-slip row says *"…ยังไม่ถูกจ่าย"*, the admin reopens the slip and recomputes,
+   * and **nothing deletes the row** — `deleteMany` runs only inside `applyGymmoImport`, i.e. on the
+   * next upload. Printing the stored text then asserts that money just paid is unpaid, §2 rule 4
+   * pointing the wrong way.
+   */
+  state: ClassProblemState | null;
 };
 
 /**
@@ -86,9 +110,64 @@ export type ClassImportProblemView = {
  * shares a `seenAt` to the millisecond.
  */
 export async function listClassImportProblems(): Promise<ClassImportProblemView[]> {
-  return db.classImportProblem.findMany({
+  const rows = await db.classImportProblem.findMany({
     orderBy: [{ seenAt: "desc" }, { key: "asc" }],
   });
+  const states = await readProblemStates(rows);
+  return rows.map((r) => ({ ...r, state: states.get(r.key) ?? null }));
+}
+
+/**
+ * `ClassProblemState` per **`"session"` and `"duplicate"`** key in `rows` — every one of them, so the
+ * map's key set **is** that filter and a caller cannot silently disagree about which rows were judged.
+ *
+ * 🔴 **`"duplicate"` is looked up too, and is never excluded from the count** (`payroll-auditor`,
+ * round 2). Its คาบ may already exist at the *wrong* head count, so the screen must not tell anyone
+ * nothing was written — but the same existence must not buy the row an exclusion either. Those two
+ * needs used to be one boolean; they are now the state (for the screen) and the `kind` test in
+ * `pendingClassImportInPeriod` (for the count), which is why that filter names `"session"` explicitly.
+ *
+ * 🔴 **One home for this rule, read by both callers** (card 065). Before it, the predicate existed
+ * once, inside `pendingClassImportInPeriod`; the table on `/classes` needs the same answer to decide
+ * whether a stored `reason` is still true and which exit to print, and two copies of a
+ * money-exclusion rule is the drift §4 exists to stop. The whole justification — why excluding at all
+ * is right, why a closed slip and a `"duplicate"` must not be excluded, and the 8,000 ฿ this
+ * narrowing is worth — is on `pendingClassImportInPeriod` below, which is where `payroll-auditor`
+ * found it.
+ *
+ * ⚠️ **`"missing"` is the default and the safe direction.** A key with no `ClassSession` and a key
+ * whose row is not looked up at all both end up outside `"accountedFor"`, i.e. still blocking.
+ */
+async function readProblemStates(
+  rows: readonly { key: string; kind: string }[],
+): Promise<Map<string, ClassProblemState>> {
+  const keyed = rows
+    .filter((r) => r.kind === "session" || r.kind === "duplicate")
+    .map((r) => r.key);
+  const states = new Map<string, ClassProblemState>(keyed.map((k) => [k, "missing"]));
+  if (!keyed.length) return states;
+
+  const sessions = await db.classSession.findMany({
+    where: { sourceKey: { in: keyed } },
+    select: { sourceKey: true, date: true, staffId: true },
+  });
+  if (!sessions.length) return states;
+
+  // The same per-(staffId, period) reader the write side uses, so the two halves cannot drift about
+  // what "this คาบ's slip is closed" means.
+  const closedByStaff = await readClosedByStaff(
+    db,
+    sessions.map((s) => ({ staffId: s.staffId, period: utcPeriodOf(s.date) })),
+  );
+  for (const s of sessions) {
+    // The `in` filter cannot match a null, so every row here has a key — narrowed rather than `!`.
+    if (s.sourceKey === null) continue;
+    states.set(
+      s.sourceKey,
+      closedByStaff.get(s.staffId)?.get(utcPeriodOf(s.date)) ? "closedSlip" : "accountedFor",
+    );
+  }
+  return states;
 }
 
 /**
@@ -136,26 +215,13 @@ export async function pendingClassImportInPeriod(period: string): Promise<number
     select: { key: true, kind: true },
   });
   if (!rows.length) return 0;
-
-  const excludable = rows.filter((r) => r.kind === "session").map((r) => r.key);
-  if (!excludable.length) return rows.length;
-
-  const sessions = await db.classSession.findMany({
-    where: { sourceKey: { in: excludable } },
-    select: { sourceKey: true, date: true, staffId: true },
-  });
-  if (!sessions.length) return rows.length;
-
-  // The same per-(staffId, period) reader the write side uses, so the two halves cannot drift about
-  // what "this คาบ's slip is closed" means.
-  const closedByStaff = await readClosedByStaff(
-    db,
-    sessions.map((s) => ({ staffId: s.staffId, period: utcPeriodOf(s.date) })),
-  );
-  const accountedFor = new Set(
-    sessions
-      .filter((s) => !closedByStaff.get(s.staffId)?.get(utcPeriodOf(s.date)))
-      .map((s) => s.sourceKey),
-  );
-  return rows.filter((r) => !accountedFor.has(r.key)).length;
+  const states = await readProblemStates(rows);
+  // 🔑 **`problemIsCleared` — the screen's own predicate, not a second copy of it.** It is keyed on
+  // `kind` **and** `state`: `"closedSlip"` keeps blocking because that คาบ is in the database and in
+  // nobody's slip (the 8,000 ฿ case below), and `"duplicate"` keeps blocking however its คาบ resolves,
+  // because its existence says nothing about its **amount** (stored 5/3 ⇒ 200 ฿ against the file's
+  // 9/0 ⇒ 400 ฿). Writing this rule twice is what let the table and this number disagree about one
+  // cell for a whole review round (`payroll-auditor`, rounds 2 and 3).
+  return rows.filter((r) => !problemIsCleared({ kind: r.kind, state: states.get(r.key) ?? null }))
+    .length;
 }

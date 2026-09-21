@@ -86,6 +86,27 @@ export type GymmoProblem = ClassProblemRef & { reason: string };
  */
 export const utcPeriodOf = (d: Date): string => d.toISOString().slice(0, 7);
 
+/**
+ * What the database says about the คาบ behind one stored problem row — `null` when the question
+ * cannot be asked at all.
+ *
+ * - `"missing"` — no `ClassSession` carries that key. The คาบ is not in the database, so no slip and
+ *   no `PayslipWarning` can mention it; the exit is at the source (price, alias, or the file).
+ * - `"closedSlip"` — the คาบ **is** in the database and its own slip is `approved`/`paid`.
+ * - `"accountedFor"` — the คาบ is in the database and its slip is still open.
+ * - `null` — `kind: "row"`, where the reader never got a `sourceKey` at all: an arity-3/1 reader key
+ *   can never equal a 4-tuple `sourceKey`, so no lookup is possible even in principle.
+ *
+ * 🔴 **For a `kind: "duplicate"` this describes existence and slip status ONLY — never correctness
+ * of the amount.** The file holds two rows for that key at different head counts, so a คาบ sitting
+ * under it from an earlier import may be there at the **wrong** number: measured, stored 5/3 ⇒
+ * attended 2 ⇒ half of 400 = 200 ฿ against the file's 9/0 ⇒ 400 ฿. That is exactly why
+ * `pendingClassImportInPeriod` keys its exclusion on `kind` as well as on this value, and why the
+ * screen may not print *"ไม่เขียนทั้งคู่"* for such a row (`payroll-auditor`, card 065 round 2 —
+ * believing it and keying the คาบ by hand is 200 + 400 = 600 ฿ for one 400 ฿ คาบ).
+ */
+export type ClassProblemState = "missing" | "closedSlip" | "accountedFor";
+
 /** Exactly the columns of one `ClassImportProblem`, as `createMany` takes them. */
 export type ClassImportProblemRow = {
   key: string;
@@ -244,7 +265,9 @@ export function closedSlipOutcome(
     }
     problems.push({
       ...ref,
-      reason: `คาบนี้เข้าฐานข้อมูลแล้ว แต่สลิปงวด ${utcPeriodOf(ref.date)} ของคนนี้เป็น ${status} อยู่ ⇒ runPayroll จะไม่คิดสลิปใบนั้นใหม่ คาบนี้จึง**ยังไม่ถูกจ่าย** · ต้องเปิดสลิปกลับเป็นร่าง คำนวณใหม่ แล้วนำเข้าไฟล์ซ้ำ แถวนี้จะหายเอง (ใบ 013 ข้อ 2 — ยังรอ linus)`,
+      // ⚠️ **No markdown.** ใบ 065 put this string on `/classes`, where it is rendered as plain text
+      // (`{r.reason}` in a `<td>`), so `**…**` prints literally. Thai emphasis on screen is “…”.
+      reason: `คาบนี้เข้าฐานข้อมูลแล้ว แต่สลิปงวด ${utcPeriodOf(ref.date)} ของคนนี้เป็น ${status} อยู่ ⇒ runPayroll จะไม่คิดสลิปใบนั้นใหม่ คาบนี้จึง “ยังไม่ถูกจ่าย” · ต้องเปิดสลิปกลับเป็นร่าง คำนวณใหม่ แล้วนำเข้าไฟล์ซ้ำ แถวนี้จะหายเอง (ใบ 013 ข้อ 2 — ยังรอ linus)`,
     });
   }
   return { problems, leaveAlone };

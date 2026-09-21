@@ -70,6 +70,13 @@ sources:
      took the engine suite 30 → **33** — both directions, plus one warning **per row** (`byClass`
      merges the *lines* by class name; the warnings deliberately do not follow). The door that
      refuses this pair before it ever stores: [money-input-guards.md](money-input-guards.md)
+    ⇒ 🔴 **the repair the warning names depends on where the คาบ came from (ใบ 065)**, which is why
+    `ClassSessionInput` carries `sourceKey` — read there and nowhere else, and it moves no amount. A
+    hand-keyed row is deleted and re-keyed at `/classes`; telling a reader to do that to an
+    **imported** row is what doubles the pay, because the next upload no longer sees that
+    `sourceKey` in the table and plans it as a `create` — on 4 Aug 18:00 Core Strength (**200 ฿**,
+    §1.4's price table) that is 200 hand-keyed + 200 re-created for one 200 ฿ คาบ. Pinned by one arm in `lib/payroll/class.test.ts` (**6 → 7**) that asserts **both**
+    directions, since a message that always says *ลบแล้วคีย์ใหม่* is green against either half alone
     ⇒ **the Gymmo import writes both counts verbatim and clamps neither** (task 063): "repairing" a
     negative on the way in would hide the row from this very warning —
     [gymmo-import.md](gymmo-import.md)

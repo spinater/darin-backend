@@ -161,6 +161,24 @@ only stops the next one being typed, where the person who typed it is still look
 — it can never repair what is stored, so **a guard here is not a reason to let the engine decide
 quietly**.
 
+### ใบ 065 — `/classes` grew a second pair guard, on `del` rather than on a field
+
+`del` now reads the row back and **refuses a non-null `sourceKey` unless the post carries
+`confirm=imported`**: an imported คาบ deleted here is re-created by the next upload and paid twice
+(200 + 200 for one 200 ฿ Core Strength). Same surface as everything above — `?err=imported`, a flag
+not a message, nothing written — plus `?err=gone` for a row already deleted from another tab, which
+the read-back makes reachable. 🔑 **The table hides the button and the action refuses it**, because a
+hidden button is copy, not a guard: a stale tab still holds the `<form>`.
+
+🔴 **A default, not a prohibition — and the difference is money in both directions.** The re-creation
+argument holds only while the **file still carries that key**; correct a time or a class name in Gymmo
+and the old row is orphaned instead, never re-created. This action is the repo's only
+`classSession.delete`, so refusing outright left such a row unrepairable anywhere in the product
+(ธันยา's August: class value 8,050 → 8,250 ⇒ `classPay` **3,050 → 3,250 ฿ every run, for ever**). The
+explicit post from the table's disclosure carries `confirm=imported`; the ordinary delete `<form>`
+does not, so one click can never do it. **The only guard on this screen a human may deliberately
+pass** — every other one refuses outright — because it is the only one where refusing also loses.
+
 ## What is deliberately *not* guarded here
 
 - **A per-key ceiling for a config value.** Nothing stops `comm.pt.selfClosed` being set to `900`

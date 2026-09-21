@@ -2,11 +2,14 @@ import { expect, test, describe } from "bun:test";
 import { run, trainer } from "./fixtures";
 
 describe("ค่าสอนคลาส Group (§1.4)", () => {
-  const cls = (booked: number, noShow = 0) => ({
+  // `sourceKey: null` = keyed by hand at `/classes`. It moves no money (see `ClassSessionInput`),
+  // so every arm below is unaffected by it; the one arm that reads it is the ใบ 065 pair at the end.
+  const cls = (booked: number, noShow = 0, sourceKey: string | null = null) => ({
     className: "Aqua Fit",
     price: 400,
     booked,
     noShow,
+    sourceKey,
   });
 
   test("คนเข้าจริง 0 = 0 · 1–2 = ครึ่งราคา · ≥3 = เต็ม", () => {
@@ -59,5 +62,35 @@ describe("ค่าสอนคลาส Group (§1.4)", () => {
     const r = run({ classSessions: [cls(0), cls(3, 3)], staff: trainer({ classCredit: 0 }) });
     expect(r.classPay).toBe(0);
     expect(r.warnings).toEqual([]);
+  });
+
+  // ใบ 065 — the ใบ 025 warning used to end `ลบคาบนี้แล้วคีย์ใหม่ที่หน้าคาบสอนคลาส Group` for **every**
+  // row. For an imported คาบ that is the instruction that doubles the pay: deleting the row makes its
+  // `sourceKey` one the file has never been seen to carry, so the next upload plans a `create` and the
+  // คาบ comes back beside the hand-keyed replacement — on 4 Aug 18:00 Core Strength, 200 ฿ in
+  // §1.4's price table, that is 200 + 200 for one 200 ฿ คาบ. (The fixture below is Aqua Fit at 400,
+  // which is the price table's figure for *that* class; the branch under test reads no amount.)
+  //
+  // 🔴 **Both directions in one arm, deliberately.** The defect is a message that says *delete* no
+  // matter what, and the hand-keyed half alone is green against it; the imported half alone would go
+  // green against the mirror defect (always *fix at Gymmo*, which sends a hand-keyed row to a system
+  // that has never heard of it). The pair is the only thing that pins the branch rather than a string.
+  test("ข้อความแก้ไขต้องตรงที่มาของคาบ — คีย์เอง ≠ นำเข้า (ใบ 065)", () => {
+    const r = run({
+      classSessions: [cls(2, 5), cls(2, 5, '["โอ","2026-08-04","18:00","Core Strength"]')],
+      staff: trainer({ classCredit: 0 }),
+    });
+    expect(r.warnings).toHaveLength(2);
+
+    const [byHand, imported] = r.warnings;
+    expect(byHand).toContain("ลบคาบนี้แล้วคีย์ใหม่");
+    expect(byHand).not.toContain("Gymmo");
+
+    expect(imported).toContain("Gymmo");
+    expect(imported).toContain("ห้ามลบ");
+    // 🔑 The dangerous substring, asserted absent rather than the safe one asserted present: a
+    // message that appended the new sentence to the old one would pass every `toContain` above and
+    // still tell the reader to delete the row.
+    expect(imported).not.toContain("ลบคาบนี้แล้วคีย์ใหม่");
   });
 });

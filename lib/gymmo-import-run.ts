@@ -16,10 +16,11 @@
  *   → applyGymmoImport(plan)        — one transaction
  *
  * 🔴 **Three fields of the preview must reach the screen before anything is written**, because each
- * one is money the database cannot refuse on its own: `problems` · `handKeyedInRange` ·
- * `closedPeriods`. A confirm button that shows only the three counts is not this contract — and
- * `problems` and `closedPeriods` are on the **result** as well, re-read inside the transaction, so a
- * screen that forgets them before the write cannot swallow them after it either.
+ * one is money the database cannot refuse on its own: `problems` · `handKeyedMatches` (with its
+ * residual `handKeyedUnmatchedInRange`) · `closedPeriods`. A confirm button that shows only the three
+ * counts is not this contract — and **all three are on the result as well**, the latter two re-read
+ * inside the transaction, so a screen that forgets them before the write cannot swallow them after it
+ * either.
  *
  * 🔴 **On confirm, re-parse and re-plan — never round-trip the plan through a form field.**
  * `GymmoSessionWrite.date` is a real `Date`: a server action argument preserves it, but
@@ -32,6 +33,7 @@
 import { closedSlipOutcome, gymmoProblemRows, utcPeriodOf } from "./class-problems";
 import { readClosedByStaff } from "./class-problems-run";
 import { db } from "./db";
+import { gymmoHandKeyedMatches, type GymmoHandKeyedMatch } from "./gymmo-hand-keyed";
 import {
   diffGymmoPlan,
   gymmoPlanPeriods,
@@ -81,14 +83,41 @@ export type GymmoImportPreview = {
   /** Every row that did not become a คาบ — the reader's rejects and the planner's, in one list. */
   problems: GymmoProblem[];
   /**
-   * คาบ inside the same day range that were **keyed by hand** (`sourceKey = null`).
+   * The คาบ **keyed by hand** (`sourceKey = null`) that this upload would duplicate — **listed, not
+   * counted** (card 065).
    *
    * 🔴 A hand-keyed row cannot collide with an imported one — a null is exempt from `@unique` — so
    * importing a month somebody already keyed by hand pays it **twice**, and no constraint says so.
-   * The import cannot tell a duplicate from a different session, so it reports the count and the
-   * human decides (§2 rule 4). 0 in the ordinary case.
+   * The import cannot tell a duplicate from a different session, so it names the pairs and the human
+   * decides (§2 rule 4). Empty in the ordinary case.
+   *
+   * ⚠️ Task 063 shipped this as `handKeyedInRange`, a count over the plan's whole `[min, max]` day
+   * span — nine months for a Jan–Sep upload. "12 hand-keyed คาบ" beside "431 new คาบ" is true and
+   * leaves the only choices *confirm blind* or *abandon*. The matching rule, and why its triple must
+   * never become an import key, are on `gymmoHandKeyedMatches` in `lib/gymmo-hand-keyed.ts`.
    */
-  handKeyedInRange: number;
+  handKeyedMatches: GymmoHandKeyedMatch[];
+  /**
+   * The hand-keyed คาบ in the same range that the list above does **not** claim — reported as a
+   * second, separately-labelled number so the total signal can never drop to zero.
+   *
+   * 🔴 **The list is narrower than the count it replaced, and the gap is a real duplicate shape**
+   * (`payroll-auditor`, card 065 review round). A match needs `staffId` **and** `classId` to agree,
+   * and a human keying a คาบ from memory is exactly where they do not: a substitute keyed under the
+   * person who taught it while the Gymmo sheet belongs to the class owner, or a class keyed against a
+   * different `ClassPrice` than the raw Gymmo name maps to. Measured: 4 Aug 18:00 Core Strength
+   * (200 ฿) on ธันยา's sheet — `โอ` **is** ธันยา, they are one person — keyed by hand under
+   * ประพัฒน์, who actually taught it that day ⇒ the `staffId` half differs, the triple misses,
+   * the confirm screen says nothing, both rows are written and `computePayslip` pays **200 ฿ twice,
+   * one on each of two slips**, so neither slip looks wrong on its own. Nothing downstream catches
+   * it — `importedInRangeNotInFile` is the opposite direction and the engine has no duplicate
+   * detector.
+   *
+   * ⇒ the screen must render this as *"อีก N คาบที่คีย์เองอยู่ในช่วงนี้ที่ไฟล์ไม่แตะ — ตรวจว่าไม่ใช่คาบเดียวกัน
+   * คนละครู/คนละคลาส"*. That restores exactly what the bare count bought without restoring its
+   * unreadability: the actionable rows are named, the residual is one number beside them.
+   */
+  handKeyedUnmatchedInRange: number;
   /**
    * The mirror of the count above: คาบ inside the range that were **already imported and whose key
    * this file does not carry**.
@@ -167,14 +196,56 @@ async function readClosedPeriods(
   );
 }
 
+/**
+ * Signal 1 — the hand-keyed คาบ this plan would duplicate, plus the residual it does not claim.
+ *
+ * 🔑 **One reader, called by `previewGymmoImport` and again by `applyGymmoImport` inside its
+ * transaction**, exactly like `readClosedPeriods` and for the same race: a คาบ keyed by hand
+ * *between* the preview and the confirm is written a second time and, on the preview alone, with no
+ * record anywhere afterwards — one 400 ฿ Aqua Fit paid twice on one slip. This file's header calls
+ * these three signals "money the database cannot refuse on its own"; a signal that exists only before
+ * the write is one a screen can swallow by forgetting.
+ *
+ * The range filter is what bounds the read to the months the file covers rather than the whole table.
+ */
+async function readHandKeyedSignal(
+  client: Pick<typeof db, "classSession">,
+  plan: GymmoImportPlan,
+): Promise<{ handKeyedMatches: GymmoHandKeyedMatch[]; handKeyedUnmatchedInRange: number }> {
+  const range = gymmoPlanRange(plan);
+  if (!range) return { handKeyedMatches: [], handKeyedUnmatchedInRange: 0 };
+  const rows = await client.classSession.findMany({
+    where: { sourceKey: null, date: { gte: range.from, lt: range.to } },
+    select: {
+      id: true,
+      date: true,
+      classId: true,
+      staffId: true,
+      booked: true,
+      noShow: true,
+      class: { select: { name: true } },
+      staff: { select: { name: true } },
+    },
+  });
+  const handKeyedMatches = gymmoHandKeyedMatches(
+    plan,
+    rows.map((h) => ({ ...h, className: h.class.name, staffName: h.staff.name })),
+  );
+  // 🔑 A difference of two numbers from **one** query — not the `imported − matched` shape this file
+  // forbids two fields down, where the minuend and the subtrahend came from differently-filtered
+  // reads. `handKeyedMatches` is a `filter` over `rows`, so it is a subset by construction and the
+  // remainder cannot go negative or cancel a row it never contained.
+  return { handKeyedMatches, handKeyedUnmatchedInRange: rows.length - handKeyedMatches.length };
+}
+
 export async function previewGymmoImport(plan: GymmoImportPlan): Promise<GymmoImportPreview> {
   const range = gymmoPlanRange(plan);
   const inRange = range ? { date: { gte: range.from, lt: range.to } } : null;
   const planKeys = plan.writes.map((w) => w.sourceKey);
 
-  const [existing, handKeyedInRange, importedInRangeNotInFile, closedPeriods] = await Promise.all([
+  const [existing, handKeyed, importedInRangeNotInFile, closedPeriods] = await Promise.all([
     readExisting(db, plan),
-    inRange ? db.classSession.count({ where: { sourceKey: null, ...inRange } }) : 0,
+    readHandKeyedSignal(db, plan),
     inRange
       ? db.classSession.count({
           // `notIn` alone would be enough in SQL — `NULL NOT IN (…)` is never true — but the
@@ -194,7 +265,7 @@ export async function previewGymmoImport(plan: GymmoImportPlan): Promise<GymmoIm
     unchangedCount: diff.unchanged,
     ptRows: plan.ptRows,
     problems: plan.problems,
-    handKeyedInRange,
+    ...handKeyed,
     importedInRangeNotInFile,
     closedPeriods,
   };
@@ -226,6 +297,16 @@ export type GymmoImportResult = {
   created: number;
   updated: number;
   unchanged: number;
+  /**
+   * Signal 1, re-read **inside the transaction** for the same reason `closedPeriods` is (card 065
+   * review round). A คาบ keyed by hand between the preview and the confirm is written a second time
+   * with nothing to show for it afterwards — one 400 ฿ Aqua Fit paid twice on one slip. Like
+   * `closedPeriods` it **reports rather than refuses**: both rows are true, the engine pays both, and
+   * which one to delete is a human's call, not the import's.
+   */
+  handKeyedMatches: GymmoHandKeyedMatch[];
+  /** The residual beside that list — see `GymmoImportPreview.handKeyedUnmatchedInRange`. */
+  handKeyedUnmatchedInRange: number;
   problems: GymmoProblem[];
   /** Non-draft periods this write landed in, as read **inside** the transaction. */
   closedPeriods: GymmoClosedPeriod[];
@@ -256,16 +337,30 @@ export async function applyGymmoImport(plan: GymmoImportPlan): Promise<GymmoImpo
   // `readClosedPeriods` and `readClosedByStaff` return before querying on an empty list, so nothing but
   // the problem rows is touched.
   if (!plan.writes.length && !plan.problems.length)
-    return { created: 0, updated: 0, unchanged: 0, problems: plan.problems, closedPeriods: [] };
+    return {
+      created: 0,
+      updated: 0,
+      unchanged: 0,
+      problems: plan.problems,
+      closedPeriods: [],
+      // An empty plan has no day range, so there is nothing a hand-keyed คาบ could duplicate.
+      handKeyedMatches: [],
+      handKeyedUnmatchedInRange: 0,
+    };
 
   return db.$transaction(async (tx) => {
-    const [existing, closedPeriods, closedByStaff] = await Promise.all([
+    const [existing, closedPeriods, closedByStaff, handKeyed] = await Promise.all([
       readExisting(tx, plan),
       readClosedPeriods(tx, gymmoPlanPeriods(plan)),
       readClosedByStaff(
         tx,
         plan.writes.map((w) => ({ staffId: w.staffId, period: utcPeriodOf(w.date) })),
       ),
+      // 🔑 Read **before** this import's own writes land, which is what keeps the answer about คาบ
+      // *somebody else keyed by hand* rather than about rows this transaction is adding. Its filter
+      // is `sourceKey: null`, so nothing this import writes could appear in it either way — the
+      // ordering is belt and braces, and the comment is here so a later reorder is a decision.
+      readHandKeyedSignal(tx, plan),
     ]);
     const diff = diffGymmoPlan(plan, existing);
 
@@ -349,6 +444,7 @@ export async function applyGymmoImport(plan: GymmoImportPlan): Promise<GymmoImpo
       unchanged: diff.unchanged,
       problems: plan.problems,
       closedPeriods,
+      ...handKeyed,
     };
   });
 }

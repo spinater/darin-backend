@@ -147,6 +147,8 @@ export async function runPayroll(period: string) {
           price: c.class.price,
           booked: c.booked,
           noShow: c.noShow,
+          // Provenance, not an amount — see `ClassSessionInput.sourceKey` (card 065).
+          sourceKey: c.sourceKey,
         })),
       sales: sales
         .filter((s) => s.attributions.some((a) => a.staffId === staff.id))

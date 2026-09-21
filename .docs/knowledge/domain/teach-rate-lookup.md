@@ -94,6 +94,10 @@ screen-added activity was never "unconfigured": `teachRates.get(a)?.get("ST")` a
   so `pt` priced for PT but not ST still passes it (the slip warns); and the `0`-vs-missing engine
   boundary is task 037's pin, not this card's.
 
+⚠️ **Nothing on this card moved at ใบ 065**, which touched `lib/payroll.ts` only in the class block
+(`ClassSessionInput.sourceKey` and the ใบ 025 warning text) — recorded here because this card lists
+that file and a reader arriving from the STALE line deserves the answer without re-reading the diff.
+
 ## A deleted rate stays deleted — across deploys too (task 040)
 
 `lib/config-form.ts` deletes the `TeachRate` row when the box is blanked, and the amber note under

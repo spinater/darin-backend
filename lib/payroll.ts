@@ -20,6 +20,17 @@ export type ClassSessionInput = {
   price: number;
   booked: number;
   noShow: number;
+  /**
+   * `null` = keyed by hand at `/classes` · non-null = imported from a Gymmo file (task 063's
+   * `ClassSession.sourceKey`).
+   *
+   * 🔴 **Read in exactly one place and it moves no money** — it picks which repair the task-025
+   * warning names, nothing else. The two repairs are opposites: a hand-keyed row is deleted and
+   * re-keyed here, while deleting an **imported** row is undone by the next upload and pays the คาบ
+   * twice (card 065). A warning that names the wrong one costs more than no warning, because the
+   * reader does the damage believing they are fixing it.
+   */
+  sourceKey: string | null;
 };
 export type SaleInput = {
   id: string;
@@ -55,7 +66,7 @@ export type PayslipResult = {
  * licence for a screen-side baht preview: computing money in `app/**` is a §2 rule 2 violation
  * (`computePayslip` is the only thing that turns raw input into an amount), which is why `/ot`'s
  * `เป็นเงิน` and `/classes`'s `มูลค่า` were deleted rather than re-plumbed.
- * See `.docs/knowledge/domain/payroll-rules.md` rule 4.
+ * See `.docs/knowledge/domain/money-on-screen.md` (rule 4's screen half until the ใบ 042 split).
  */
 export const money = (n: number) => Math.round(n * 100) / 100;
 
@@ -200,9 +211,42 @@ export function computePayslip(input: {
     // and `booked 2` stands, it is at most 2 attended ⇒ **200 ฿**. The engine cannot pick between
     // them, so §2 rule 4 sends the คาบ to `warnings` — class, both counts, the negative result,
     // the price — and the human picks.
+    //
+    // 🔴 **The repair depends on where the คาบ came from, and the wrong one doubles the pay**
+    // (card 065). For a hand-keyed row, delete-and-re-key is right and `/classes` offers it. For an
+    // imported row it is a trap: `ClassSession.sourceKey` is how the next upload recognises a คาบ it
+    // has already written, so deleting the row makes that key one the file has never been seen to
+    // carry ⇒ `diffGymmoPlan` classifies it `create` and the คาบ **comes back**, beside the
+    // hand-keyed one the reader just typed. Measured on ธันยา's 4 Aug 18:00 Core Strength, which is
+    // **200 ฿** (`prisma/seed.ts`; the price table in `darin-payroll-system.md` §1.4 is the
+    // authority — 400 ฿ is Aqua Fit / Body Pump / Body Combat, and quoting it here made the example
+    // contradict the table it cites): 200 hand-keyed + 200 re-created = **400 ฿ for one 200 ฿
+    // คาบ**, every month the file is re-uploaded. The imported row's only repair is at the source
+    // (§2 rule 6).
+    //
+    // ⚠️ **Which field is corrected decides whether the repair works**, so the message names it.
+    // `sourceKey` is `[sheet, date, timeText, className]` and excludes the head counts ⇒ fixing
+    // `booked`/`noShow` in Gymmo yields an `update` and no second row. Fixing the **time or the
+    // class name** re-keys the คาบ: `diffGymmoPlan` sees a key it has never written, plans a
+    // `create`, and the original imported row survives untouched — the same double pay by another
+    // route, whose only signal is `importedInRangeNotInFile` (`payroll-auditor`, card 065).
+    //
+    // ⚠️ **The forbidden action is stated conditionally, like the screen states it** (round 5). A
+    // คาบ whose clock or class name was corrected in Gymmo is **orphaned**, never re-created, and
+    // `แก้ยอดคนแล้วนำเข้าซ้ำ` cannot clear it either — `readExisting` only looks at keys the file
+    // carries. An unconditional *ห้ามลบ* would forbid the one action that clears it and leave a red
+    // warning on the slip for ever, which is the currency §2 rule 4 is paid in.
+    //
+    // ⚠️ **A warning is stored and rendered as plain text** (`PayslipWarning.message` →
+    // `app/_components/warning-card.tsx`, `{text}` in an `<li>`), so markdown in here prints
+    // literally. Thai emphasis in a warning is “…”, never `**…**` — every other string in this file
+    // already follows that and this one briefly did not.
     if (attended < 0)
       warnings.push(
-        `คลาส ${c.className}: no-show (${c.noShow}) มากกว่าคนจอง (${c.booked}) ⇒ คนเข้าจริงติดลบ (${attended}) — §1.4 ไม่ได้ครอบคลุมกรณีนี้ จึงยังไม่คิดเงินคาบนี้ (ราคา ${c.price}) ⇒ ลบคาบนี้แล้วคีย์ใหม่ที่หน้าคาบสอนคลาส Group`,
+        `คลาส ${c.className}: no-show (${c.noShow}) มากกว่าคนจอง (${c.booked}) ⇒ คนเข้าจริงติดลบ (${attended}) — §1.4 ไม่ได้ครอบคลุมกรณีนี้ จึงยังไม่คิดเงินคาบนี้ (ราคา ${c.price}) ⇒ ` +
+          (c.sourceKey === null
+            ? `ลบคาบนี้แล้วคีย์ใหม่ที่หน้าคาบสอนคลาส Group`
+            : `คาบนี้นำเข้าจากไฟล์ Gymmo — แก้ “ยอดคน” ที่ Gymmo แล้วนำเข้าไฟล์ซ้ำ ห้ามลบที่หน้าคาบสอนคลาส Group “ถ้าไฟล์ยังมีแถวนี้อยู่” เพราะการนำเข้ารอบหน้าจะสร้างคืน · และห้ามแก้วันที่/เวลา/ชื่อคลาสในไฟล์ เพราะสามช่องนั้นคือกุญแจของคาบ แก้แล้วคาบเดิมจะค้างอยู่และได้คาบใหม่เพิ่มอีกหนึ่ง — ถ้าคาบนี้ค้างเพราะแก้ไปแล้ว ไฟล์ไม่มีแถวนี้อีก ให้ลบจากปุ่ม “ลบทั้งที่นำเข้ามา” ที่หน้าคาบสอนคลาส Group`),
       );
     const ratio = attended <= 0 ? 0 : attended < minAtt ? halfRatio : 1;
     const amount = money(c.price * ratio);

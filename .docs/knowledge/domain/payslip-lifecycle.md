@@ -104,6 +104,11 @@ out and dropped it — the invariant held inside the engine and was violated one
   it rides 009's surface
   (`PayslipWarning` → count column + banner on `/payslips` → `WarningCard`).
 
+⚠️ **ใบ 065 added one field to what the run hands the engine** — `classSessions[].sourceKey`, read
+straight off the row. It selects the repair the ใบ 025 class warning names and **moves no amount**;
+see [payroll-rules.md](payroll-rules.md) rule 3. Nothing about who a run selects, what it locks or
+what a recompute rebuilds changed.
+
 ## Where a warning is shown — and what is not a `PayslipWarning`
 
 - **Rendered above the amounts** on both payslip screens, never below, and never collapsed —

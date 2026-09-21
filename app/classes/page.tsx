@@ -5,7 +5,10 @@ import { db } from "@/lib/db";
 import { periodRange } from "@/lib/payroll-run";
 import { num, type Config } from "@/lib/config-keys";
 import { finiteNumber, isBlank, INT_COLUMN_MAX } from "@/lib/form-number";
+import { listClassImportProblems } from "@/lib/class-problems-run";
 import { SubmitButton } from "@/app/_components/submit-button";
+import { ImportProblems } from "./_components/import-problems";
+import { SessionTable } from "./_components/session-table";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +24,7 @@ export default async function ClassesPage({
   const period = periodParam ?? new Date().toISOString().slice(0, 7);
   const { from, to } = periodRange(period);
 
-  const [rows, classes, trainers, cfg] = await Promise.all([
+  const [rows, classes, trainers, cfg, problems] = await Promise.all([
     db.classSession.findMany({
       where: { date: { gte: from, lt: to } },
       include: { class: true, staff: true },
@@ -32,6 +35,9 @@ export default async function ClassesPage({
     db.payrollConfig.findMany({
       where: { key: { in: ["class.minAttendees", "class.halfRatio"] } },
     }),
+    // 🔴 Through `lib/class-problems-run.ts`, never `db.classImportProblem` from here — that model's
+    // reads have one home (task 064), and this page is the caller it was written to expect.
+    listClassImportProblems(),
   ]);
 
   // 🔴 Read these with `num()`, the engine's own helper — never `?? 3` / `?? 0.5`
@@ -94,7 +100,35 @@ export default async function ClassesPage({
   async function del(formData: FormData) {
     "use server";
     await requireAdmin();
-    await db.classSession.delete({ where: { id: String(formData.get("id")) } });
+    const id = String(formData.get("id"));
+
+    // 🔴 **An imported คาบ is not deletable here, and hiding the button is not the guard** — this is
+    // (card 065). `ClassSession.sourceKey` is how the next upload recognises a คาบ it has already
+    // written, so a deleted key is a key the file has never been seen to carry ⇒ `diffGymmoPlan`
+    // plans it as a `create` and the คาบ comes back, beside whatever was keyed by hand to replace
+    // it: 4 Aug 18:00 Core Strength is **200 ฿** (§1.4's price table, `prisma/seed.ts`) ⇒ **200 +
+    // 200 = 400 ฿ for one 200 ฿ คาบ**, every month the same file is re-uploaded. The
+    // repair is at the source (§2 rule 6), which is what `SessionTable` says in place of the button.
+    //
+    // ⚠️ **Not a race.** A hand-keyed row can never acquire a `sourceKey` — `applyGymmoImport` only
+    // ever does `createMany` or `update where: { sourceKey }`, so nothing writes `null → non-null` on
+    // an existing row. The refusal is here because a **server action accepts any `id` posted to it**,
+    // button or no button: the table's `<form>` is copy, this is the guard.
+    //
+    // 🔴 **Refused by default, never unconditionally** (`payroll-auditor`, round 4). The re-creation
+    // argument holds only while the **file still carries that key** — `diffGymmoPlan` plans a
+    // `create` for keys *in the file*, so a row whose time or class name was corrected in Gymmo is
+    // orphaned rather than re-created, and this is the repo's only `classSession.delete`. Refusing it
+    // outright left ธันยา's stale 18:00 คาบ with no repair anywhere: class value 8,050 → 8,250 ⇒
+    // `classPay` **3,050 → 3,250 ฿, 200 ฿ overpaid every run, for ever**. The second, explicit post
+    // from the table's disclosure is the decision §2 rule 4 asks for; the ordinary delete `<form>`
+    // does not carry it, so one click can still never do this.
+    const row = await db.classSession.findUnique({ where: { id }, select: { sourceKey: true } });
+    if (!row) redirect(`/classes?period=${encodeURIComponent(period)}&err=gone`);
+    if (row.sourceKey !== null && formData.get("confirm") !== "imported")
+      redirect(`/classes?period=${encodeURIComponent(period)}&err=imported`);
+
+    await db.classSession.delete({ where: { id } });
     revalidatePath("/classes");
     // Clean URL like `add`: deleting a row while `?err=booked` is in the address bar would leave
     // "คาบนี้ยังไม่ถูกบันทึก" standing over a delete that did happen.
@@ -165,6 +199,22 @@ export default async function ClassesPage({
           “no-show” หรือเว้นว่างไว้ถ้าไม่มีใครขาด แล้วบันทึกอีกครั้ง
         </p>
       )}
+      {err === "imported" && (
+        <p className="card-warn text-sm">
+          ⚠️ คาบนี้<b>นำเข้าจากไฟล์ Gymmo</b> จึงไม่ลบด้วยคลิกเดียว — <b>ไม่มีอะไรถูกลบ</b>{" "}
+          ถ้าไฟล์ยังมีแถวนี้อยู่ การนำเข้ารอบหน้าจะ<b>สร้างคืน</b>แล้ว<b>จ่ายซ้ำ</b> ⇒ แก้{" "}
+          <b>ยอดคน</b> ที่ Gymmo แล้วนำเข้าไฟล์ซ้ำแทน · <b>ห้ามแก้วันที่ เวลา หรือชื่อคลาสในไฟล์</b>{" "}
+          — สามช่องนั้นคือกุญแจของคาบ แก้แล้วคาบเดิมจะค้างอยู่และได้คาบใหม่เพิ่มอีกหนึ่ง ·
+          <b>ถ้าคาบนี้ค้างเพราะไฟล์ไม่มีแถวนี้แล้ว</b> ลบได้จากปุ่ม “ลบทั้งที่นำเข้ามา”
+          ในตารางข้างล่าง
+        </p>
+      )}
+      {err === "gone" && (
+        <p className="card-warn text-sm">
+          ⚠️ ไม่พบคาบนี้แล้ว (อาจถูกลบไปก่อนหน้าจากอีกแท็บ) — <b>ไม่มีอะไรถูกลบเพิ่ม</b>{" "}
+          โหลดหน้านี้ใหม่เพื่อดูของจริง
+        </p>
+      )}
       {err === "noShowOverBooked" && (
         <p className="card-warn text-sm">
           ⚠️ จำนวน no-show มากกว่าคนจอง ⇒ คนเข้าจริงติดลบ ซึ่งไม่อยู่ในกติกาคิดเงินคลาส —{" "}
@@ -172,37 +222,20 @@ export default async function ClassesPage({
         </p>
       )}
 
-      <table className="card w-full">
-        <thead>
-          <tr>
-            {["วันที่", "คลาส", "ผู้สอน", "จอง", "no-show", "เข้าจริง", ""].map((h) => (
-              <th key={h} className="th">
-                {h}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.id}>
-              <td className="td">{r.date.toISOString().slice(0, 10)}</td>
-              <td className="td">{r.class.name}</td>
-              <td className="td">{r.staff.name}</td>
-              <td className="td">{r.booked}</td>
-              <td className="td">{r.noShow}</td>
-              <td className="td">{r.booked - r.noShow}</td>
-              <td className="td">
-                <form action={del}>
-                  <input type="hidden" name="id" value={r.id} />
-                  <SubmitButton className="btn-ghost" pendingLabel="กำลังลบ…">
-                    ลบ
-                  </SubmitButton>
-                </form>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <ImportProblems rows={problems} />
+
+      <SessionTable
+        rows={rows.map((r) => ({
+          id: r.id,
+          date: r.date,
+          className: r.class.name,
+          staffName: r.staff.name,
+          booked: r.booked,
+          noShow: r.noShow,
+          sourceKey: r.sourceKey,
+        }))}
+        del={del}
+      />
     </div>
   );
 }

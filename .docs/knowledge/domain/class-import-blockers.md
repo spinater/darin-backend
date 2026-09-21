@@ -11,6 +11,14 @@ sources:
   # The two screens that render the number — from the same function, or they disagree.
   - app/payslips/page.tsx
   - app/page.tsx
+  # ใบ 065: the screen the two counts above link to. It renders `listClassImportProblems()` and is
+  # the one place `accountedFor` decides whether a stored `reason` may be printed at all.
+  - app/classes/_components/import-problems.tsx
+  # ใบ 065 round 2: the exit and the *"คาบอยู่ไหน"* text as a pure `(kind, state)` grid, pinned at 7
+  # (`scripts/junit-pins.txt` is the authority; round 3 added the `problemIsCleared` arms).
+  # The card's three states and the "what never clears" list below ARE its contents.
+  - lib/class-problems-copy.ts
+  - lib/class-problems-copy.test.ts
 ---
 
 # The run blockers — the `/payslips` count, and what never clears
@@ -70,9 +78,32 @@ open period**. So:
 - a คาบ written into a **closed** period stays **counted** until the slip is reopened — the count
   re-checks `readClosedByStaff` live, so reopening the slip drops it immediately. ⚠️ **The stored row and
   its reason survive until the file is re-uploaded**: `deleteMany` runs only inside `applyGymmoImport`.
-  Invisible today, but the hour 065 renders the queue it is a screen asserting that paid money is
-  unpaid — so 065 must render every `"session"` row through the **same** `readClosedByStaff` check the
-  count uses and must never print the stored `reason` raw (written into card 065);
+  Invisible until ใบ 065 rendered the queue; printed raw it would be a screen asserting that paid
+  money is unpaid. ✅ **Closed there by `readProblemStates`** — one private helper in
+  `lib/class-problems-run.ts` that both the count and `listClassImportProblems` call, so the number
+  and the table cannot drift. 🔴 **It answers in three states, not two, and the middle one is why**
+  (the review round's BLOCK): `"missing"` the คาบ is not in the database · `"closedSlip"` it **is**,
+  on a closed slip · `"accountedFor"` it is, on an open slip. The count excludes `"accountedFor"`
+  **and nothing else**, so the number is unchanged; what the third state buys is the screen. A
+  boolean put `"missing"` and `"closedSlip"` in one bucket under one sentence — *"ไม่มีอยู่ในฐานข้อมูล
+  ⇒ แก้ต้นทางแล้วนำเข้าซ้ำ"* — and for a closed-slip row that is wrong twice: the re-upload writes into
+  a still-closed period so the row does not move, and an admin told the คาบ is absent keys it in by
+  hand ⇒ a second row beside the imported one ⇒ **ประพัฒน์'s 8,000 ฿ paid twice**, the ใบ 065 trap
+  through its other door. `lib/class-problems-copy.ts` turns `(kind, state)` into the exit and the
+  *"คาบอยู่ไหน"* text — pure, so every cell is pinned — and `import-problems.tsx` renders it, listing
+  `"accountedFor"` rows **apart and without their stored `reason`**. 🔴 **`"duplicate"` keys are looked
+  up too but are never excluded from the count**: their คาบ may sit at the *wrong* head count (stored
+  5/3 ⇒ 200 ฿ against the file's 9/0 ⇒ 400 ฿), so the screen must not say *"ไม่เขียนทั้งคู่"* — believing
+  that and keying it by hand is 200 + 400 = 600 ฿ for one 400 ฿ คาบ — while the exclusion stays keyed
+  on `kind === "session"` so that same existence buys nothing. 🔴 **That predicate is
+  `problemIsCleared` and it has one home** — the count and the table both call it. Written twice, they
+  disagreed about that one cell for a whole review round: the row was **counted as blocking and
+  displayed as resolved**, so a period whose only problem was such a row read *"1 คาบ"* on `/payslips`
+  and **`ไม่มีแถวค้าง`** on the screen it links to — 200 ฿ against 400 ฿ on an Aqua Fit whose head
+  count the file disputes, with the queue row the only artefact that said so. ⚠️ **`"closedSlip"` cannot tell
+  "never paid" from "already paid, stale row"**, so its exit says to check the slip's figure first: a
+  recompute reads **today's** config, and Core Strength 200 → 250 turns a 3,050 ฿ transfer into a
+  3,150 ฿ slip with nothing recording the gap;
 - a **stale reason** can be stranded on an `unchanged` + closed key, and `closedSlipOutcome` leaves it
   there deliberately. It needs a row recorded **while the `ClassSession` already existed**: delete a
   `TrainerAlias`, re-upload (the key needs no alias, so it is unchanged), get a *"ไม่รู้จักเทรนเนอร์"* row
@@ -92,6 +123,9 @@ its meaning. Nothing is auto-deleted in the meantime: a TTL would be this card's
 
 ⚠️ **The transaction is reviewed, not pinned** — no test in this repo reaches a database
 ([../ops/gate-tiers-and-pins.md](../ops/gate-tiers-and-pins.md)) — and **nothing calls
-`applyGymmoImport` yet**: the upload screen is ใบ 063 item 4, and `/classes` renders none of this until
-[065](../../../tasks/todo/065-deleting-an-imported-class-session-is-undone-by-the-next-import.md), so
-the `/payslips` warning currently links to a screen that does not yet list the rows.
+`applyGymmoImport` yet**: the upload screen is ใบ 063 item 4. 🔑 `/classes` **does** list these rows
+since ใบ 065, so the `/payslips` link now lands on the reasons it promises; `readProblemStates` is the
+same reason the table stays empty until a row is genuinely unaccounted for. ⚠️ **The table is every
+month while the `/payslips` count is one งวด** — `listClassImportProblems` is not period-scoped because
+a row's `date` can be `null` and such a row belongs to no month anybody can name; the heading says so
+rather than leaving two near-identical numbers one click apart to be inferred.

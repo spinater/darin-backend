@@ -174,6 +174,37 @@ export function gymmoSourceKey(
   ]);
 }
 
+/** The four parts of a `sourceKey`, decoded back out of it. */
+export type GymmoKeyParts = { sheet: string; date: string; timeText: string; className: string };
+
+/**
+ * `gymmoSourceKey`'s inverse — **the only reader of that tuple's shape**, beside the builder above so
+ * the two cannot drift (card 065 round 5).
+ *
+ * 🔴 **It exists because two imported คาบ of one day are indistinguishable on screen otherwise.**
+ * `ClassSession` stores the UTC calendar day with **no clock** (the schema comment says why), so
+ * ธันยา's 4 Aug Core Strength at 18:00 and the same คาบ re-keyed to 18:30 render byte-identically on
+ * `/classes` — same date, class, trainer and head counts. The clock lives only inside `sourceKey`.
+ * Asking an admin to delete "the one the file no longer has" without showing it is a coin flip, and
+ * the wrong half puts the row back on the next upload: class value 8,050 → 8,250 ⇒ `classPay`
+ * **3,050 → 3,250 ฿ every run**, with a two-click confirmation saying it was fixed.
+ *
+ * `null` rather than a throw for anything that is not a 4-tuple of strings: the caller is a table
+ * cell, and a key written by an older shape must degrade to "no clock shown", never to a 500.
+ */
+export function decodeGymmoSourceKey(key: string): GymmoKeyParts | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(key);
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(parsed) || parsed.length !== 4) return null;
+  if (!parsed.every((p) => typeof p === "string")) return null;
+  const [sheet, date, timeText, className] = parsed as string[];
+  return { sheet, date, timeText, className };
+}
+
 /**
  * Plan what one loaded export would write. **No DB, no clock, no env** — the lookups are passed in.
  *
@@ -339,7 +370,7 @@ export function diffGymmoPlan(
 /**
  * The UTC day range the plan writes into, as `[from, to)` — `null` when it writes nothing.
  *
- * Used by the two counts in `lib/gymmo-import-run.ts` that no constraint can produce: the คาบ in
+ * Used by the two signals in `lib/gymmo-import-run.ts` that no constraint can produce: the คาบ in
  * this range keyed **by hand** (`sourceKey` is null, and a null is exempt from `@unique`, so an
  * import can add a second row for a session somebody already keyed — and `computePayslip` pays
  * both), and the คาบ in this range already **imported** whose key this file does not carry.

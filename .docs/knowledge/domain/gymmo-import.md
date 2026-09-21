@@ -10,6 +10,10 @@ sources:
   - lib/gymmo-map.ts
   # The planner: `gymmoSourceKey`, the duplicate rule, the diff. Every decision on this path.
   - lib/gymmo-import.ts
+  # Preview signal 1's duplicate heuristic — its own leaf module since ใบ 065 (§4: the planner was
+  # at 452/500 with it inside).
+  - lib/gymmo-hand-keyed.ts
+  - lib/gymmo-hand-keyed.test.ts
   # The I/O half — the one transaction, and the hand-keyed-row count that no constraint can catch.
   - lib/gymmo-import-run.ts
   # The pin on all of it, including the collision pair and the 3,050 arm.
@@ -83,6 +87,13 @@ sheet `โอ`                           · 2026-08-01 · 07:15 · `Aqua Fit|202
 JSON is injective because it is **decodable** — `JSON.parse(key)` returns the exact tuple — and that
 round-trip is what the first test asserts, not the string's shape.
 
+⚠️ **`decodeGymmoSourceKey` is the tuple's only reader and lives beside the builder** (ใบ 065 round 5).
+`/classes` shows the decoded `timeText` and raw class name in its `ที่มา` column, because
+`ClassSession` has no clock ⇒ 18:00 and 18:30 of one class on one day differ in **no** rendered cell,
+and the screen asks an admin to choose between them when deleting an orphaned import. Round-tripped
+against `gymmoSourceKey` itself, never against a literal; anything that is not a 4-tuple of strings
+decodes to `null` and the cell degrades to "no clock shown".
+
 ## What reaches the screen instead of being decided
 
 `planGymmoImport` is **pure** (no DB, no clock, no env — same rule and same reason as
@@ -127,9 +138,22 @@ keyed; and **changing `normalizeTrainer` now re-keys two tables, not one**.
 
 None can be refused by a constraint, and each one is money:
 
-1. 🔴 **`handKeyedInRange`** — a คาบ keyed by hand and the same คาบ imported are **two rows**.
+1. 🔴 **`handKeyedMatches`** — a คาบ keyed by hand and the same คาบ imported are **two rows**.
    `sourceKey` is null for the hand-keyed one, a null is exempt from `@unique`, and `computePayslip`
-   pays both. The import cannot tell a duplicate from a different session, so it counts them.
+   pays both. The import cannot tell a duplicate from a different session, so it **names the pairs**
+   and the human decides. ⚠️ **ใบ 065 turned this from a count into a list**: `handKeyedInRange`
+   counted the whole `[min, max]` span — nine months for a Jan–Sep upload — and *"12 hand-keyed
+   คาบ"* beside *"431 new"* leaves only *confirm blind* or *abandon*. `gymmoHandKeyedMatches`
+   (`lib/gymmo-hand-keyed.ts`, which carries the full reasoning) keeps the rows a planned write lands
+   on, matched `(UTC day, staffId, classId)`, with `fileRows` = how many คาบ of the file share that
+   triple. 🔴 **That triple is a heuristic and must never become an import key** — the ⛔ at the top
+   of this card: `ClassSession` holds the day with no clock, so 07:15 and 09:00 collapse onto it.
+   🔴 **The list is narrower than the count, so the residual is reported beside it**
+   (`handKeyedUnmatchedInRange`): a match needs `staffId` **and** `classId` to agree, and a คาบ on
+   ธันยา's sheet keyed by hand under ประพัฒน์, who actually taught it, misses the triple — 200 ฿ paid
+   twice, one on each of two slips, neither wrong on its own. ⚠️ **Signal 1 is on the result too,
+   re-read inside the transaction** (`readHandKeyedSignal`), for the same race as `closedPeriods`:
+   a คาบ keyed by hand between preview and confirm is otherwise written twice with no record.
 2. **`importedInRangeNotInFile`** — the mirror: rows in the range already imported whose key this file
    does **not** carry. 0 on a first import and 0 on a re-upload; a whole month appearing here is the
    only screen-side signal that a `sourceKey` has moved (a trainer or a class renamed in Gymmo), which
@@ -158,8 +182,9 @@ Split out at the fix round (this card hit 195/200): the six `TrainerAlias` rows,
 prices, the `baseSalary`/`classCredit` pair and the three questions nobody has answered are
 [gymmo-import-data.md](gymmo-import-data.md), whose one source is `prisma/seed.ts`. Read it before
 adding a row to that fixture; read this one before touching a key or a write. **What is not proven
-yet** lives there too, and the short version is: **nothing calls either module** — there is no upload
-screen (ใบ 063 item 4), so no role check exists to review — and **no test here touches a database**, so
+yet** lives there too, and the short version is: **nothing calls these modules** — there is no upload
+screen (ใบ 063 item 4), so no role check exists to review — though `/classes` now renders the problem
+queue and refuses a delete on an imported row ([class-import-blockers.md](class-import-blockers.md)) — and **no test here touches a database**, so
 the transaction itself is reviewed rather than pinned
 ([../ops/gate-tiers-and-pins.md](../ops/gate-tiers-and-pins.md)).
 

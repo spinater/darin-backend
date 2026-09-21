@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { GymmoReadProblem, GymmoRow } from "./gymmo";
 import {
+  decodeGymmoSourceKey,
   diffGymmoPlan,
   gymmoPlanRange,
   gymmoSourceKey,
@@ -431,6 +432,8 @@ describe("ธันยา ส.ค. 2026 — the plan reaches 3,050 through the e
         price: PRICE_OF[w.classId],
         booked: w.booked,
         noShow: w.noShow,
+        // Imported, exactly as `runPayroll` reads it back off the row this plan writes.
+        sourceKey: w.sourceKey,
       })),
     });
     const classValue = r.lines
@@ -439,5 +442,37 @@ describe("ธันยา ส.ค. 2026 — the plan reaches 3,050 through the e
     expect(classValue).toBe(8050);
     expect(r.classPay).toBe(3050);
     expect(r.warnings).toEqual([]);
+  });
+});
+
+describe("ถอดคีย์กลับ (ใบ 065 รอบ 5)", () => {
+  // 🔴 Round-trip against the **builder**, not against a literal: the screen shows a clock decoded
+  // from this tuple so an admin can tell 18:00 from 18:30 before deleting one of them, and a decoder
+  // that drifted from `gymmoSourceKey` would print the wrong field with total confidence. Deleting
+  // the wrong half of that pair is 200 ฿/month restored by the next upload, with a two-click
+  // confirmation saying it was fixed.
+  test("decodeGymmoSourceKey คืนสี่ช่องเดิมของ gymmoSourceKey ทุกช่อง", () => {
+    const r = row({ trainerSheet: "ธันยา มูลละคร (Deleted)" });
+    const parts = decodeGymmoSourceKey(gymmoSourceKey(r));
+    expect(parts).not.toBeNull();
+    expect(parts?.timeText).toBe("18:00");
+    expect(parts?.className).toBe("Core Strength");
+    expect(parts?.date).toBe("2026-08-04");
+    // The sheet half is the normalized name, never the raw one — the same asymmetry the builder
+    // documents, asserted here so a reader of the table knows which of the two it shows.
+    expect(parts?.sheet).toBe(normalizeTrainer("ธันยา มูลละคร"));
+  });
+
+  test("คีย์ที่ไม่ใช่ทูเพิลสี่ช่องของสตริง ⇒ null ไม่ throw", () => {
+    for (const bad of [
+      "",
+      "not json",
+      "{}",
+      '"x"',
+      "[1,2,3,4]",
+      '["a","b","c"]',
+      '["a","b","c","d","e"]',
+    ])
+      expect(decodeGymmoSourceKey(bad)).toBeNull();
   });
 });

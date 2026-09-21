@@ -8,6 +8,10 @@ sources:
   # now that task 011 deleted `มูลค่า` ⇒ re-adding a `?? 3` fallback (or a derived column) must go
   # STALE instead of leaving this card advertising a ratio the engine no longer agrees with.
   - app/classes/page.tsx
+  # ใบ 065 moved the คาบ table out of that page and into this component, and this card states that
+  # nothing in it is derived (only the stored `ที่มา` flag was added) ⇒ re-adding a `มูลค่า` column
+  # has to land here as STALE, exactly as it would have before the move.
+  - app/classes/_components/session-table.tsx
   # Rule 4's named residue: this screen still *sums* already-rounded `Payslip.net` in the page
   # (task 019). Closing 019 must land here rather than leave the card naming a hazard that is gone.
   # The screen's other half — `setStatus` as the second half of the status lock — belongs to
@@ -44,6 +48,12 @@ than give the duplication a shared seam: `/ot` now shows `ชั่วโมง`
 `วันที่`/`คลาส`/`ผู้สอน`/`จอง`/`no-show`/`เข้าจริง` plus the delete column, with no derived amount
 left in it. `money()` stays exported from `lib/payroll.ts` but as of 011 has **no caller outside
 that file**.
+
+⚠️ **ใบ 065 added a `ที่มา` column to that table** (`คีย์เอง` / `นำเข้าจาก Gymmo`, read off
+`ClassSession.sourceKey`) and moved the table into `app/classes/_components/session-table.tsx`. It is
+provenance, not an amount: no rate, threshold or percentage is applied, and the rule above is
+unchanged — the add-form's `<option>` still shows the stored `({c.price})` and nothing else on the
+screen is derived.
 
 ## The line is *computed* vs *displayed*, not "no baht on screen"
 
