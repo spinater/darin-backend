@@ -38,4 +38,6 @@ Card ยาว 40–120 บรรทัด (**เตือนที่ 170 · �
 | [domain/teach-rate-lookup.md](domain/teach-rate-lookup.md) | หาเรทค่าสอนยังไง: `buildTeachRates` เป็น `Map` · ชื่อกิจกรรมกับเรทเป็นคนละเรื่อง · ทำไม `__proto__` กับเรท 0 เคยจ่ายเงียบ |
 | [domain/money-input-guards.md](domain/money-input-guards.md) | ตัวเลขที่มาจากฟอร์ม: `finiteNumber`/`isBlank` · 5 action ที่ปฏิเสธก่อนเขียน · รูปแบบ `?err=` ที่ใช้ร่วมกัน |
 | [domain/gymmo-import.md](domain/gymmo-import.md) | กลไกนำคาบจากไฟล์ Gymmo ลง `ClassSession`: `sourceKey` เข้ารหัสแบบชนกันไม่ได้และ normalize ชื่อครูเหมือนชั้นที่จับคู่ · แถวซ้ำในไฟล์เดียวกัน · สามอย่างที่หน้ายืนยันต้องโชว์ก่อนเขียน |
+| [domain/class-import-queue.md](domain/class-import-queue.md) | ที่อยู่ของแถว Gymmo ที่ไม่ได้กลายเป็นคาบ: `ClassImportProblem` · คีย์สามทรงแยกกันด้วยจำนวนสมาชิก · ลบ-แล้ว-ใส่ในทรานแซกชันเดียวกับคาบ (ตัวนับแยกไปการ์ดข้างล่าง) |
+| [domain/class-import-blockers.md](domain/class-import-blockers.md) | ตัวเลขที่กั้นการคิดเงินเดือน: `runBlockers` สองตัวเลขไม่รวมกัน · กฎการยกเว้นของตัวนับ · แถวที่ไม่มีทางหายเอง และแถวที่นับหายแต่เหตุผลยังค้าง |
 | [domain/gymmo-import-data.md](domain/gymmo-import-data.md) | ข้อมูลที่เส้นทางนั้นต้องมีในฐาน: alias 6 แถว · ราคาคลาส 5 แถว · คู่ ฐานเงินเดือน/เครดิตสอนคลาส · และอะไรที่ยังไม่ได้พิสูจน์ |

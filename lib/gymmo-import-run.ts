@@ -29,6 +29,8 @@
  * action; the second plan is also the more honest one, since the lookup tables may have changed
  * while the human was reading the preview.
  */
+import { closedSlipOutcome, gymmoProblemRows, utcPeriodOf } from "./class-problems";
+import { readClosedByStaff } from "./class-problems-run";
 import { db } from "./db";
 import {
   diffGymmoPlan,
@@ -246,13 +248,24 @@ export type GymmoImportResult = {
  * a second paid คาบ would not be.
  */
 export async function applyGymmoImport(plan: GymmoImportPlan): Promise<GymmoImportResult> {
-  if (!plan.writes.length)
+  // 🔴 **Both lists, not just `writes` — and this guard is the whole of task 064's exposure.** It
+  // used to read `if (!plan.writes.length)`, which is precisely the measured 064 case: an export
+  // where every คาบ is a `Pilates Flow` with no `ClassPrice` plans **zero** writes and ~20 problems,
+  // so the persistence below would never have run in the exact scenario the card was written for.
+  // Entering the transaction with an empty plan is safe: `readExisting` asks `in: []`, and both
+  // `readClosedPeriods` and `readClosedByStaff` return before querying on an empty list, so nothing but
+  // the problem rows is touched.
+  if (!plan.writes.length && !plan.problems.length)
     return { created: 0, updated: 0, unchanged: 0, problems: plan.problems, closedPeriods: [] };
 
   return db.$transaction(async (tx) => {
-    const [existing, closedPeriods] = await Promise.all([
+    const [existing, closedPeriods, closedByStaff] = await Promise.all([
       readExisting(tx, plan),
       readClosedPeriods(tx, gymmoPlanPeriods(plan)),
+      readClosedByStaff(
+        tx,
+        plan.writes.map((w) => ({ staffId: w.staffId, period: utcPeriodOf(w.date) })),
+      ),
     ]);
     const diff = diffGymmoPlan(plan, existing);
 
@@ -272,6 +285,63 @@ export async function applyGymmoImport(plan: GymmoImportPlan): Promise<GymmoImpo
           noShow: w.noShow,
         },
       });
+
+    // ── task 064: the problem queue, written in the SAME transaction as the คาบ ──────────────────
+    //
+    // 🔑 **Delete-then-insert over `writes ∪ current problems`, keyed — never a date range.** The
+    // `writes` half is the clearing: a key that now imports cleanly loses its `ClassImportProblem`
+    // row in the same transaction that creates its `ClassSession`, with no manual step, because
+    // `GymmoProblem.key` for such a row **is** `gymmoSourceKey(row)` (`lib/gymmo-import.ts`). The
+    // `problems` half makes a *changed* reason replace the old one instead of colliding with it.
+    //
+    // ⛔ A range-based delete was rejected: it discards a still-true problem for a คาบ that a
+    // narrower export simply does not mention — the same silent loss `importedInRangeNotInFile`
+    // above exists to catch.
+    //
+    // 🔑 **Atomicity direction, deliberately.** If this insert fails the whole import rolls back and
+    // no คาบ are written. คาบ written while their problem list failed to persist is exactly the
+    // silent-money failure task 064 closes; nothing written is loud, and the admin retries.
+    //
+    // Cost: two extra set-based statements, so the 5 s interactive budget argument in this file's
+    // header is unchanged (per-row cost is still `diff.update` only). Postgres allows 65535 bind
+    // parameters per statement ⇒ safe to ~60k keys / ~8k rows; measured scale ~180. No chunking.
+    // 🔴 **A written คาบ is not always a paid คาบ — and an UNCHANGED one is not a written คาบ.**
+    // `closedSlipOutcome` owns that whole decision (its doc comment has the four cases and the two
+    // measured failures, 8,000 ฿ in one direction and 24 false rows in the other). Both inputs come
+    // from data already in hand: `written` is `diff.create ∪ diff.update`, and `writeRefs` is
+    // index-parallel to `writes` (`GymmoImportPlan`), which is what pairs a ref's display columns with
+    // that write's `staffId` — the one field a problem row needs to ask "is **this** คาบ's slip closed"
+    // and deliberately does not store.
+    const written = new Set([...diff.create, ...diff.update].map((w) => w.sourceKey));
+    const closed = closedSlipOutcome(
+      plan.writeRefs.map((ref, i) => ({
+        ref,
+        staffId: plan.writes[i].staffId,
+        written: written.has(plan.writes[i].sourceKey),
+      })),
+      closedByStaff,
+    );
+    const problemRows = gymmoProblemRows([...plan.problems, ...closed.problems]);
+    // 🔴 **`leaveAlone` is subtracted from the delete set, not merely from the inserts.** Those are the
+    // `unchanged` + closed-slip keys: nothing was written for them this time, so a closed slip beside
+    // them most likely *paid* them. Deleting the key while not re-inserting would destroy a **true**
+    // closed-slip row an earlier import recorded — trading a false positive for a false negative, in
+    // the money direction. Keeping the key out of `touched` leaves such a row exactly as found and
+    // manufactures nothing. (A write key is never also a problem key in one plan: a row either resolves
+    // and is written, or is refused, and the duplicate rule drops both copies from `writes`.)
+    const leaveAlone = new Set(closed.leaveAlone);
+    const touched = [
+      ...plan.writes.map((w) => w.sourceKey).filter((k) => !leaveAlone.has(k)),
+      ...problemRows.map((r) => r.key),
+    ];
+    await tx.classImportProblem.deleteMany({ where: { key: { in: touched } } });
+    // ⚠️ **No `skipDuplicates` here, deliberately — unlike the `createMany` above.** That one absorbs
+    // a racing import because the alternative is paying a คาบ twice. Here it is the opposite: two
+    // admins importing overlapping files would both delete-then-insert the same key, and a P2002 that
+    // rolls the whole import back is the **loud** outcome. `skipDuplicates` would keep the loser's
+    // stale reason while reporting success — a money warning that silently contradicts the คาบ beside
+    // it. Nothing written is a state the admin retries; a wrong reason is not.
+    if (problemRows.length) await tx.classImportProblem.createMany({ data: problemRows });
 
     return {
       created: diff.create.length,

@@ -44,10 +44,59 @@ export type GymmoRow = {
   lateCancel: number;
 };
 
+/**
+ * One thing this reader could not read. Never thrown away silently.
+ *
+ * 🔑 **Structured, not a rendered sentence, since task 064** — because it now has to be *stored*.
+ * A problem that outlives the request has to be keyed (`readProblemKey` in
+ * `lib/class-problems.ts`); splitting the sentence back apart on its first `": "` was the hack that
+ * made it possible before, and a sheet name containing `": "` split early. The label and the full
+ * sentence are rebuilt from these fields (`readProblemLabel`), byte-identically to what this module
+ * used to emit.
+ *
+ * ⚠️ **This module still does not know what a `ClassImportProblem` is** — it is pure and knows
+ * nothing about staff, prices, money or storage. It reports fields; another module keys them.
+ */
+export type GymmoReadProblem = {
+  /** The sheet this was read from. For a whole-sheet reject it is all the identity there is. */
+  sheetName: string;
+  /**
+   * The `#` cell **verbatim**, `""` included — it is part of the stored key, so it may not be
+   * defaulted here. `null` means the problem is the **whole sheet**, not a row in it, and that
+   * distinction is what keeps a sheet-level key (`["ชีต"]`) apart from a blank-`#` row key.
+   */
+  rowText: string | null;
+  /**
+   * The `Date & Time` cell **verbatim**, exactly as printed, whether or not it parsed.
+   *
+   * 🔴 **It is in the key because `#` is not an identity across exports** (task 064 fix round).
+   * Gymmo's `#` is a per-sheet running number that **restarts in every export**, so "sheet ประพัฒน์
+   * row 14" names one คาบ in the August file and a different one in the September file. Keyed on
+   * `[sheet, "14"]` alone, uploading the second file would `deleteMany` the first file's still-true
+   * problem and replace it with an unrelated row's — T3's silent loss reached through a key that is
+   * not an identity rather than through a date range. The raw cell is the one thing on a rejected
+   * row that names *which* คาบ even when it cannot be parsed. `null` for a whole-sheet reject.
+   */
+  rawWhen: string | null;
+  /**
+   * The UTC calendar day, when the reader got far enough to have one — `parseGymmoWhen` succeeds
+   * before the `Type`, the counts and the class name are looked at, so three of the four row
+   * rejects **do** know their date and only an unreadable `Date & Time` genuinely does not.
+   *
+   * 🔴 It is here so a stored problem can be **period-scoped**. `null` is counted in *every* period
+   * (copying `pendingReviewInPeriod`), and under the no-dismissal default that is permanent ⇒
+   * defaulting this to `null` for rows whose date was perfectly readable is how one bad cell in
+   * August blocks every month for ever, which is what teaches an admin to ignore the count.
+   */
+  date: Date | null;
+  /** The Thai sentence, **without** the `"<label>: "` prefix the label rebuilds. */
+  reason: string;
+};
+
 export type GymmoParse = {
   rows: GymmoRow[];
-  /** One line per row that could not be read, naming sheet and row. Never thrown away silently. */
-  problems: string[];
+  /** One entry per row (or sheet) that could not be read. Never thrown away silently. */
+  problems: GymmoReadProblem[];
 };
 
 const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
@@ -115,10 +164,21 @@ function isHeader(cells: string[]): boolean {
  */
 export function parseGymmoGrids(grids: RawGrid[]): GymmoParse {
   const rows: GymmoRow[] = [];
-  const problems: string[] = [];
+  const problems: GymmoReadProblem[] = [];
 
   for (const grid of grids) {
     let seenHeader = false;
+    /**
+     * `rowText` and `rawWhen` are the two cells verbatim — `""` is kept, because together they are
+     * this row's stored key. `date` is passed whenever the reader already has it, which is every
+     * branch below the `parseGymmoWhen` check.
+     */
+    const reject = (
+      rowText: string | null,
+      rawWhen: string | null,
+      date: Date | null,
+      reason: string,
+    ) => problems.push({ sheetName: grid.sheetName, rowText, rawWhen, date, reason });
     for (const raw of grid.rows) {
       const cells = raw.map((c) => String(c.f ?? c.v ?? "").trim());
       if (cells.every((c) => c === "")) continue;
@@ -128,29 +188,41 @@ export function parseGymmoGrids(grids: RawGrid[]): GymmoParse {
       }
       if (!seenHeader) continue; // anything above the header is not data
 
-      const where = `${grid.sheetName} แถว ${cells[0] || "?"}`;
-      const when = parseGymmoWhen(cells[1] ?? "");
+      const rowText = cells[0] ?? "";
+      const rawWhen = cells[1] ?? "";
+      const when = parseGymmoWhen(rawWhen);
+      // 🔴 The ONLY branch with no date — the date is the thing it could not read. Every branch
+      // below it passes `when.date`, so its stored problem belongs to one month instead of to all
+      // of them (task 064 fix round).
       if (!when) {
-        problems.push(`${where}: อ่านวันเวลาไม่ออก — "${cells[1] ?? ""}"`);
+        reject(rowText, rawWhen, null, `อ่านวันเวลาไม่ออก — "${rawWhen}"`);
         continue;
       }
       const kind = kindOf(cells[4] ?? "");
       if (!kind) {
-        problems.push(`${where}: ไม่รู้จักชนิด "${cells[4] ?? ""}" (รองรับ PT / Class)`);
+        reject(
+          rowText,
+          rawWhen,
+          when.date,
+          `ไม่รู้จักชนิด "${cells[4] ?? ""}" (รองรับ PT / Class)`,
+        );
         continue;
       }
       const booked = count(cells[5] ?? "");
       const noShow = count(cells[7] ?? "");
       const lateCancel = count(cells[8] ?? "");
       if (booked === null || noShow === null || lateCancel === null) {
-        problems.push(
-          `${where}: ตัวเลขอ่านไม่ออก — จอง "${cells[5] ?? ""}" · no-show "${cells[7] ?? ""}" · ยกเลิกช้า "${cells[8] ?? ""}"`,
+        reject(
+          rowText,
+          rawWhen,
+          when.date,
+          `ตัวเลขอ่านไม่ออก — จอง "${cells[5] ?? ""}" · no-show "${cells[7] ?? ""}" · ยกเลิกช้า "${cells[8] ?? ""}"`,
         );
         continue;
       }
       const className = (cells[3] ?? "").trim();
       if (!className) {
-        problems.push(`${where}: ไม่มีชื่อคลาส`);
+        reject(rowText, rawWhen, when.date, `ไม่มีชื่อคลาส`);
         continue;
       }
 
@@ -168,7 +240,9 @@ export function parseGymmoGrids(grids: RawGrid[]): GymmoParse {
         lateCancel,
       });
     }
-    if (!seenHeader) problems.push(`${grid.sheetName}: ไม่พบแถวหัวตารางของ Gymmo — ข้ามทั้งชีต`);
+    // Every identity field `null` — the problem is the sheet, not a row in it, so no `#` cell and no
+    // `Date & Time` cell was ever read. Its key is the 1-tuple `[sheetName]`.
+    if (!seenHeader) reject(null, null, null, `ไม่พบแถวหัวตารางของ Gymmo — ข้ามทั้งชีต`);
   }
 
   return { rows, problems };

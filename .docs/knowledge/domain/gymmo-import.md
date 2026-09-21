@@ -111,8 +111,13 @@ read: two racing imports both plan a create and `skipDuplicates` absorbs the los
 
 `applyGymmoImport` returns `problems` beside the counts — `OtImportState`'s decision in
 `lib/ot-import.ts`: they are decided before the write and must survive it, or the preview was the only
-screen that ever showed them. Persisting them is
-[064](../../../tasks/todo/064-gymmo-import-problems-have-no-home.md).
+screen that ever showed them. 📌 **Since ใบ 064 they also outlive the request**: the same transaction
+writes them to `ClassImportProblem` and clears the keys that now import cleanly, and `/payslips` counts
+what is left. All of that — the three key shapes, the delete-then-insert scope, the count's exclusion
+rule and what has **no** clearing path — are [class-import-queue.md](class-import-queue.md) (the table and the write) and [class-import-blockers.md](class-import-blockers.md) (the count).
+⚠️ Two consequences land back on this card: `GymmoParse.problems` is now `GymmoReadProblem[]`
+(`{sheetName, rowText, reason}`) rather than rendered sentences, because a stored problem has to be
+keyed; and **changing `normalizeTrainer` now re-keys two tables, not one**.
 
 ## Three things the preview must show before anybody confirms
 

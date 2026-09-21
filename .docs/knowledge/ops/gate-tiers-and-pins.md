@@ -76,6 +76,38 @@ are distinct, so no two Gymmo names can quietly collapse onto one priced class. 
 `(Deleted)`: Gymmo marks a trainer who has left by appending it to the sheet name, and their past
 คาบ are still owed — dropping that sheet is the §2 rule 4 silent zero wearing a different hat.
 
+**ใบ 064** moved three rows at once — `lib/gymmo.test.ts` **16 → 19**, `lib/gymmo-import.test.ts`
+**20 → 22**, and a new `lib/class-problems.test.ts` at **9** (its fix round added the last of each:
+16→18→19 and 6→9). 🔑 **No pin was lowered**, and the
+reason that is worth saying is that the card *re-shaped* assertions wholesale: `GymmoParse.problems`
+became `GymmoReadProblem[]`, so every `expect(problems[0]).toContain(...)` became a field read. The pin
+counts `tests - skipped`, so re-shaping cannot move it — only added arms can, which is exactly the
+property that lets a refactor of this size be reviewed on its diff instead of on its numbers.
+The arm to protect in the new file is **"a session key is byte-identical to `gymmoSourceKey`"**:
+clearing a problem is a keyed `deleteMany` over the `sourceKey`s the import writes, so one byte of
+drift leaves a fixed คาบ queued for ever and `/payslips` blocking a clean period — the card shipping
+and doing nothing. Counter-tested on a clean tree (`restore`'s sha256 compare passing, `git status`
+byte-identical afterwards): re-deriving that key instead of calling `gymmoSourceKey` turns **8** arms
+red across the two files, named in the pin row. ⚠️ The transaction that does the clearing is **reviewed, not pinned**, for the
+structural reason below (no test here reaches a database), which is also why
+`applyGymmoImport`'s `!writes.length && !problems.length` guard has to be read by eye.
+
+🔴 **The fix round's lesson about pins, worth more than the three numbers: a pin cannot see an
+assertion getting weaker.** Raising `lib/gymmo-import.test.ts` 20 → 22 was honest, and in the same
+round two `toEqual`s were quietly downgraded to `toMatchObject` — so the file ran two *more* tests
+while **no arm in the repo would fail if a field were added to `GymmoProblem`**, and the only other
+thing standing between that table and a baht column (ใบ 064 T12) is a doc comment. `code-reviewer`
+caught it; the whole-object comparison is back, on the unmatched-class problem. ⇒ when a pin rises in
+the same commit that re-shapes assertions, the diff is the evidence and the number is not.
+
+⚠️ **`scripts/counter-test.sh restore` is one-shot: it consumes the store.** A second `restore`
+against the same `save` prints `ไม่มีคลังของสายนี้` and **changes nothing**, so a `tail -1` that looks
+like success will let the next mutant stack on an unrestored tree — which is how ใบ 064's first round
+produced two kill counts whose "and nothing else" specificity was never proven by the sha256 compare
+`restore` does. **One `save` per mutant.** A card is open against the script for the trap itself; the
+protocol does not depend on it: `git status` clean → `save` → mutate → `bun test` → `restore` →
+`git diff --stat` empty, and record the **failing test names**, not a count.
+
 What each raise bought:
 
 | Pin | Raise | What it is worth |

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { GymmoRow } from "./gymmo";
+import type { GymmoReadProblem, GymmoRow } from "./gymmo";
 import {
   diffGymmoPlan,
   gymmoPlanRange,
@@ -54,7 +54,7 @@ const row = (over: Partial<GymmoRow> = {}): GymmoRow => ({
   ...over,
 });
 
-const plan = (rows: GymmoRow[], problems: string[] = []) =>
+const plan = (rows: GymmoRow[], problems: GymmoReadProblem[] = []) =>
   planGymmoImport({ rows, problems }, ALIASES, PRICES);
 
 describe("gymmoSourceKey", () => {
@@ -149,6 +149,20 @@ describe("planGymmoImport", () => {
           noShow: 1,
         },
       ],
+      // Index-parallel display columns, for the one case where a written คาบ still needs a problem
+      // row: its period's slip is already closed (`closedSlipOutcome`). Asserted whole, so a column
+      // added here cannot arrive unreviewed.
+      writeRefs: [
+        {
+          where: "ธันยา มูลละคร แถว 1",
+          key: gymmoSourceKey(row()),
+          kind: "session",
+          trainerSheet: "ธันยา มูลละคร",
+          className: "Core Strength",
+          date: AUG(4),
+          timeText: "18:00",
+        },
+      ],
       problems: [],
       ptRows: 0,
     });
@@ -187,12 +201,85 @@ describe("planGymmoImport", () => {
   test("a class with no price is one problem, not a zero and not a failed file", () => {
     const p = plan([row({ className: "Lesmills BodyJam", rowNo: 3 }), row({ rowNo: 4 })]);
     expect(p.writes).toHaveLength(1);
+    // 🔴 **`toEqual`, not `toMatchObject`, and that is the point of this arm.** It is the one
+    // whole-object comparison over a `GymmoProblem` in the repo, so **a field added to that type goes
+    // red here** — and the only other thing standing between this table and a baht column (T12) is a
+    // doc comment. The fix round briefly downgraded this to `toMatchObject` while raising the pin
+    // 20 → 22, which is exactly the shape of a coverage loss a pin cannot see.
     expect(p.problems).toEqual([
       {
         where: "ธันยา มูลละคร แถว 3",
         reason: 'ไม่รู้จักคลาส "Lesmills BodyJam" — ยังไม่มีราคาในระบบ และไม่มีชื่อพ้องที่ตั้งไว้',
+        key: gymmoSourceKey(row({ className: "Lesmills BodyJam", rowNo: 3 })),
+        kind: "session",
+        trainerSheet: "ธันยา มูลละคร",
+        className: "Lesmills BodyJam",
+        date: AUG(4),
+        timeText: "18:00",
       },
     ]);
+  });
+
+  // 🔴 ใบ 064, and the arm that decides whether that card works at all. The problem is stored under
+  // `key`, and `applyGymmoImport` clears it with a keyed `deleteMany` over exactly the `sourceKey`s it
+  // writes ⇒ the two must be the **same function's** output on the same row. The scenario: `Pilates
+  // Flow` has no `ClassPrice` today, so the คาบ is a problem; a price is added and the file re-uploaded
+  // ⇒ the same row now writes, and its problem row has to disappear in that transaction.
+  test("a refused row is keyed by `gymmoSourceKey` itself, so adding the price clears it", () => {
+    const refused = row({ className: "Pilates Flow", rowNo: 3 });
+    const p = plan([refused]);
+    expect(p.problems).toHaveLength(1);
+    expect(p.problems[0].key).toBe(gymmoSourceKey(refused));
+    expect(p.problems[0].kind).toBe("session");
+
+    // The same row, once `Pilates Flow` exists: one write, under that same key.
+    const priced = planGymmoImport({ rows: [refused], problems: [] }, ALIASES, [
+      ...PRICES,
+      { id: "c-pilates", name: "Pilates Flow" },
+    ]);
+    expect(priced.problems).toEqual([]);
+    expect(priced.writes[0].sourceKey).toBe(p.problems[0].key);
+  });
+
+  // The period count reads `date` and the screen reads the two names, so a problem missing either is
+  // a problem no `/payslips` figure can find and no human can act on.
+  test("every problem carries the columns the queue needs — date, both names, non-empty key", () => {
+    const p = plan(
+      [
+        row({ className: "Lesmills BodyJam", rowNo: 3 }),
+        row({ trainerSheet: "ไม่รู้จัก", rowNo: 9 }),
+      ],
+      [
+        {
+          sheetName: "ชีตก",
+          rowText: "4",
+          rawWhen: "not a date",
+          date: null,
+          reason: "อ่านวันเวลาไม่ออก",
+        },
+      ],
+    );
+    for (const x of p.problems) expect(x.key.length).toBeGreaterThan(0);
+    // The planner's two: dated, and named as the FILE spells the trainer — never the key's
+    // normalized half (`ธันยามูลละคร`), which is not a display name.
+    expect(p.problems[1]).toMatchObject({
+      kind: "session",
+      date: AUG(4),
+      timeText: "18:00",
+      className: "Lesmills BodyJam",
+      trainerSheet: "ธันยา มูลละคร",
+    });
+    expect(p.problems[2]).toMatchObject({ kind: "session", trainerSheet: "ไม่รู้จัก" });
+    // The reader's: it never got as far as a date or a class, which is exactly why no import can
+    // ever clear it automatically — and why `date: null` counts in every period.
+    expect(p.problems[0]).toMatchObject({
+      kind: "row",
+      date: null,
+      className: null,
+      timeText: null,
+      trainerSheet: "ชีตก",
+      key: JSON.stringify(["ชีตก", "4", "not a date"]),
+    });
   });
 
   test("an aliased Gymmo spelling writes the ClassPrice id of the name the system holds", () => {
@@ -219,7 +306,7 @@ describe("planGymmoImport", () => {
   });
 
   test("an empty export plans nothing at all", () => {
-    expect(plan([])).toEqual({ writes: [], problems: [], ptRows: 0 });
+    expect(plan([])).toEqual({ writes: [], writeRefs: [], problems: [], ptRows: 0 });
   });
 
   // A row `lib/gymmo.ts` could not read never becomes a คาบ either. The planner takes the whole
@@ -228,10 +315,18 @@ describe("planGymmoImport", () => {
   test("the reader's own rejected rows are carried in, converted, ahead of the planner's", () => {
     const p = plan(
       [row({ trainerSheet: "ไม่รู้จัก", rowNo: 9 })],
-      ['ธันยา มูลละคร แถว 4: อ่านวันเวลาไม่ออก — "31 SEP 2026, 07:15"'],
+      [
+        {
+          sheetName: "ธันยา มูลละคร",
+          rowText: "4",
+          rawWhen: "31 SEP 2026, 07:15",
+          date: null,
+          reason: 'อ่านวันเวลาไม่ออก — "31 SEP 2026, 07:15"',
+        },
+      ],
     );
     expect(p.problems).toHaveLength(2);
-    expect(p.problems[0]).toEqual({
+    expect(p.problems[0]).toMatchObject({
       where: "ธันยา มูลละคร แถว 4",
       reason: 'อ่านวันเวลาไม่ออก — "31 SEP 2026, 07:15"',
     });

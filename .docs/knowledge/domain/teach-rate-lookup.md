@@ -135,3 +135,8 @@ Two knock-on facts live in [gymmo-import.md](gymmo-import.md): the witness `Staf
 `classCredit: 0` as one pair** — nobody has said what they are paid, a salary the seed invented would
 be paid silently every month, and a 5,000 credit on a base of 0 would cancel pay the base never
 contained (5,000 a month short, `warnings: []`).
+
+📌 **ใบ 064 added a table and touched none of this.** `ClassImportProblem` is keyed by a string, holds
+**no number at all** (no rate, no baht — §2 rules 2–3), and has no FK onto anything; the `TeachActivity`
+precedent above is exactly what it cites for having none. It is not a rate lookup and it is not in the
+engine's input: [class-import-queue.md](class-import-queue.md).

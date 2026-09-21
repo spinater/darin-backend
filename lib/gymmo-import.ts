@@ -11,6 +11,12 @@
  * *which price* · **this file** answers *which rows may be written, and what must a human look at
  * first*. Nothing here computes money — `computePayslip` does, from the rows this plan creates.
  */
+import {
+  toGymmoProblem,
+  utcPeriodOf,
+  type ClassProblemRef,
+  type GymmoProblem,
+} from "./class-problems";
 import type { GymmoParse, GymmoRow } from "./gymmo";
 import { matchClassName, matchTrainer, readTrainerSheet } from "./gymmo-map";
 import { normalizeTrainer } from "./normalize";
@@ -19,14 +25,11 @@ import { normalizeTrainer } from "./normalize";
 export type ClassPriceRef = { id: string; name: string };
 
 /**
- * One row that did not become a `ClassSession`. It is **never** dropped and never guessed, and it
- * never fails the rest of the file (§2 rule 4 · §2 rule 6).
- *
- * `reason` is the Thai sentence `lib/gymmo.ts` or `lib/gymmo-map.ts` already produces — rendered as
- * it is, not re-translated. Both fields are plain strings so the whole plan crosses a server-action
- * boundary unchanged.
+ * Re-exported so that nothing importing `GymmoProblem` from this module had to move when task 064
+ * widened it — the type now lives beside the key and the storage row it grew
+ * (`lib/class-problems.ts`), because that is where its extra fields are decided.
  */
-export type GymmoProblem = { where: string; reason: string };
+export type { GymmoProblem };
 
 /** What the caller writes: exactly the columns of one `ClassSession`, keyed by `sourceKey`. */
 export type GymmoSessionWrite = {
@@ -41,6 +44,22 @@ export type GymmoSessionWrite = {
 export type GymmoImportPlan = {
   /** Rows ready to upsert on `sourceKey`, in the order they were read. */
   writes: GymmoSessionWrite[];
+  /**
+   * The same rows as `writes`, same order and same length, carrying the **display** columns a
+   * `ClassImportProblem` needs — the trainer as the file spelled it, the raw class name, the clock.
+   *
+   * 🔑 **It exists because a written คาบ is not always a paid คาบ.** `applyGymmoImport` has to be able
+   * to record a problem for a row it *did* write (the period's slip is already closed —
+   * `closedSlipOutcome`), and none of the four columns a screen needs for that is recoverable from
+   * `GymmoSessionWrite`: `classId`/`staffId` are ids, and the key's trainer half is `normalizeTrainer`
+   * output, which is **not a display name**. Decoding the key instead would put `ธันยามูลละคร` on the
+   * screen.
+   *
+   * ⚠️ Parallel by **index**, so it is filtered by the duplicate rule below in the same expression as
+   * `writes`. A ref surviving for a row that was dropped would record a closed-period problem about a
+   * คาบ nobody wrote.
+   */
+  writeRefs: ClassProblemRef[];
   /** **The reader's rejected rows first, then this planner's** — one list for the whole import. */
   problems: GymmoProblem[];
   /**
@@ -57,20 +76,39 @@ const gymmoRowLabel = (row: Pick<GymmoRow, "trainerSheet" | "rowNo">) =>
   `${row.trainerSheet} แถว ${row.rowNo || "?"}`;
 
 /**
- * One line of `GymmoParse.problems` (`"<sheet> แถว <n>: <reason>"`) split into the same two fields
- * the planner's own problems carry, so the screen renders every rejected row from one list.
+ * A row this planner refused, in the shape task 064 stores.
  *
- * Split on the **first** `": "`, which is the separator `lib/gymmo.ts` writes; the `where` half it
- * builds never contains one. A sheet name that did would split early — the whole sentence still
- * reaches the screen, in the wrong column, which is why this is a formatting risk and not a money
- * one. (Structured problems at the reader would be the real fix and belong to that module's card.)
+ * 🔴 **`key` is `gymmoSourceKey(row)` — the function itself, on this row, never a second derivation
+ * of the same tuple.** That equality is the whole clearing mechanism: `applyGymmoImport` deletes
+ * `ClassImportProblem` by exactly the keys it is writing as `ClassSession.sourceKey`, so a คาบ whose
+ * `ClassPrice` or `TrainerAlias` was added since the last upload loses its problem row in the same
+ * transaction that creates the คาบ. One byte of drift between the two and it never matches — the
+ * fixed คาบ stays queued for ever and `/payslips` blocks a clean period. Pinned in
+ * `lib/class-problems.test.ts`.
+ *
+ * `trainerSheet` is the **file's** spelling, deliberately not the normalized half of the key: the key
+ * is an identity (`ธันยามูลละคร`) and a screen needs a name.
  */
-function gymmoParseProblem(line: string): GymmoProblem {
-  const at = line.indexOf(": ");
-  return at < 0
-    ? { where: "", reason: line }
-    : { where: line.slice(0, at), reason: line.slice(at + 2) };
-}
+const sessionRef = (
+  row: GymmoRow,
+  where: string,
+  kind: "session" | "duplicate",
+): ClassProblemRef => ({
+  where,
+  key: gymmoSourceKey(row),
+  kind,
+  trainerSheet: row.trainerSheet,
+  className: row.className,
+  date: row.date,
+  timeText: row.timeText,
+});
+
+const sessionProblem = (
+  row: GymmoRow,
+  where: string,
+  reason: string,
+  kind: "session" | "duplicate" = "session",
+): GymmoProblem => ({ ...sessionRef(row, where, kind), reason });
 
 /**
  * The identity of one row of one Gymmo export: **trainer · date · time · raw class name**, as a
@@ -158,10 +196,11 @@ export function planGymmoImport(
   const names = [...idByName.keys()];
 
   const writes: GymmoSessionWrite[] = [];
-  const problems: GymmoProblem[] = parse.problems.map(gymmoParseProblem);
+  const writeRefs: ClassProblemRef[] = [];
+  const problems: GymmoProblem[] = parse.problems.map(toGymmoProblem);
   let ptRows = 0;
   /** sourceKey → the rows of THIS file that produced it (see the duplicate block below). */
-  const byKey = new Map<string, { where: string; index: number }[]>();
+  const byKey = new Map<string, { row: GymmoRow; where: string; index: number }[]>();
 
   for (const row of parse.rows) {
     const where = gymmoRowLabel(row);
@@ -172,12 +211,12 @@ export function planGymmoImport(
 
     const staff = matchTrainer(row.trainerSheet, aliasToStaffId);
     if (!staff.ok) {
-      problems.push({ where, reason: staff.reason });
+      problems.push(sessionProblem(row, where, staff.reason));
       continue;
     }
     const cls = matchClassName(row.className, names);
     if (!cls.ok) {
-      problems.push({ where, reason: cls.reason });
+      problems.push(sessionProblem(row, where, cls.reason));
       continue;
     }
     const classId = idByName.get(cls.className);
@@ -185,12 +224,15 @@ export function planGymmoImport(
     // kept because the alternative is a non-null assertion, and a `!` here would become a
     // `classId: undefined` write the day those two lists stop being the same list.
     if (!classId) {
-      problems.push({ where, reason: `ไม่พบรหัสราคาของคลาส "${cls.className}"` });
+      problems.push(sessionProblem(row, where, `ไม่พบรหัสราคาของคลาส "${cls.className}"`));
       continue;
     }
 
     const sourceKey = gymmoSourceKey(row);
-    byKey.set(sourceKey, [...(byKey.get(sourceKey) ?? []), { where, index: writes.length }]);
+    byKey.set(sourceKey, [...(byKey.get(sourceKey) ?? []), { row, where, index: writes.length }]);
+    // Pushed in lockstep with `writes` — see `GymmoImportPlan.writeRefs` for why the plan carries
+    // display columns for rows it is about to write successfully.
+    writeRefs.push(sessionRef(row, where, "session"));
     writes.push({
       sourceKey,
       date: row.date,
@@ -217,18 +259,32 @@ export function planGymmoImport(
     const others = hits.map((h) => h.where).join(" · ");
     for (const hit of hits) {
       dropped.add(hit.index);
-      problems.push({
-        where: hit.where,
-        reason: `แถวนี้ซ้ำกับแถวอื่นในไฟล์เดียวกัน (ชีต+วันที่+เวลา+ชื่อคลาสตรงกันหมด: ${others}) — ยังไม่นำเข้าทั้งคู่ เพราะเลือกแทนไม่ได้ว่ายอดคนของแถวไหนถูก · คีย์ ${sourceKey}`,
-      });
+      // 🔴 Two problems, **one** `sourceKey` — so `gymmoProblemRows` must merge them before the
+      // insert or `createMany` throws P2002 and aborts the entire import. That merge is why both
+      // labels and both reasons still reach the stored row (`lib/class-problems.ts`).
+      problems.push(
+        sessionProblem(
+          hit.row,
+          hit.where,
+          `แถวนี้ซ้ำกับแถวอื่นในไฟล์เดียวกัน (ชีต+วันที่+เวลา+ชื่อคลาสตรงกันหมด: ${others}) — ยังไม่นำเข้าทั้งคู่ เพราะเลือกแทนไม่ได้ว่ายอดคนของแถวไหนถูก · คีย์ ${sourceKey}`,
+          // 🔴 `"duplicate"`, not `"session"`, and the distinction is money. A `ClassSession` may
+          // already exist under this key from an earlier import — at a DIFFERENT head count, since
+          // that is what the two file rows disagree about. Measured: the stored row reads booked 5 /
+          // noShow 3 ⇒ attended 2 ⇒ half of 400 = **200 ฿**, while the new file carries booked 9 /
+          // noShow 0 ⇒ 400 ฿. Neither is written (right — the planner cannot choose), so the คาบ's
+          // existence proves nothing about its amount and `pendingClassImportInPeriod` must NOT
+          // exclude it the way it excludes a `"session"` whose คาบ has since imported cleanly.
+          "duplicate",
+        ),
+      );
     }
   }
 
-  return {
-    writes: dropped.size ? writes.filter((_, i) => !dropped.has(i)) : writes,
-    problems,
-    ptRows,
-  };
+  // 🔴 **One predicate, both arrays.** `writeRefs` is index-parallel to `writes`, so the duplicate
+  // rule must drop the same indexes from both — a ref left behind for a dropped row would let
+  // `closedSlipOutcome` record "this คาบ is in the database but unpaid" about a คาบ nothing wrote.
+  const keep = <T>(xs: T[]) => (dropped.size ? xs.filter((_, i) => !dropped.has(i)) : xs);
+  return { writes: keep(writes), writeRefs: keep(writeRefs), problems, ptRows };
 }
 
 /** A `ClassSession` row the database already holds, as the diff below compares it. */
@@ -306,6 +362,6 @@ export function gymmoPlanRange(plan: GymmoImportPlan): { from: Date; to: Date } 
  * beside the writes it reads.
  */
 export function gymmoPlanPeriods(plan: GymmoImportPlan): string[] {
-  const periods = new Set(plan.writes.map((w) => w.date.toISOString().slice(0, 7)));
+  const periods = new Set(plan.writes.map((w) => utcPeriodOf(w.date)));
   return [...periods].sort();
 }

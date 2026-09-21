@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { runPayroll, pendingReviewInPeriod } from "@/lib/payroll-run";
+import { runPayroll } from "@/lib/payroll-run";
+import { runBlockers } from "@/lib/run-blockers";
 import { SubmitButton } from "@/app/_components/submit-button";
 import { ActionProgress } from "@/app/_components/action-progress";
 import { timed } from "@/lib/job-timing";
@@ -26,13 +27,16 @@ export default async function PayslipsPage({
   const { period: periodParam, err } = await searchParams;
   const period = periodParam ?? thisPeriod();
 
-  const [slips, pending, lastRun] = await Promise.all([
+  // 🔴 Both blocker counts come from **one** function and **one** `period` — see `lib/run-blockers.ts`.
+  // A period-scoped number rendered beside an all-time one, or this screen counting differently from
+  // the dashboard, is how the two come to disagree about whether the month is clean.
+  const [slips, blockers, lastRun] = await Promise.all([
     db.payslip.findMany({
       where: { period },
       include: { staff: true, _count: { select: { warnings: true } } },
       orderBy: { staff: { name: "asc" } },
     }),
-    pendingReviewInPeriod(period),
+    runBlockers(period),
     db.jobDuration.findUnique({ where: { job: "payroll" } }),
   ]);
 
@@ -95,13 +99,37 @@ export default async function PayslipsPage({
         </Link>
       </form>
 
-      {pending > 0 && (
+      {blockers.sheetReview > 0 && (
         <p className="card-warn text-sm">
-          ⚠️ ยังมี <b>{pending}</b> คาบค้าง
+          ⚠️ ยังมี <b>{blockers.sheetReview}</b> คาบค้าง
           <Link href="/sync/review" className="underline">
             คิวรอตรวจ
           </Link>{" "}
           — คำนวณตอนนี้จะ<b>จ่ายขาด</b> เคลียร์ให้หมดก่อน
+        </p>
+      )}
+
+      {/* Two boxes, never one total: the repair is a different action on a different screen. A row
+          in the queue above exists and is flagged; a row in the queue below **does not exist in the
+          database at all**, so no slip and no `PayslipWarning` can mention it — which is why it has
+          to be said here (task 064 · §2 rule 4). */}
+      {blockers.classImport > 0 && (
+        <p className="card-warn text-sm">
+          ⚠️ มี <b>{blockers.classImport}</b> คาบจากไฟล์ Gymmo ที่<b>ยังไม่ได้เข้าฐานข้อมูล</b> —
+          คำนวณตอนนี้สลิปจะขาดค่าสอนคลาสของคาบพวกนี้ <b>โดยไม่มีคำเตือนในสลิป</b> ดูเหตุผลรายแถวที่{" "}
+          <Link href="/classes" className="underline">
+            คาบสอนคลาส
+          </Link>{" "}
+          {/* 🔴 The old copy ended "แถวที่เข้าได้จะหายเอง" — a promise only `kind: "session"` rows
+              keep. A row the reader could not parse is keyed by `[ชีต, #, วันเวลา]` while the same คาบ,
+              once fixed, is written under a 4-tuple `sourceKey`, so no import can ever match it and
+              the row survives its own repair (ใบ 066). Telling an admin it will disappear sends them
+              to do what they already did, and the count they stop trusting is the one that is also
+              carrying ประพัฒน์'s 8,000 ฿. */}
+          แต่ละแถวบอกวิธีแก้ไว้ในเหตุผลของตัวเอง — <b>บางแถวหายเองเมื่อนำเข้าไฟล์ซ้ำ</b>{" "}
+          (แก้ราคาคลาส หรือผูกชื่อเทรนเนอร์ก่อน) · แถวที่สลิปงวดนั้นปิดแล้ว ต้อง
+          <b>เปิดสลิปกลับเป็นร่าง คำนวณใหม่ แล้วนำเข้าไฟล์ซ้ำ</b> · ส่วนแถวที่ตัวอ่านอ่านไม่ออก
+          <b>ไม่หายเองแม้แก้ไฟล์แล้ว</b>
         </p>
       )}
 

@@ -218,6 +218,80 @@ model ClassSession {
   @@index([date, staffId])
 }
 
+/// One row of a Gymmo worklog export that did **not** become a `ClassSession`, with the reason —
+/// the `ClassSession`-side equivalent of `TeachSession.status = "needs_review"` (task 064).
+///
+/// It exists because **the payslip cannot warn about a row that does not exist**: ~20 `Pilates Flow`
+/// คาบ/month (~8,000 ฿ of class value) were reported once on the import screen and then ceased to
+/// exist with the request, leaving a slip with `warnings: []` and nothing in any queue
+/// (CLAUDE.md §2 rule 4).
+///
+/// 🔴 **NO FK POINTS AT `ClassSession`, ON PURPOSE** — the same shape of decision as
+/// `TeachActivity`: the whole point of a row here is that the `ClassSession` does **not** exist, so a
+/// nullable FK would be a column that is null on every row by construction. It carries the display
+/// columns a join would have provided instead, and they are not redundant with the key: the key's
+/// trainer half is `normalizeTrainer` output, which is **not a display name**. No `staffId` either,
+/// even nullable — half these rows exist *because* the trainer could not be resolved, and an
+/// unconstrained id column is a dangling reference by another name. A later screen resolves
+/// `trainerSheet` through `matchTrainer` at read time (§2 rule 6: one home).
+///
+/// 🔴 **It holds NO MONEY and must never hold a number of baht** (§2 rules 2 and 3). The only thing
+/// that turns คาบ into an amount is `computePayslip`, over `ClassSession` rows — which by definition
+/// do not exist for any key in this table. A baht figure here would be a second path to an amount
+/// **and** a rate read outside `PayrollConfig`/`ClassPrice`.
+///
+/// Written by `applyGymmoImport` alone (`lib/gymmo-import-run.ts`), **delete-then-insert over the
+/// keys one file mentions**, inside the import's own transaction — the `PayslipWarning` pattern
+/// ("rewritten whole on every recompute") scoped to a file instead of to a slip. That is what makes
+/// a corrected re-upload unable to leave an old reason behind, and what bounds the table's growth to
+/// distinct real คาบ rather than to upload attempts.
+model ClassImportProblem {
+  /// Identity, and the whole design. `JSON.stringify` of 4 / 2 / 1 elements, kept apart by **arity**
+  /// so the three shapes cannot collide — see `lib/class-problems.ts`.
+  ///
+  /// 🔴 For the 4-tuple it is **byte-for-byte `gymmoSourceKey(row)`**, produced by calling that
+  /// function, never re-derived. That equality is the entire clearing mechanism: one byte of drift
+  /// and the delete never matches, so a คาบ that now imports cleanly stays queued for ever and
+  /// `/payslips` blocks a period that is in fact clean. Pinned in `lib/class-problems.test.ts`.
+  key          String    @id
+  /// `"session"` = it has a real `sourceKey`, so an import that writes that คาบ into an **open**
+  /// period clears it ·
+  /// `"duplicate"` = also a real `sourceKey`, but the file holds **two** rows for it with different
+  /// head counts, so an existing `ClassSession` says nothing about the amount and the count never
+  /// excludes it ·
+  /// 🔴 `"row"` = the reader never got a `sourceKey`, and **nothing clears this row at all**: the
+  /// same คาบ, once the cell is fixed, is written under a 4-tuple `sourceKey` while this row is keyed
+  /// by the 3-tuple `[sheet, #, rawWhen]`, so no `deleteMany` can ever match it. Task 066's
+  /// dismissal is its only exit — do not write anywhere that a re-upload makes it disappear.
+  kind         String
+  /// `"<sheet> แถว <n>"`, as the import screen already renders it. Named `rowLabel` and **not**
+  /// `where`: a column called `where` collides with Prisma's own query argument on every call
+  /// against this model (`findFirst({ where: { where } })`). `GymmoProblem.where` keeps its name in
+  /// the type the screen renders.
+  rowLabel     String
+  reason       String
+  /// The trainer as the **file** spelled it — never the normalized half of the key, which is not a
+  /// display name (`ธันยามูลละคร`). The sheet name for a reader reject.
+  trainerSheet String
+  /// The raw class name, as keyed. `null` for a reader reject.
+  className    String?
+  /// UTC calendar day, as `lib/gymmo.ts` reads it. `null` **only** when the date itself was the
+  /// unreadable part (or for a whole-sheet reject) — every other reader reject happens *after*
+  /// `parseGymmoWhen` succeeded and carries its date, which is what keeps it scoped to one month.
+  /// A `null` is counted in **every** period, exactly as `pendingReviewInPeriod` counts a
+  /// `TeachSession` with `date: null`, and since a `"row"` problem has no clearing path that is
+  /// permanent until task 066 answers — which is why defaulting this column would be expensive.
+  date         DateTime?
+  timeText     String?
+  /// The last import that saw this problem. A row older than `MAX(seenAt)` is one the latest file
+  /// did not mention. There is deliberately no `firstSeenAt`: the row is recreated on every import,
+  /// so "first seen" could only be honest if the write became an upsert per row — the round-trip
+  /// loop task 063 rejected inside Prisma's 5 s interactive budget.
+  seenAt       DateTime  @default(now())
+
+  @@index([date])
+}
+
 model Sale {
   id          String   @id @default(cuid())
   date        DateTime

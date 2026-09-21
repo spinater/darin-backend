@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { readProblemLabel } from "./class-problems";
 import { attendedOf, parseGymmoGrids, parseGymmoWhen } from "./gymmo";
 import type { RawCell, RawGrid } from "./sheets";
 
@@ -124,8 +125,8 @@ describe("parseGymmoGrids", () => {
     const { rows, problems } = parseGymmoGrids([grid("ชีตก", [HEADER, row])]);
     expect(rows).toEqual([]);
     expect(problems).toHaveLength(1);
-    expect(problems[0]).toContain("ชีตก");
-    expect(problems[0]).toContain("แถว 2");
+    expect(problems[0].sheetName).toBe("ชีตก");
+    expect(problems[0].rowText).toBe("2");
   });
 
   test("a sheet with no header line is reported rather than read as data", () => {
@@ -136,7 +137,57 @@ describe("parseGymmoGrids", () => {
       ]),
     ]);
     expect(rows).toEqual([]);
-    expect(problems[0]).toContain("ปฏิทิน");
+    expect(problems[0]).toMatchObject({ sheetName: "ปฏิทิน", rowText: null, rawWhen: null });
+  });
+
+  // ใบ 064: a problem now has to be **stored**, so it is three fields and no longer one sentence.
+  // What must not change is what a human reads — the label + `": "` + the reason is byte-identical
+  // to the line this module emitted before, which is the whole reason `gymmoParseProblem`'s
+  // split-on-the-first-`": "` hack could be deleted rather than replaced.
+  test("a rejected row keeps its rendered sentence byte-identical to the pre-064 one", () => {
+    const row = [...CLASS_ROW];
+    row[1] = "31 SEP 2026, 07:15";
+    const { problems } = parseGymmoGrids([grid("ธันยา มูลละคร", [HEADER, row])]);
+    expect(`${readProblemLabel(problems[0])}: ${problems[0].reason}`).toBe(
+      'ธันยา มูลละคร แถว 2: อ่านวันเวลาไม่ออก — "31 SEP 2026, 07:15"',
+    );
+  });
+
+  // 🔴 `rowText` is the `#` cell **verbatim**, `""` included, because it is half of the stored key.
+  // A blank `#` must stay a *row* problem: defaulting it to `"?"` (what the label does, for a human)
+  // or to `null` (what a whole-sheet problem means) would merge a readable row onto the sheet's own
+  // key and lose one of the two reasons — the arity argument in `lib/class-problems.ts`.
+  // 🔴 ใบ 064 fix round. `parseGymmoWhen` runs **first**, so three of the four row rejects already
+  // know their date and only an unreadable `Date & Time` genuinely does not. Storing `null` for all
+  // four put a perfectly dated August reject into **every** period's blocker count — and a `"row"`
+  // problem has no clearing path, so that is permanent until ใบ 066 answers. A blocker count stuck at
+  // a constant is a count people learn to ignore, which is how the 8,000 ฿ count beside it dies too.
+  test("a reject below the date check carries its date; only an unreadable date does not", () => {
+    const bad = (col: number, value: string) => {
+      const r = [...CLASS_ROW];
+      r[col] = value;
+      return parseGymmoGrids([grid("ประพัฒน์", [HEADER, r])]).problems[0];
+    };
+    // 4 = Type · 5 = Students · 3 = Class — all three parse the date successfully first.
+    for (const p of [bad(4, "Assessment"), bad(5, "สาม"), bad(3, "")])
+      expect(p.date).toEqual(new Date(Date.UTC(2026, 8, 4)));
+    expect(bad(1, "not a date").date).toBeNull();
+    // …and the raw cell is carried whether or not it parsed, because it is part of the stored key.
+    expect(bad(1, "not a date").rawWhen).toBe("not a date");
+    expect(bad(4, "Assessment").rawWhen).toBe("4 SEP 2026, 18:00");
+  });
+
+  test("a blank `#` is still a row, and a missing header is still the whole sheet", () => {
+    const blank = [...CLASS_ROW];
+    blank[0] = "";
+    blank[4] = "Workshop";
+    const { problems } = parseGymmoGrids([
+      grid("ชีตก", [HEADER, blank]),
+      grid("ชีตข", [["Mon", "Tue"]]),
+    ]);
+    expect(problems.map((p) => p.rowText)).toEqual(["", null]);
+    // …and the human-facing label still says something, rather than "แถว ".
+    expect(readProblemLabel(problems[0])).toBe("ชีตก แถว ?");
   });
 
   test("blank rows between sessions are skipped without a complaint", () => {

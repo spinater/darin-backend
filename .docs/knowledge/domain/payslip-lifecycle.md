@@ -125,3 +125,13 @@ out and dropped it — the invariant held inside the engine and was violated one
   writing `ClassSession` from anywhere new: a null is exempt from `@unique`, so a hand-keyed row and
   an imported one **can both exist for the same session and the slip pays both**.
   See [gymmo-import.md](gymmo-import.md).
+- 🔴 **A run can look complete while คาบ are missing, and no `PayslipWarning` can say so** (task 064).
+  Every warning on a slip is produced by `computePayslip` from the rows it was handed, so a คาบ that
+  **never entered `ClassSession`** — a Gymmo row whose class has no price or whose trainer is
+  unmatched — is invisible to the whole mechanism above: the slip is short and `warnings` is `[]`.
+  That is why the refusal is persisted outside the slip, in `ClassImportProblem`, and counted **before**
+  the run on `/payslips` beside `pendingReviewInPeriod` (`runBlockers`, `lib/run-blockers.ts`).
+  ⇒ an empty `warnings` list means "the engine decided everything it was given", never "nothing is
+  missing". `ClassImportProblem` is **not** payslip state and holds no money —
+  [class-import-queue.md](class-import-queue.md) · the count is [class-import-blockers.md](class-import-blockers.md). Making the slip itself warn would change
+  `computePayslip`'s input contract and is a later card (design §6c).

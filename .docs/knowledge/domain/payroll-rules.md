@@ -59,6 +59,9 @@ sources:
    - **How that invariant is kept true end-to-end — `PayslipWarning`'s persistence, the status lock, who a
      run selects, and what a recompute rebuilds — moved to [payslip-lifecycle.md](payslip-lifecycle.md) at
      task 023** (this card had reached 198/200). Nothing was shortened in the move.
+   - 🔴 **A คาบ that never reached `ClassSession` cannot be warned about at all (ใบ 064)** — no
+     `PayslipWarning` exists for a row the engine was never handed ⇒ it is queued in
+     `ClassImportProblem` and counted before the run: [class-import-queue.md](class-import-queue.md).
    - **A deactivated staff member is warned about, never zeroed or skipped (task 013).**
      `StaffInput.active` moves **no amount**: paying 0 "because they are inactive" is the silent zero
      this rule forbids, and inventing a daily rate is a literal in a formula (rule 1). Nothing is

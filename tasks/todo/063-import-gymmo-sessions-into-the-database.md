@@ -79,6 +79,14 @@ model ClassSession {
 Both are harmless **only** because nothing can import today: `planGymmoImport`, `previewGymmoImport`
 and `applyGymmoImport` have zero callers. They arm themselves the hour item 4 lands.
 
+🔴 **[065](065-deleting-an-imported-class-session-is-undone-by-the-next-import.md) must land
+*before* item 4, not merely with it.** Task 064 put a count on `/payslips` and `/` whose text reads
+*"ดูเหตุผลรายแถวที่ คาบสอนคลาส"* and links to `/classes` — and `/classes` cannot list those rows until
+065. Ship item 4 first and the admin sees "20 คาบ หาย", clicks through to a screen showing nothing,
+concludes the count is broken, and stops reading it. **A blocker count people have learned to ignore
+is worse than no count**, which is the one way this whole queue fails. If they must land out of order,
+cut the copy to *"แก้ที่ต้นทาง (ราคาคลาส/ผูกชื่อเทรนเนอร์) แล้วนำเข้าไฟล์เดิมซ้ำ"* and drop the link.
+
 | Item | File | State |
 |---|---|---|
 | 1 `sourceKey` | `prisma/schema.prisma` | ✅ `sourceKey String? @unique`, reasoning in the doc comment · pushed on the gate's throwaway postgres, **never against real data** |
