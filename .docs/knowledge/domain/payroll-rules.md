@@ -69,7 +69,7 @@ sources:
      ordinary case §1.4 covers and must **not** warn. Three tests (now `lib/payroll/class.test.ts`)
      took the engine suite 30 → **33** — both directions, plus one warning **per row** (`byClass`
      merges the *lines* by class name; the warnings deliberately do not follow). The door that
-     refuses this pair before it ever stores: [form-refusals.md](form-refusals.md)
+     refuses this pair before it ever stores: [pair-guards.md](pair-guards.md)
     ⇒ 🔴 **the repair the warning names depends on where the คาบ came from (ใบ 065)**, which is why
     `ClassSessionInput` carries `sourceKey` — read there and nowhere else, and it moves no amount. A
     hand-keyed row is deleted and re-keyed at `/classes`; telling a reader to do that to an

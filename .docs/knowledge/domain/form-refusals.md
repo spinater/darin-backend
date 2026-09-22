@@ -16,10 +16,6 @@ sources:
   - app/sales/page.tsx
   - app/classes/page.tsx
   - app/admin/config/page.tsx
-  # ใบ 065's `confirm=imported` two-step: the ordinary delete form must NOT carry that field, which
-  # is half of why the guard holds. [money-on-screen.md](money-on-screen.md) sources this file for a
-  # different claim (nothing on that table is derived); both are true and both go stale together.
-  - app/classes/_components/session-table.tsx
 ---
 
 # ด่านของแต่ละ action — อันไหนปฏิเสธอะไร และมันบอกคนยังไง
@@ -32,6 +28,10 @@ It is the half that grows: every new form adds a row, not a rule.
 
 Read the predicate first; nothing here re-states it.
 
+`/classes`'s two **pair** guards left at ใบ 073 (this card had reached 167/200) — the ones that
+compare a value against a second value rather than validating one field, and where the refusal is
+itself a money decision: [pair-guards.md](pair-guards.md).
+
 ## The actions, and what each refuses
 
 | Action | Fields | Blank means | Flag |
@@ -42,7 +42,7 @@ Read the predicate first; nothing here re-states it.
 | `/sales` `add` | `listPrice` | "sold at list price" ⇒ `null`, and fine | `err=listPrice` |
 | `/classes` `add` | `booked` | refused | `err=booked` |
 | `/classes` `add` | `noShow` | 0 — what `?? 0` and `defaultValue={0}` already said | `err=noShow` |
-| `/classes` `add` | `noShow` **vs** `booked` | — (a *pair*, not a field) | `err=noShowOverBooked` |
+| `/classes` `add` | `noShow` **vs** `booked` | — (a *pair*, not a field ⇒ [pair-guards.md](pair-guards.md)) | `err=noShowOverBooked` |
 | `/admin/config` `addStaff` | `baseSalary`, `classCredit` | 0, the documented default | `err=newstaff` |
 | `/admin/config` `addStaff` | `name`, `username` (trimmed), `password` | refused, one flag each — a `File` part too, never `"[object File]"` | `err=newstaffName` · `err=newstaffUser` · `err=newstaffPass` |
 | `/admin/config` `addStaff` | `username` **vs** the rows already there | — (the `@unique` index, caught as `P2002`) | `err=newstaffDup` |
@@ -123,41 +123,7 @@ reason.
 rather than the page: 462 lines against the §4 ceiling of 500 when the first moved, and the rate matrix
 followed as `rate-table.tsx` at task 036.
 
-## The one guard that is not a field — `noShow` vs `booked` (task 025)
-
-Every row in the table above refuses a **field**. This one refuses a **pair**: `booked: 2,
-noShow: 5` passes both field guards — each is a non-negative integer — and stores, and the engine
-then reads `attended = −3`, a case §1.4 does not define.
-
-🔑 **Both ends were fixed, and only one of them is the deliverable.** The engine is the end that
-matters: rows keyed before this guard existed are already in the table, and `computePayslip` used to
-fold them into its `<= 0` arm for **0 ฿ with `warnings: []`** — the invisible zero, ~800 ฿ off one
-slip for four such rows. It now warns, naming the class and the numbers, and still pays nothing —
-paying anything would mean guessing which of the two counts is wrong, and the guesses pay
-differently (200 ฿ vs 400 ฿ on that row); see [payroll-rules.md](payroll-rules.md) rule 3. This door
-only stops the next one being typed, where the person who typed it is still looking at the numbers
-— it can never repair what is stored, so **a guard here is not a reason to let the engine decide
-quietly**.
-
-### ใบ 065 — `/classes` grew a second pair guard, on `del` rather than on a field
-
-`del` now reads the row back and **refuses a non-null `sourceKey` unless the post carries
-`confirm=imported`**: an imported คาบ deleted here is re-created by the next upload and paid twice
-(200 + 200 for one 200 ฿ Core Strength). Same surface as everything above — `?err=imported`, a flag
-not a message, nothing written — plus `?err=gone` for a row already deleted from another tab, which
-the read-back makes reachable. 🔑 **The table hides the button and the action refuses it**, because a
-hidden button is copy, not a guard: a stale tab still holds the `<form>`.
-
-🔴 **A default, not a prohibition — and the difference is money in both directions.** The re-creation
-argument holds only while the **file still carries that key**; correct a time or a class name in Gymmo
-and the old row is orphaned instead, never re-created. This action is the repo's only
-`classSession.delete`, so refusing outright left such a row unrepairable anywhere in the product
-(ธันยา's August: class value 8,050 → 8,250 ⇒ `classPay` **3,050 → 3,250 ฿ every run, for ever**). The
-explicit post from the table's disclosure carries `confirm=imported`; the ordinary delete `<form>`
-does not, so one click can never do it. **The only guard on this screen a human may deliberately
-pass** — every other one refuses outright — because it is the only one where refusing also loses.
-
-### ใบ 043 / ใบ 070 — the colour refusals moved out
+## ใบ 043 / ใบ 070 — the colour refusals moved out
 
 `addColor`'s two refusals (`?err=colorMeaning` · `?err=colorNeutral`) and `/sync/review`'s three
 (the unaimable `?hex=`, the unruled colour, `?err=closed`) are **one topic with its own home**:

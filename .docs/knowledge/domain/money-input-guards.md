@@ -60,8 +60,10 @@ The pair exists so a `null` is never ambiguous: the caller decides whether a *bl
 documented meaning, and every other `null` is a refusal.
 
 ⇒ **Which caller decides what — the per-action table, the two parses with real logic
-(`parseConfigNumbers`, `parseNewStaff`), the shared `?err=` surface and the two guards that are a
-*pair* rather than a field — is [form-refusals.md](form-refusals.md)**, split out at ใบ 068. This
+(`parseConfigNumbers`, `parseNewStaff`) and the shared `?err=` surface — is
+[form-refusals.md](form-refusals.md)**, split out at ใบ 068; the guards that compare a value against
+a **second** value rather than validating one field left that card for
+[pair-guards.md](pair-guards.md) at ใบ 073. This
 card stops at the predicate on purpose: the predicate is one decision and does not grow, while the
 action table gains a row every time a form lands.
 
