@@ -9,6 +9,7 @@ import {
   type ColorMeaning,
 } from "@/lib/color-rules";
 import { db } from "@/lib/db";
+import { calendarDate } from "@/lib/ot-import";
 import { NEEDS_ATTENTION, periodRange } from "@/lib/payroll-run";
 import { revalidateColorGaps } from "@/lib/revalidate";
 import { BadHexNotice, ColorNotice, NoRuleNotice } from "./_components/color-notice";
@@ -115,12 +116,25 @@ export default async function ReviewPage({
 
   const qs = (p: number) => `${backHref}${backHref.includes("?") ? "&" : "?"}page=${p}`;
 
+  // 🔴 Where a write sends the reviewer back to, and the page number is part of it. `hrefFor()`
+  // carries no `page` — only `qs()` does — so posting a bare `backHref` would land every ยืนยัน /
+  // ข้าม / เอากลับเข้าคิว on page 1, and with `PAGE_SIZE = 50` a first-sync queue is then a
+  // re-navigation per row. It binds the three refusal redirects too, which drop the page for the
+  // same reason. Page 1 keeps the clean href so the common URL stays the short one.
+  const backToHere = Number(page) > 1 ? qs(Number(page)) : backHref;
+
   async function resolve(formData: FormData) {
     "use server";
     await requireAdmin();
     const id = String(formData.get("id"));
     const action = String(formData.get("action"));
-    const back = String(formData.get("back") || "/sync/review");
+    // 🔴 `back` is **client-supplied** and ใบ 080 widened where it goes: it used to reach
+    // `redirect()` only on the `err=closed` refusal, and now it carries every successful write
+    // too. So it is pinned to this screen — anything not starting with `/sync/review` falls back
+    // to the href the page computed for itself. `startsWith` rather than a pattern: the allowed
+    // set is one prefix, and a regex here would be a second place to get it wrong.
+    const postedBack = String(formData.get("back") ?? "");
+    const back = postedBack.startsWith("/sync/review") ? postedBack : backToHere;
 
     const row = await db.teachSession.findUnique({
       where: { id },
@@ -151,17 +165,60 @@ export default async function ReviewPage({
         data: { status: "needs_review", reviewed: false, reviewNote: "คนตรวจเอากลับเข้าคิว" },
       });
     } else {
-      const dateStr = String(formData.get("date") ?? "");
+      // 🔴 **The date is checked first, and on this screen it is the riskiest field in the app**
+      // (ใบ 080). The ordering argument is written out once in `app/sales/page.tsx`'s `add` — one
+      // `?err=` slot, and the date decides which month the row belongs to. What is particular here
+      // is *who types it*: this is the one screen where a human **retypes a date by hand precisely
+      // because the sheet's was unreadable**, so a typo is not a freak event, it is the expected
+      // failure of the intended use. And the write is `reviewed: true`, which is what stops a later
+      // sync from ever repairing the row ⇒ a June ว่ายน้ำ คาบ retyped `2026-06-31` is stamped
+      // 1 July at 250 ฿, leaves June's payslip query, and the queue goes clean over it — permanent,
+      // with `warnings: []`.
+      //
+      // The two refusals are separate flags on purpose. **Blank** is the ordinary case (neither
+      // control carries `required`, and a `needs_review` row is usually missing both), so it must
+      // not be told "วันที่อ่านไม่ออก" — it needs the copy that says which fields are still empty.
+      // The `.trim()` and `calendarDate` halves are `/ot`'s unchanged (`lib/ot-import.ts`).
+      const dateStr = String(formData.get("date") ?? "").trim();
+      if (!dateStr) redirect(withErr(back, "need")); // ต้องครบทั้งคู่ถึงจะจ่ายได้
+      const date = calendarDate(dateStr);
+      if (date === null) redirect(withErr(back, "date"));
+
+      // 🔴 Was a bare `return` until ใบ 080 — a **silent** refusal on a money path, in a file whose
+      // own comment 20 lines above insists the refusal must be loud. Nothing was ever lost by it
+      // (the row stays in the queue), but the reviewer was told nothing, so the click that did
+      // nothing looks exactly like the click that confirmed the คาบ.
       const staffId = String(formData.get("staffId") ?? "");
-      if (!dateStr || !staffId) return; // ต้องครบทั้งคู่ถึงจะจ่ายได้
+      if (!staffId) redirect(withErr(back, "need"));
+
       // ⚠️ Only the queue listing offers this, and its rows are `needs_review` or trainer-less ⇒
       // inside no computed slip. Asserted rather than assumed, because moving the date of a คาบ
       // that *is* inside one pays it twice — once on the closed slip, once on the open one.
-      if (row.status !== "needs_review" && row.staffId !== null) return;
+      //
+      // 🔴 **Loud since ใบ 080, and the reason is that this state is reachable without a crafted
+      // post.** `resolve` itself is what takes a row out of `NEEDS_ATTENTION` (`status: "ok"` with
+      // a trainer), so a second tab — or a second admin — opened before that write still renders
+      // the row with its ยืนยัน button. That is the same concurrency the `closed` re-check above
+      // exists for, and for the `resolve` case it gets the same answer: the assertion holds, the
+      // write is still refused, and the reviewer is now **told** instead of watching their
+      // correction disappear. A silent no-op here says "saved" in the only language a form has.
+      //
+      // ⚠️ **But this predicate is not `NEEDS_ATTENTION`, and one cell of the difference leaks:
+      // `{status: "ignored", staffId: null}` is refused by neither half** — `status` is not
+      // `needs_review`, yet `staffId !== null` is false, so the `&&` lets the write through on a
+      // row that is no longer in the queue. `ignore` (above) writes `status: "ignored"` and never
+      // sets `staffId`, so a **trainer-less** queue row that a human has just ข้าม lands exactly
+      // there: tab A takes the คาบ off pay, tab B rendered earlier still shows ยืนยัน, and B's
+      // click puts it back on pay at 250 ฿ **permanently**, because `reviewed: true` stops every
+      // later sync from touching it. Mirroring `NEEDS_ATTENTION` properly is its own card — and
+      // the obvious "simplification" of dropping `&& row.staffId !== null` is **wrong**, because
+      // it would refuse the legitimate `{status: "ok", staffId: null}` arm the queue is made of.
+      if (row.status !== "needs_review" && row.staffId !== null) redirect(withErr(back, "stale"));
+
       await db.teachSession.update({
         where: { id },
         data: {
-          date: new Date(dateStr + "T00:00:00Z"),
+          date,
           staffId,
           status: "ok",
           reviewed: true,
@@ -170,6 +227,15 @@ export default async function ReviewPage({
       });
     }
     revalidateColorGaps("/sync/review");
+    // 🔴 Back to the **clean** listing, the fourth point of the shared error surface
+    // (`.docs/knowledge/domain/form-refusals.md`) — added at ใบ 080 with the three flags above,
+    // and it binds every action on a page that writes, not only the refusing one. This action had
+    // no redirect at all: it re-rendered whatever URL the browser was on, so a `?err=` left by an
+    // earlier refusal stood over the next **successful** ยืนยัน. That is the worst possible moment
+    // for it — the operator has just fixed the date and resubmitted, and the screen still says the
+    // คาบ was not saved, which invites them to type it a second time. `err=closed` (ใบ 070) had
+    // the same hazard from the same cause; it goes with them.
+    redirect(back);
   }
 
   async function bulkIgnore(formData: FormData) {
@@ -218,6 +284,35 @@ export default async function ReviewPage({
         <span className="text-sm text-neutral-500">{total} รายการ</span>
       </div>
 
+      {/* ใบ 080 — `/ot`'s sentence and worked example, one refusal with four surfaces now. The
+          sharper half is this screen's alone: the reviewer is here **because** the sheet's date was
+          unreadable, so the notice has to say that a typo is stamped permanently (`reviewed: true`
+          ⇒ no later sync repairs it) rather than merely "not saved". */}
+      {err === "date" && (
+        <div className="card-warn text-sm">
+          ⚠️ วันที่อ่านไม่ออก หรือไม่มีอยู่จริง (เช่น 2026-06-31) — <b>คาบนี้ยังไม่ถูกยืนยัน</b>{" "}
+          ตรวจช่อง “วันที่” แล้วกดยืนยันอีกครั้ง · วันที่ผิดเดือนจะ<b>ย้ายคาบนี้ไปอีกงวด</b>{" "}
+          และเพราะการยืนยันคือการตรวจด้วยมือ <b>sync รอบหน้าจะไม่แก้คืนให้</b>
+        </div>
+      )}
+      {/* The bare `return` this replaces (ใบ 080): neither control carries `required`, so a click
+          on a row with nothing filled in used to do nothing at all — indistinguishable from a
+          successful ยืนยัน. Both fields are named because the refusal is one condition. */}
+      {err === "need" && (
+        <div className="card-warn text-sm">
+          ⚠️ ต้องระบุ<b>ทั้งวันที่และผู้สอน</b>ให้ครบก่อนถึงจะยืนยันได้ —{" "}
+          <b>ยังไม่มีอะไรถูกบันทึก</b> กรอกช่องที่ยังว่างในแถวนั้น แล้วกดยืนยันอีกครั้ง
+        </div>
+      )}
+      {/* Also a bare `return` until ใบ 080. Reachable from an ordinary second tab, not only from a
+          crafted post — so the copy says what changed and what to do, not that something is wrong. */}
+      {err === "stale" && (
+        <div className="card-warn text-sm">
+          ⚠️ คาบนี้<b>ถูกตรวจไปแล้ว</b> (อาจจากอีกแท็บหรืออีกคน) จึงยืนยันซ้ำไม่ได้ —{" "}
+          <b>ไม่มีอะไรถูกบันทึกเพิ่ม</b> โหลดหน้านี้ใหม่เพื่อดูของจริง ·
+          ถ้าวันที่หรือผู้สอนที่บันทึกไว้ผิด ต้องแก้ที่งวดนั้น
+        </div>
+      )}
       {err === "closed" && (
         <div className="card-warn text-sm">
           <b>บางคาบแก้ไม่ได้ เพราะงวดของมันปิดไปแล้ว</b> — สลิปที่อนุมัติหรือจ่ายแล้วจะ
@@ -297,7 +392,7 @@ export default async function ReviewPage({
       {rows.map((r) => (
         <form key={r.id} id={`f-${r.id}`} action={resolve} className="hidden">
           <input type="hidden" name="id" value={r.id} />
-          <input type="hidden" name="back" value={backHref} />
+          <input type="hidden" name="back" value={backToHere} />
         </form>
       ))}
 

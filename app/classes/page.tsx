@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { periodRange } from "@/lib/payroll-run";
 import { num, type Config } from "@/lib/config-keys";
 import { finiteNumber, isBlank, INT_COLUMN_MAX } from "@/lib/form-number";
+import { calendarDate } from "@/lib/ot-import";
 import { listClassImportProblems } from "@/lib/class-problems-run";
 import { SubmitButton } from "@/app/_components/submit-button";
 import { ImportProblems } from "./_components/import-problems";
@@ -53,6 +54,29 @@ export default async function ClassesPage({
     "use server";
     await requireAdmin();
 
+    // 🔴 **The date is guarded first, ahead of both head counts and the pair** (ใบ 080). Same hole
+    // and same predicate as `/ot` and `/sales`: `new Date(<client text> + "T00:00:00Z")` rolls an
+    // out-of-range day into the next month rather than refusing it, so `POST date=2026-06-31`
+    // stored `2026-07-01` and moved the คาบ into the next payroll period in silence (§2 rule 4).
+    // `calendarDate` is the one home for it (`lib/ot-import.ts`), and `.trim()` is required rather
+    // than tidy — `app/ot/page.tsx`'s `add` carries the full reason for both.
+    //
+    // **Why ahead of `booked`/`noShow`** — the ordering argument is written out once, in
+    // `app/sales/page.tsx`'s `add`: one `?err=` slot, so order decides which problem is reported
+    // first, and the date is the field that decides which month the row belongs to. What makes it
+    // outrank a head count *here* is §1.4's credit: `classPay = max(0, classValue − classCredit)`
+    // is deducted from the **month's total**, so a shifted คาบ can be destroyed **twice** — it is
+    // subtracted from the month it left, *and* absorbed by the arriving month's own credit ⇒ what
+    // was paid becomes 0, in both. A wrong head count moves one คาบ's own value; a wrong date can
+    // delete it from both months.
+    //
+    // ⚠️ The worked baht figures are **not** restated here — they live once, in the ใบ 080 table
+    // of `.docs/knowledge/domain/form-refusals.md` (read the card, then the code — §5), because
+    // `classCredit` and the คาบ rate are `PayrollConfig`, not constants (§2 rule 3): a comment
+    // repeating the arithmetic goes wrong silently the first time either key moves.
+    const date = calendarDate(String(formData.get("date") ?? "").trim());
+    if (date === null) redirect(`/classes?period=${encodeURIComponent(period)}&err=date`);
+
     // 🔴 These two head counts decide the full/half/no-pay branch of the whole class (the line
     // under the heading spells the branch out), so `Number()` is not good enough here either:
     // an absent `booked` was silently `0` = a class that pays nothing, and a `File` part was `NaN`
@@ -84,7 +108,7 @@ export default async function ClassesPage({
 
     await db.classSession.create({
       data: {
-        date: new Date(String(formData.get("date")) + "T00:00:00Z"),
+        date,
         classId: String(formData.get("classId")),
         staffId: String(formData.get("staffId")),
         booked,
@@ -187,6 +211,16 @@ export default async function ClassesPage({
       {/* One flag per refusal — two fields plus the pair. Each says what was refused and that
           **nothing was saved**: a คาบ the admin believes is keyed in is the failure this screen
           can hide. */}
+      {/* ใบ 080's box — `/ot`'s sentence and worked example with this screen's noun, for the same
+          reason the guard itself is shared: one refusal, one wording. `2026-06-31` looks fine to
+          whoever typed it, so naming only “อ่านไม่ออก” sends them after a typo that is not there
+          while the คาบ was on its way into the next month's payslip. */}
+      {err === "date" && (
+        <p className="card-warn text-sm">
+          ⚠️ วันที่อ่านไม่ออก หรือไม่มีอยู่จริง (เช่น 2026-06-31) — <b>คาบนี้ยังไม่ถูกบันทึก</b>{" "}
+          ตรวจช่อง “วันที่” แล้วบันทึกอีกครั้ง
+        </p>
+      )}
       {err === "booked" && (
         <p className="card-warn text-sm">
           ⚠️ จำนวนคนจองไม่ใช่จำนวนเต็มตั้งแต่ 0 ขึ้นไป — <b>คาบนี้ยังไม่ถูกบันทึก</b> ตรวจช่อง

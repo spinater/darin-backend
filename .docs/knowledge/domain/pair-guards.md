@@ -28,6 +28,12 @@ and where the refusal is itself a money decision rather than the end of one.
 Both obey that card's error surface unchanged: a flag not a message, nothing written, and the
 redirect to the clean URL. Read it first; nothing here re-states it.
 
+⚠️ **Since ใบ 080 the `date` guard runs ahead of both of these** (`err=date`, `calendarDate`, the
+predicate `/ot` and `/sales` share) — one `?err=` slot, and a คาบ in the wrong month costs more
+than a คาบ with the wrong head counts, because §1.4's credit is deducted from the **month's**
+total. That row and its ordering argument are [form-refusals.md](form-refusals.md)'s; what is
+unchanged here is everything below — the pair is still checked after each field is sane on its own.
+
 ⚠️ `lib/payroll.ts` is on `sources:` for one claim only, so this card goes STALE on money commits it
 otherwise has nothing to say about. **Clear that STALE with a dated one-liner, never a paragraph** —
 [money-on-screen.md](money-on-screen.md) reached 122 lines by accumulating exactly those notes, and

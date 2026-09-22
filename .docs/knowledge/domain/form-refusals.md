@@ -16,6 +16,12 @@ sources:
   - app/sales/page.tsx
   - app/classes/page.tsx
   - app/admin/config/page.tsx
+  # ใบ 080 put the ยืนยัน action on this card's surface: its `date` guard and its two former silent
+  # `return`s are **field** refusals on the shared `?err=` surface, not colour ones.
+  # [sheet-colour-rules.md](sheet-colour-rules.md) keeps that screen's *colour* refusals (ใบ 070)
+  # and lists this same file for them — two cards, one file, one claim each, and they go stale
+  # together. Dropping any of the three flags below must land here.
+  - app/sync/review/page.tsx
 ---
 
 # ด่านของแต่ละ action — อันไหนปฏิเสธอะไร และมันบอกคนยังไง
@@ -39,11 +45,14 @@ itself a money decision: [pair-guards.md](pair-guards.md).
 | `/ot` `add` | `hours` | refused | `err=hours` |
 | `/ot` `add` | `date` | refused — and so is a day that is not a real calendar day (ใบ 072); **checked before `hours`**, one flag per submit | `err=date` |
 | `/ot` `paste` | `hours`, `date` and the username — per line | **only a wholly blank line is skipped** (`!line.trim()`, ใบ 014); a blank hours cell is refused, not dropped, and a line with hours but **no** identity field reaches `unmatched` rather than the floor | `unmatched` · `invalidHours` · `invalidDates` boxes |
+| `/sales` `add` | `date` | refused — and so is a day that is not a real calendar day (ใบ 080); **checked before both prices** | `err=date` |
 | `/sales` `add` | `netPrice` | refused | `err=netPrice` |
 | `/sales` `add` | `listPrice` | "sold at list price" ⇒ `null`, and fine | `err=listPrice` |
+| `/classes` `add` | `date` | same predicate again (ใบ 080); **checked before both head counts and before the pair** | `err=date` |
 | `/classes` `add` | `booked` | refused | `err=booked` |
 | `/classes` `add` | `noShow` | 0 — what `?? 0` and `defaultValue={0}` already said | `err=noShow` |
 | `/classes` `add` | `noShow` **vs** `booked` | — (a *pair*, not a field ⇒ [pair-guards.md](pair-guards.md)) | `err=noShowOverBooked` |
+| `/sync/review` `resolve` (ยืนยัน) | `date`, then `staffId` | **blank is refused, loudly** — both were a bare `return` until ใบ 080; the calendar-day half is the same predicate as the three rows above | `err=need` (either field blank) · `err=date` · `err=stale` |
 | `/admin/config` `addStaff` | `baseSalary`, `classCredit` | 0, the documented default | `err=newstaff` |
 | `/admin/config` `addStaff` | `name`, `username` (trimmed), `password` | refused, one flag each — a `File` part too, never `"[object File]"` | `err=newstaffName` · `err=newstaffUser` · `err=newstaffPass` |
 | `/admin/config` `addStaff` | `username` **vs** the rows already there | — (the `@unique` index, caught as `P2002`) | `err=newstaffDup` |
@@ -67,6 +76,43 @@ both paths refuse the same set — the `finiteNumber` arrangement applied to the
 `" 2026-07-01"` is refused, and a caller that forgets is a caller that diverges.
 ⚠️ `staffId` in `add` stays unguarded **on purpose** — an id nobody owns fails on the foreign key,
 which is loud, not silent, so it is not this class of defect.
+
+🔴 **ใบ 080 — the other three money writes took the same unguarded date, and the date now goes
+first on every one of them.** One `?err=` slot fits in the URL ⇒ the order of the guards *is* the
+decision about which problem the operator is told about first, and the date outranks the money
+fields because it is the field that decides **which month the row belongs to** — which on two of
+these screens is not a per-row question:
+
+| Screen | What one shifted row costs beyond itself |
+|---|---|
+| `/sales` | §1.6's threshold is applied **retroactively across the month** ⇒ an 8,000 ฿ bill typed `2026-06-31` takes June's self-closed total 32,000 → 24,000, misses 30,000, and pays 10% not 12% = **1,440 ฿ short**, four times the 400 ฿ of commission that moved |
+| `/classes` | §1.4's `max(0, classValue − classCredit)` deducts from the **month's total** ⇒ a 200 ฿ คาบ moved to 1 July makes June `max(0, 2,000 − 2,000) = 0` *and* is absorbed by July's own credit: **200 ฿ paid becomes 0, in both months** |
+| `/sync/review` | the reviewer is there **because** the sheet's date was unreadable ⇒ highest-probability typo site in the app, and the write is `reviewed: true` ⇒ **no later sync repairs it** (250 ฿ in the wrong month, permanently, queue clean) |
+
+🔑 **One sentence, one worked example (`เช่น 2026-06-31`), each screen's own noun** (บิลนี้ · คาบนี้)
+— a box reading as copied from another screen, beside two that do not, is the third dialect. Only
+`/sync/review`'s says more, and only what is particular to it: the stamp is permanent.
+
+🔴 **Both of `resolve`'s silent `return`s became flags in the same card.** Neither lost a baht (the
+row stays in the queue) ⇒ §2 rule 4's *shape*, and the shape is the point: **a click that does
+nothing is indistinguishable from a click that confirmed the คาบ.** `err=need` is the ordinary case
+— neither control carries `required`; `err=stale` refuses a ยืนยัน on a row that already left the
+queue **by way of `resolve`**, reachable from an ordinary **second tab** (`resolve` is itself what
+takes rows out of `NEEDS_ATTENTION`) and not only from a crafted post — the same concurrency as the
+`err=closed` re-check beside it.
+
+⚠️ **`err=stale`'s predicate is not `NEEDS_ATTENTION` and one cell of the difference leaks** —
+`{status: "ignored", staffId: null}` passes both halves of `status !== "needs_review" && staffId
+!== null`, and `ignore` writes `status: "ignored"` without ever setting `staffId` ⇒ a **trainer-less
+row a human has just ข้าม** can be confirmed back onto pay from a stale tab, permanently
+(`reviewed: true`). Pre-existing, **not** fixed by ใบ 080, carded separately; dropping
+`&& staffId !== null` is the wrong fix — it would refuse the legitimate `{status: "ok",
+staffId: null}` arm.
+
+⚠️ `resolve` also had **no redirect at all** ⇒ point 4 below was false for it until ใบ 080 added
+`redirect(back)` — pinned to a `/sync/review` prefix, since `back` is client-supplied, and carrying
+`?page=` so a reviewer is not thrown to page 1 per row. `bulkIgnore` is still in that state on its
+success path.
 
 🔴 **ใบ 014 — the paste refuses in two layers.** Its write is `deleteMany` + `createMany` inside one
 `db.$transaction` ⇒ **all-or-nothing**: `imported` is `rows.length` or `0`, never between, and the

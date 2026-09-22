@@ -7,6 +7,11 @@ sources:
   # The one renderer all three screens share.
   - app/_components/color-swatches.tsx
   # The exit those swatches link at — the `?hex=` listing, and the way back (ใบ 070).
+  # ⚠️ ใบ 080 changed `resolve` (a `date` guard, and its two silent `return`s made loud) and
+  # **moved nothing on this card**: the `?hex=` listing, the swatch links and the two states are
+  # unchanged, and ยืนยัน still writes `reviewed: true` — which is exactly why a typo there is
+  # permanent, the reason that guard exists. Owner of the new flags:
+  # [form-refusals.md](form-refusals.md).
   - app/sync/review/page.tsx
   # The lock that keeps that exit from being a one-way loss, and the one path list both writers use.
   - lib/closed-slips.ts

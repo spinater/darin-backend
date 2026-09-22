@@ -6,7 +6,11 @@ sources:
   - lib/color-rules.test.ts
   # ใบ 070 moved the colour refusals here from form-refusals.md; this is where addColor lives.
   - app/admin/config/_actions.ts
-  # …and the screen the second set of refusals belongs to.
+  # …and the screen the second set of refusals belongs to. ⚠️ **Only the colour half is this
+  # card's.** Since ใบ 080 that file also carries `resolve`'s field refusals — `err=date` (the
+  # calendar-day guard every money write shares) and the two former silent `return`s, `err=need`
+  # and `err=stale` — and those are [form-refusals.md](form-refusals.md)'s, which lists this file
+  # for them. Two cards, one file, one claim each; both go stale together.
   - app/sync/review/page.tsx
   # The reader: the one place a colour turns into `ignored` / `needs_review`, and the place an
   # unknown colour becomes silence.

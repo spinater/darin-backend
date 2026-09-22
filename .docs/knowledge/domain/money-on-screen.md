@@ -7,6 +7,10 @@ sources:
   # The same `num()` claim about `class.minAttendees`/`class.halfRatio`, and what the table shows
   # now that task 011 deleted `มูลค่า` ⇒ re-adding a `?? 3` fallback (or a derived column) must go
   # STALE instead of leaving this card advertising a ratio the engine no longer agrees with.
+  # ⚠️ ใบ 080 touched that file's `add` action (a `date` guard ahead of the head counts) and
+  # **moved neither claim** — the `num()` reads and the table are as they were. Marked so the next
+  # reader does not go looking for what changed: the guard is
+  # [form-refusals.md](form-refusals.md)'s and its ordering [pair-guards.md](pair-guards.md)'s.
   - app/classes/page.tsx
   # ใบ 065 moved the คาบ table out of that page and into this component, and this card states that
   # nothing in it is derived (only the stored `ที่มา` flag was added) ⇒ re-adding a `มูลค่า` column

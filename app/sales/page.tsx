@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { finiteNumber, isBlank } from "@/lib/form-number";
+import { calendarDate } from "@/lib/ot-import";
 import { SubmitButton } from "@/app/_components/submit-button";
 
 export const dynamic = "force-dynamic";
@@ -54,6 +55,34 @@ export default async function SalesPage({
     "use server";
     await requireRole("owner", "admin", "counter");
 
+    // 🔴 **The date is guarded first, and on this screen it outranks the money fields** (ใบ 080).
+    // `new Date(<client text> + "T00:00:00Z")` does not refuse an out-of-range day — it **rolls it
+    // into the next month** — so `POST date=2026-06-31` stored `2026-07-01` and moved the bill into
+    // the next payroll period with nothing said (§2 rule 4). `calendarDate` (`lib/ot-import.ts`) is
+    // the one home for that predicate, shared with `/ot` and the fingerprint paste; `.trim()` is
+    // load-bearing rather than tidiness, and `app/ot/page.tsx`'s `add` carries the full reason.
+    //
+    // **Why before `netPrice`/`listPrice`** — the ordering question every guarded form here has to
+    // answer, stated once and pointed at from `/classes` and `/sync/review`:
+    //
+    // 1. one `?err=` slot fits in the URL, so the order decides which problem the counter staff are
+    //    told about first — they fix that one, resubmit, and meet the next;
+    // 2. the date decides **which month the row belongs to**, and on this screen that is not a
+    //    per-row question. §1.6's incentive threshold is applied **retroactively across the whole
+    //    month**, so one bill in the wrong month re-rates every *other* bill in it, with
+    //    `warnings: []`.
+    //
+    // ⇒ a wrong price is one wrong bill; a wrong date is one wrong bill **and** every other bill of
+    // that month re-rated. The costlier refusal is reported first.
+    //
+    // ⚠️ The worked baht figures are **not** restated here: they live once, in the ใบ 080 table of
+    // `.docs/knowledge/domain/form-refusals.md` (read the card, then the code — §5). They are
+    // arithmetic over `incentive.threshold` and the commission rates, which are `PayrollConfig`
+    // and not constants (§2 rule 3) ⇒ a comment repeating them is wrong, silently, the first time
+    // that key moves.
+    const date = calendarDate(String(formData.get("date") ?? "").trim());
+    if (date === null) redirect(`/sales?period=${encodeURIComponent(period)}&err=date`);
+
     // 🔴 Both prices go through `finiteNumber` (`lib/form-number.ts`), never `Number()`: this form
     // is the only source of the commission base, so an absent field's silent `0` or a `File`
     // part's `NaN` reaches `Sale.netPrice` → every commission, the incentive threshold and the
@@ -77,7 +106,7 @@ export default async function SalesPage({
 
     await db.sale.create({
       data: {
-        date: new Date(String(formData.get("date")) + "T00:00:00Z"),
+        date,
         kind: String(formData.get("kind")),
         tier: String(formData.get("tier") ?? "") || null,
         productName: String(formData.get("productName")),
@@ -171,6 +200,20 @@ export default async function SalesPage({
       {/* One flag per refused field, so the notice can name the field without ever rendering
           anything the URL carried. Both say the same two things `/ot` says: what was refused, and
           that **nothing was saved** — a bill the counter believes is in is the failure mode here. */}
+      {/* ใบ 080's box, worded from `/ot`'s (ใบ 072) — one refusal, one sentence, however many
+          surfaces. 🔴 It has to name **both** halves and keep the worked example: `2026-06-31`
+          looks perfectly fine to the person who typed it, so a notice reading only “อ่านไม่ออก”
+          sends them hunting a typo that is not there, while what the guard actually stopped was
+          this bill being counted in the next month — and with it June's whole incentive threshold.
+          ⚠️ The noun is this screen's (“บิลนี้”), as in the two boxes below; the sentence, the
+          example and the flag are `/ot`'s unchanged. A third dialect would be a box that reads as
+          copied from another screen, sitting beside two that do not. */}
+      {err === "date" && (
+        <p className="card-warn text-sm">
+          ⚠️ วันที่อ่านไม่ออก หรือไม่มีอยู่จริง (เช่น 2026-06-31) — <b>บิลนี้ยังไม่ถูกบันทึก</b>{" "}
+          ตรวจช่อง “วันที่” แล้วบันทึกอีกครั้ง
+        </p>
+      )}
       {err === "netPrice" && (
         <p className="card-warn text-sm">
           ⚠️ ราคาจ่ายจริงไม่ใช่ตัวเลข หรือติดลบ — <b>บิลนี้ยังไม่ถูกบันทึก</b> ตรวจช่อง
