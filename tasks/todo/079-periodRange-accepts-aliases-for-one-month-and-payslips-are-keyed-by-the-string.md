@@ -77,6 +77,6 @@ string, so `/ot?period=0x7e2-07` shows **`OT — งวด 0x7e2-07`** above Jul
 - Admin-authenticated and hand-crafted ⇒ not urgent. It is on the record because it is the exact
   *"a server action is a plain HTTP endpoint"* argument `app/ot/page.tsx` makes about its own two
   fields, applied to a field nobody applied it to.
-- Related: [072](072-the-one-row-ot-form-still-stores-a-rolled-over-date.md) and
+- Related: [072](../done/072-the-one-row-ot-form-still-stores-a-rolled-over-date.md) and
   [014](../done/014-ot-import-atomicity.md) — the same class on `OtEntry.date`, where the silent
   value was a *shifted* day rather than an aliased month.

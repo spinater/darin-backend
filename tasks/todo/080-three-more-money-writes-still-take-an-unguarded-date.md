@@ -83,5 +83,5 @@ there costs nothing.
 - 🔴 **Do not fold ใบ 079 into this card.** That one is the same *family* — a date-ish string nobody
   validated — but it is the period key rather than a row's day, its fix is in `lib/payroll-run.ts`,
   and it needs the stored data checked before the guard is tightened.
-- Related: [072](072-the-one-row-ot-form-still-stores-a-rolled-over-date.md) ·
+- Related: [072](../done/072-the-one-row-ot-form-still-stores-a-rolled-over-date.md) ·
   [014](../done/014-ot-import-atomicity.md) · [079](079-periodRange-accepts-aliases-for-one-month-and-payslips-are-keyed-by-the-string.md)
