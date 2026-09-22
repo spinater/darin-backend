@@ -1,7 +1,7 @@
 # `form-refusals.md` is 3 lines under the §5 warn and has two topics in it
 
-- status: todo
-- commit:
+- status: done
+- commit: be1c3a4
 
 ## Goal
 
@@ -35,4 +35,4 @@ Add a row for the new card in `.docs/knowledge/index.md` (§5 — the gate check
   that *nothing changed* — it sources `app/ot/page.tsx`, so task 014's diff made it `STALE` without
   moving either of its claims. Defensible as an anti-goose-chase marker; worth a look in the same
   pass, not a split of its own.
-- Precedent for how to do this: [023](../done/023-split-two-oversized-knowledge-cards.md).
+- Precedent for how to do this: [023](023-split-two-oversized-knowledge-cards.md).
