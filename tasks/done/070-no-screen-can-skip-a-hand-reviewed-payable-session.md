@@ -1,7 +1,7 @@
 # A hand-reviewed payable คาบ can be repaired from nowhere in the product
 
-- status: todo
-- commit:
+- status: done
+- commit: b90b8cc
 
 ## Goal
 
@@ -47,7 +47,7 @@ override question ใบ 066 and ใบ 069 are waiting on.
 
 ## Not the same as ใบ 069
 
-[069](069-a-recoloured-reviewed-row-is-invisible-to-every-screen.md) is a reviewed row **recoloured
+[069](../todo/069-a-recoloured-reviewed-row-is-invisible-to-every-screen.md) is a reviewed row **recoloured
 in the sheet**, where the database never learns the new colour and nothing can see the problem at
 all. This card is a colour the database **knows**, a rule that **exists**, and no action anywhere to
 apply it. They share the `prev.reviewed` short-circuit and nothing else.
@@ -110,10 +110,10 @@ bulk button says **ในหน้านี้**, because selection does not sur
 ข้าม share `revalidateColorGaps()` · `sheet` is URL-encoded in every link (Thai sheet names).
 
 ⚠️ **What is still not proven:** no test here reaches a database, so that the listing's query agrees
-with the swatch that linked to it is **reviewed, not asserted** — [015](015-db-test-lane.md). What is
+with the swatch that linked to it is **reviewed, not asserted** — [015](../todo/015-db-test-lane.md). What is
 pinned (16 tests) is the pure decision *may this string be aimed at rows at all*.
 
 ⚠️ **Not touched, on purpose:** whether a *sync* may override a human's review — that is
 [066](../todo-human/066-may-a-human-dismiss-an-import-problem.md) and
-[069](069-a-recoloured-reviewed-row-is-invisible-to-every-screen.md)'s question, and every act here
+[069](../todo/069-a-recoloured-reviewed-row-is-invisible-to-every-screen.md)'s question, and every act here
 is a human's own explicit click in the direction their own colour rule already points.
