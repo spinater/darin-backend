@@ -123,11 +123,28 @@ export const otUsernameKey = (username: string) => username.trim().toLowerCase()
 /**
  * A real calendar day written exactly as `YYYY-MM-DD`, at UTC midnight — or `null`.
  *
- * The round-trip is the whole check: `new Date()` accepts `2026-06-31` and answers `2026-07-01`,
- * so comparing the ISO day back against the text is what rejects both an unparseable date and a
- * silently shifted one. See `invalidDates` for the measured table.
+ * 🔴 **The round-trip is the whole check and must not be "simplified" to `Number.isNaN`.** An
+ * out-of-range day does not produce an `Invalid Date`: `new Date("2026-06-31T00:00:00Z")` answers
+ * **`2026-07-01`** without complaint, so `isNaN(getTime())` is green over a date the operator never
+ * wrote. Comparing the ISO day back against the text is what rejects *both* halves — the
+ * unparseable date and the silently shifted one — and the same comparison pins the `YYYY-MM-DD`
+ * shape, so no second regex is needed. The measured table of what this runtime does to each shape
+ * is on `OtImportParse.invalidDates` above, and stays there rather than being copied.
+ *
+ * Why it matters wherever a date becomes an `OtEntry`: the shifted day lands in the **next month's**
+ * payroll period (`periodRange` is `[from, to)`), and `OtEntry` is keyed `@@unique([staffId, date])`
+ * — so a write on the shifted day also **overwrites** that person's real row on it. Money moves
+ * months and a true record is destroyed, in silence (CLAUDE.md §2 rule 4).
+ *
+ * 🔑 **Exported since ใบ 072, so the two write paths refuse exactly the same set** — this is the
+ * `finiteNumber` arrangement applied to the other field (§2 rule 2's one-predicate-one-home). Both
+ * `parseOtPaste` below and `/ot`'s one-row `add` action call it.
+ *
+ * ⚠️ **The caller trims.** The comparison is against the text it was handed, so `" 2026-07-01"`
+ * is refused as unparseable. That is deliberate — the check has one job — but it means a caller
+ * reading a raw form field or a raw CSV cell must `.trim()` first or the two paths diverge.
  */
-function calendarDate(text: string): Date | null {
+export function calendarDate(text: string): Date | null {
   const d = new Date(text + "T00:00:00Z");
   if (Number.isNaN(d.getTime())) return null;
   return d.toISOString().slice(0, 10) === text ? d : null;

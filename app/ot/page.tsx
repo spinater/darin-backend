@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { periodRange } from "@/lib/payroll-run";
-import { parseOtPaste, otUsernameKey, type OtImportState } from "@/lib/ot-import";
+import { parseOtPaste, otUsernameKey, calendarDate, type OtImportState } from "@/lib/ot-import";
 import { num, type Config } from "@/lib/config-keys";
 import { isNextControlFlowError } from "@/lib/next-errors";
 import { finiteNumber } from "@/lib/form-number";
@@ -19,8 +19,10 @@ export default async function OtPage({
   searchParams: Promise<{ period?: string; err?: string }>;
 }) {
   await requireAdmin();
-  // `err` is a **flag**, not the message: the Thai copy stays in this file (§2.5) and nothing the
-  // URL carries is rendered, so a crafted link cannot put words on an admin's screen.
+  // `err` is a **flag**, not the message: the Thai copy stays in this file (§2.5) and `err` itself
+  // is only ever compared, never rendered, so a crafted link cannot put words on an admin's
+  // screen through it. (`period` *is* rendered, in the `<h1>` below — this sentence is about
+  // `err` alone.)
   const { period: periodParam, err } = await searchParams;
   const period = periodParam ?? new Date().toISOString().slice(0, 7);
   const { from, to } = periodRange(period);
@@ -47,8 +49,34 @@ export default async function OtPage({
   async function add(formData: FormData) {
     "use server";
     await requireAdmin();
+    // `staffId` is deliberately unguarded: an id nobody owns fails on `OtEntry`'s foreign key, i.e.
+    // **loudly**, which is not the silent shape the two guards below exist for.
     const staffId = String(formData.get("staffId"));
-    const date = new Date(String(formData.get("date")) + "T00:00:00Z");
+
+    // 🔴 `type="date" required` is a *client* hint exactly as `type="number"` is below, and this
+    // field was the half of the form that never acted on that (ใบ 072). `new Date()` does not
+    // refuse an out-of-range day — it **rolls it into the next month**: `POST date=2026-06-31`
+    // stored `2026-07-01`, which moved that day's OT into July's payroll period *and*, because the
+    // upsert key is `(staffId, date)`, overwrote that person's real 1 July row. Money in the wrong
+    // month and a true record destroyed, with nothing said (§2 rule 4).
+    //
+    // `calendarDate` is the one home for that predicate (`lib/ot-import.ts`, round-trip not
+    // `isNaN`), shared with the paste path so the two refuse the same set — the same arrangement
+    // `finiteNumber` already gives `hours`.
+    //
+    // `.trim()` is required, not tidiness: `calendarDate` compares the ISO day back against the
+    // text it is given, so an untrimmed `" 2026-07-01"` would be refused while `parseOtPaste`
+    // (which trims every cell) accepts it — the divergence this card exists to remove.
+    // An absent field never reaches `String()` — `?? ""` turns it into the empty string, which is
+    // refused as unparseable — and a file part stringifies to `"[object File]"`, refused as the
+    // non-date it is. Neither needs a separate arm.
+    //
+    // **Checked before the hours** — one `err` slot fits in the URL, so when both fields are wrong
+    // the operator sees one, fixes it, resubmits and sees the other. Date first matches
+    // `parseOtPaste`'s order and its reason: a submission wrong in two ways is usually one
+    // structural problem, and the date is the half that decides which month the row belongs to.
+    const date = calendarDate(String(formData.get("date") ?? "").trim());
+    if (date === null) redirect(`/ot?period=${encodeURIComponent(period)}&err=date`);
 
     // 🔴 `type="number" step="0.25" min={0} required` is a *client* hint; a server action is a
     // plain HTTP endpoint, so `hours` arrives as anything or not at all, and every wrong shape is
@@ -70,8 +98,8 @@ export default async function OtPage({
       create: { staffId, date, hours },
     });
     revalidatePath("/ot");
-    // Back to the clean URL so a later successful save clears a sticky `err=hours` — without it
-    // the rejection notice would outlive the row that caused it.
+    // Back to the clean URL so a later successful save clears a sticky `err=hours`/`err=date` —
+    // without it the rejection notice would outlive the row that caused it.
     redirect(`/ot?period=${encodeURIComponent(period)}`);
   }
 
@@ -218,6 +246,19 @@ export default async function OtPage({
         <p className="card-warn text-sm">
           คำเตือน — ชั่วโมงไม่ใช่ตัวเลข หรือติดลบ รายการนี้ยังไม่ถูกบันทึก ตรวจช่อง
           “ชั่วโมงทำงานวันนั้น” แล้วบันทึกอีกครั้ง
+        </p>
+      )}
+
+      {/* ใบ 072's box, worded from the paste form's `invalidDates` heading so the two surfaces say
+          the same thing about the same refusal — one predicate, one sentence.
+          🔴 It has to name **both** halves and keep the worked example. `2026-06-31` looks
+          perfectly fine to the person who typed it, so a notice reading only “อ่านไม่ออก” sends
+          them hunting a typo that is not there — while what the guard actually stopped was that
+          day's OT being counted in the next month, on top of an existing 1 July row. */}
+      {err === "date" && (
+        <p className="card-warn text-sm">
+          คำเตือน — วันที่อ่านไม่ออก หรือไม่มีอยู่จริง (เช่น 2026-06-31) รายการนี้ยังไม่ถูกบันทึก
+          ตรวจช่อง “วันที่” แล้วบันทึกอีกครั้ง
         </p>
       )}
 

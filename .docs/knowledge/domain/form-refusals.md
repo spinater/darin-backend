@@ -37,6 +37,7 @@ itself a money decision: [pair-guards.md](pair-guards.md).
 | Action | Fields | Blank means | Flag |
 | --- | --- | --- | --- |
 | `/ot` `add` | `hours` | refused | `err=hours` |
+| `/ot` `add` | `date` | refused — and so is a day that is not a real calendar day (ใบ 072); **checked before `hours`**, one flag per submit | `err=date` |
 | `/ot` `paste` | `hours`, `date` and the username — per line | **only a wholly blank line is skipped** (`!line.trim()`, ใบ 014); a blank hours cell is refused, not dropped, and a line with hours but **no** identity field reaches `unmatched` rather than the floor | `unmatched` · `invalidHours` · `invalidDates` boxes |
 | `/sales` `add` | `netPrice` | refused | `err=netPrice` |
 | `/sales` `add` | `listPrice` | "sold at list price" ⇒ `null`, and fine | `err=listPrice` |
@@ -54,6 +55,18 @@ itself a money decision: [pair-guards.md](pair-guards.md).
 line, no new surface needed). It has to be: the one-row form refusing `-5` while the paste imported
 it left the door open on the path OT actually arrives by, and `-5` is the quiet one — finite, so it
 stores, and `Math.max(0, -5 − threshold)` then pays nothing.
+
+🔴 **ใบ 072 paid the same debt back in the other direction, on `date`.** ใบ 014 closed the rollover
+on the paste; the `add` form 30 lines above kept `new Date(String(formData.get("date")) + "T…")`
+with no check, so `POST date=2026-06-31` stored **`2026-07-01`** — 120 ฿ out of June into July on a
+12-hour day, **and** an upsert on `(staffId, date)` overwriting that person's real 1 July row. A
+`type="date"` attribute is a *client* hint exactly as `type="number"` is, and the file was already
+arguing that for one of its two fields. `calendarDate` is exported from `lib/ot-import.ts` now, so
+both paths refuse the same set — the `finiteNumber` arrangement applied to the other field.
+⚠️ **Both callers must `.trim()`**: the round-trip compares against the text it is handed, so
+`" 2026-07-01"` is refused, and a caller that forgets is a caller that diverges.
+⚠️ `staffId` in `add` stays unguarded **on purpose** — an id nobody owns fails on the foreign key,
+which is loud, not silent, so it is not this class of defect.
 
 🔴 **ใบ 014 — the paste refuses in two layers.** Its write is `deleteMany` + `createMany` inside one
 `db.$transaction` ⇒ **all-or-nothing**: `imported` is `rows.length` or `0`, never between, and the

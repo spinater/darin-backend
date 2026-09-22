@@ -102,6 +102,11 @@ that screen and no rate has a fallback. The buckets themselves belong to
 [form-refusals.md](form-refusals.md); recorded here only so the next reader does not go looking for
 a change to the rules above that is not there.
 
+📌 **ใบ 072 (2026-09-22) touched that file again and moved neither claim either.** It added a
+`calendarDate` guard to the one-row `add` action and a Thai notice for `?err=date`; no baht is
+computed on `/ot` still, and both `num()` reads are untouched. Same one line for the same reason —
+the refusal belongs to [form-refusals.md](form-refusals.md), not here.
+
 ## A screen may also be the only place a **silence** is reported
 
 The banner blocks on `/` and `/payslips` are not arithmetic, but they are on this card because they

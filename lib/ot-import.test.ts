@@ -1,5 +1,5 @@
 import { expect, test, describe } from "bun:test";
-import { parseOtPaste, otUsernameKey } from "./ot-import";
+import { parseOtPaste, otUsernameKey, calendarDate } from "./ot-import";
 
 // ⚠️ `bun test` has no database — `lib/ot-import.ts`'s own header says why (stage 4 of
 // `scripts/check-code.sh` runs before the throwaway postgres exists). So **nothing in this file
@@ -203,5 +203,40 @@ describe("parseOtPaste (task 009)", () => {
       staff,
     );
     expect(unmatched).toEqual(["ghost"]);
+  });
+});
+
+// 🔴 ใบ 072 — the predicate itself, in its own describe, because it stopped being one function's
+// private helper. It was module-private and reachable only through `parseOtPaste`, so everything
+// pinned about it was pinned through the paste path; `/ot`'s one-row `add` calls it directly now,
+// and a shared predicate asserted through only one of its callers is one tidy-up away from
+// changing silently for the other.
+describe("calendarDate (ใบ 072)", () => {
+  // The two columns behave differently and both have to be here: **unparseable** is the half
+  // `Number.isNaN(getTime())` would also catch, **rolled over** is the half it would not. The
+  // rolled-over half is the expensive one — the shifted day lands in the next month's payroll
+  // period *and*, through `@@unique([staffId, date])`, overwrites the real row already on it.
+  test("an unparseable date AND a silently rolled-over one are both refused", () => {
+    // Unparseable — every one of these is already `Invalid Date`, so an `isNaN` check would do.
+    for (const bad of ["2026-13-01", "2026-7-1", "2026-07-01x", ""]) {
+      expect(calendarDate(bad)).toBeNull();
+    }
+    // 🔴 Silently rolled over: `getTime()` is a perfectly good number for all three, so only the
+    // round-trip tells them apart from a real day. The first `expect` is the load-bearing one —
+    // it states out loud that `isNaN` is green here, which is what stops the round-trip being
+    // "simplified" back to one. Measured against this runtime: `2026-06-31` → `2026-07-01`,
+    // `2026-02-31` → `2026-03-03`, `2026-02-29` → `2026-03-01` (2026 is not a leap year).
+    for (const rolled of ["2026-06-31", "2026-02-31", "2026-02-29"]) {
+      expect(Number.isNaN(new Date(rolled + "T00:00:00Z").getTime())).toBe(false);
+      expect(calendarDate(rolled)).toBeNull();
+    }
+    // Real days still pass, at UTC midnight — including a **genuine** leap day, so "refuse 29 Feb"
+    // is not an acceptable way to make the arm above green.
+    expect(calendarDate("2026-07-01")).toEqual(new Date("2026-07-01T00:00:00Z"));
+    expect(calendarDate("2026-02-28")).toEqual(new Date("2026-02-28T00:00:00Z"));
+    expect(calendarDate("2024-02-29")).toEqual(new Date("2024-02-29T00:00:00Z"));
+    // The caller trims: the comparison is against the text handed in, so padding is refused. Both
+    // write paths must therefore trim, or they diverge on exactly this input.
+    expect(calendarDate(" 2026-07-01")).toBeNull();
   });
 });
