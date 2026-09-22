@@ -44,6 +44,6 @@ gets in.
 
 - Found by `payroll-auditor` during the task 014 round-2 audit, on a pre-existing line the diff did
   not touch.
-- Related: [014](014-ot-import-atomicity.md) (the three buckets this would feed) ·
+- Related: [014](../done/014-ot-import-atomicity.md) (the three buckets this would feed) ·
   [072](072-the-one-row-ot-form-still-stores-a-rolled-over-date.md) (the other silent-but-plausible
   value on the same screen).

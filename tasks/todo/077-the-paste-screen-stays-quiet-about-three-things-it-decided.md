@@ -57,4 +57,4 @@ if (!key) { /* nameless line: bullet + continue, before the map lookup */ }
 
 - Items 1 and 2 found by `code-reviewer`, the hardening too, both in the task 014 round-2 review.
 - Item 3 is a copy problem on a box task 014 built; the §9 lanes for it are call-by-hand.
-- Related: [014](014-ot-import-atomicity.md) · [076](076-a-decimal-comma-export-pays-twenty-baht-short-in-silence.md).
+- Related: [014](../done/014-ot-import-atomicity.md) · [076](076-a-decimal-comma-export-pays-twenty-baht-short-in-silence.md).

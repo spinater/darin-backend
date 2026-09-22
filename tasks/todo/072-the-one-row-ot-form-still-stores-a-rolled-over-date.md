@@ -49,6 +49,6 @@ wrong shape is silent" — and then applies that reasoning to one of its two fie
 
 - Found by `code-reviewer` in the task 014 review round, explicitly ruled out of 014's scope as
   pre-existing and in a different action.
-- Related: [014](014-ot-import-atomicity.md) (the paste path, where `calendarDate` comes from) ·
+- Related: [014](../done/014-ot-import-atomicity.md) (the paste path, where `calendarDate` comes from) ·
   [013](013-payslip-lifecycle-integrity.md) item 4 (the same "a server action is a plain HTTP
   endpoint" argument, applied to `Number()` fields).

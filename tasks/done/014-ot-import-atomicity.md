@@ -1,7 +1,7 @@
 # An OT import that fails halfway leaves the screen showing the old data
 
-- status: todo
-- commit:
+- status: done
+- commit: 20d8fcd
 
 ## Goal
 
@@ -71,9 +71,9 @@ problems remain, all deliberately left as pre-009 behaviour (3 was added by the 
   review lanes then re-reviewed the added lines **cold**, forbidden from carrying over round 1.
   `payroll-auditor` re-ran five mutants against a scratch copy and matched every counter-test
   number. The failure mode itself has no rule covering it ⇒
-  [075](075-an-in-place-edit-ate-uncommitted-work-and-no-rule-covered-it.md).
+  [075](../todo/075-an-in-place-edit-ate-uncommitted-work-and-no-rule-covered-it.md).
 - **Three more things the paste screen decides in silence** — duplicate person-day lines collapsing
   with no bullet, `imported` changing meaning, and the `unmatched` heading contradicting its own
-  nameless-line bullet ⇒ [077](077-the-paste-screen-stays-quiet-about-three-things-it-decided.md).
+  nameless-line bullet ⇒ [077](../todo/077-the-paste-screen-stays-quiet-about-three-things-it-decided.md).
   A decimal-comma export paying 20 ฿ short per row is pre-existing and untouched here ⇒
-  [076](076-a-decimal-comma-export-pays-twenty-baht-short-in-silence.md).
+  [076](../todo/076-a-decimal-comma-export-pays-twenty-baht-short-in-silence.md).
