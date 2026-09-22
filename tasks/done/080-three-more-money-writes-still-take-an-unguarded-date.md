@@ -1,7 +1,7 @@
 # Three more money writes still take an unguarded date — and one of them is worse than OT
 
-- status: todo
-- commit:
+- status: done
+- commit: a7eac0b
 
 ## Goal
 
@@ -155,7 +155,7 @@ decision, not a copy).
 is **wiring inside server actions**: guard order, which `?err=` a `redirect` carries, whether the
 notice renders. `bun test` has no database, so there is nothing here that can honestly be pinned —
 the same wall the ใบ 072 row ends on for `app/ot/page.tsx`. The lane that would close it is
-[015-db-test-lane.md](015-db-test-lane.md).
+[015-db-test-lane.md](../todo/015-db-test-lane.md).
 
 ⇒ **reviewed rather than tested**, recorded as a no-pin row in
 `.docs/knowledge/ops/junit-pin-history.md`. A raise here could only have been bought with a test
@@ -168,7 +168,7 @@ invented to justify it.
   times — instead of calling `periodRange()` as `/ot`, `/classes` and every other period screen do.
   A junk `?period=` therefore reaches Prisma as `Invalid Date` rather than being refused. It is a
   **read**, not a money write, so no baht moves; but it is the same family as
-  [079](079-periodRange-accepts-aliases-for-one-month-and-payslips-are-keyed-by-the-string.md) and
+  [079](../todo/079-periodRange-accepts-aliases-for-one-month-and-payslips-are-keyed-by-the-string.md) and
   its fix (call `periodRange`) depends on what 079 decides that function should refuse ⇒ left
   alone deliberately, named here so 079 can pick it up. No other client-derived `Date` exists in
   the three actions: `grep -rn "new Date(" app/` was read in full.
@@ -201,5 +201,5 @@ invented to justify it.
 - 🔴 **Do not fold ใบ 079 into this card.** That one is the same *family* — a date-ish string nobody
   validated — but it is the period key rather than a row's day, its fix is in `lib/payroll-run.ts`,
   and it needs the stored data checked before the guard is tightened.
-- Related: [072](../done/072-the-one-row-ot-form-still-stores-a-rolled-over-date.md) ·
-  [014](../done/014-ot-import-atomicity.md) · [079](079-periodRange-accepts-aliases-for-one-month-and-payslips-are-keyed-by-the-string.md)
+- Related: [072](072-the-one-row-ot-form-still-stores-a-rolled-over-date.md) ·
+  [014](014-ot-import-atomicity.md) · [079](../todo/079-periodRange-accepts-aliases-for-one-month-and-payslips-are-keyed-by-the-string.md)

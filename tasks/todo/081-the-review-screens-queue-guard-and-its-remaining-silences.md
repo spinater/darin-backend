@@ -98,5 +98,5 @@ Cosmetic, but it is the kind of thing that is cheap here and expensive to redisc
 - 🔴 **This card is about the screen's guards, not about dates.** The date predicate's own gap —
   `calendarDate` accepts an implausible *year* — is
   [082](082-calendarDate-accepts-a-year-that-cannot-be-real.md) and reaches four screens.
-- Related: [080](080-three-more-money-writes-still-take-an-unguarded-date.md) ·
+- Related: [080](../done/080-three-more-money-writes-still-take-an-unguarded-date.md) ·
   ใบ 070 for why ข้าม exists at all.

@@ -62,6 +62,6 @@ The row lands outside every `periodRange` query (`0226-06-05` is not in
   a predicate shared by four screens, the other is one screen's own guard.
 - Related: [014](../done/014-ot-import-atomicity.md) ·
   [072](../done/072-the-one-row-ot-form-still-stores-a-rolled-over-date.md) ·
-  [080](080-three-more-money-writes-still-take-an-unguarded-date.md) ·
+  [080](../done/080-three-more-money-writes-still-take-an-unguarded-date.md) ·
   [079](079-periodRange-accepts-aliases-for-one-month-and-payslips-are-keyed-by-the-string.md)
   (the same family on the period key rather than the row's day).
