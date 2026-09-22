@@ -37,7 +37,7 @@ Read the predicate first; nothing here re-states it.
 | Action | Fields | Blank means | Flag |
 | --- | --- | --- | --- |
 | `/ot` `add` | `hours` | refused | `err=hours` |
-| `/ot` `paste` | `hours`, per line | line skipped (blank line / header) | `invalidHours` box |
+| `/ot` `paste` | `hours`, `date` and the username — per line | **only a wholly blank line is skipped** (`!line.trim()`, ใบ 014); a blank hours cell is refused, not dropped, and a line with hours but **no** identity field reaches `unmatched` rather than the floor | `unmatched` · `invalidHours` · `invalidDates` boxes |
 | `/sales` `add` | `netPrice` | refused | `err=netPrice` |
 | `/sales` `add` | `listPrice` | "sold at list price" ⇒ `null`, and fine | `err=listPrice` |
 | `/classes` `add` | `booked` | refused | `err=booked` |
@@ -54,6 +54,22 @@ Read the predicate first; nothing here re-states it.
 line, no new surface needed). It has to be: the one-row form refusing `-5` while the paste imported
 it left the door open on the path OT actually arrives by, and `-5` is the quiet one — finite, so it
 stores, and `Math.max(0, -5 − threshold)` then pays nothing.
+
+🔴 **ใบ 014 — the paste refuses in two layers.** Its write is `deleteMany` + `createMany` inside one
+`db.$transaction` ⇒ **all-or-nothing**: `imported` is `rows.length` or `0`, never between, and the
+error copy names no failing row because none exists. A transaction is only an improvement if every
+*per-line* problem is refused **before** it — one typo at line 85 of 220 would otherwise roll back the
+other 219 where it used to strand 84 committed ⇒ four buckets, not two:
+
+| Bucket | The line has | Why it is not just "it fails at the write" |
+| --- | --- | --- |
+| `unmatched` | a username nobody owns (a header row lands here, and so does a line with **no** username, as `(บรรทัดไม่มีชื่อผู้ใช้)`) | deduped by the normalized key — one fix recovers a whole month |
+| `invalidHours` | an hours cell that is non-finite, negative, **or empty/absent** | the empty cell was in *no* bucket before ใบ 014: a fingerprint export writes `somchai<TAB>2026-07-01<TAB>` for a missed scan-out, so the paste reported "นำเข้าแล้ว 219 รายการ" with zero warnings while that person's OT was short |
+| `invalidDates` | a date that is not a real calendar day | 🔴 the quiet half: `new Date("2026-06-31")` answers **`2026-07-01`**, no `NaN` anywhere, so that day's OT is counted in the **next month's period**. Validated by round-trip (`toISOString().slice(0,10)` must equal the text), which also pins the `YYYY-MM-DD` shape |
+| `rows` | everything else, deduped by `staffId + date`, **last line wins**, position preserved | `@@unique([staffId, date])` would make `createMany` throw on a repeat and roll back the paste; last-wins is what the old upsert-per-row loop did in silence |
+
+⚠️ What can still fail the write is then **infrastructure only**, which is what makes one flat Thai
+line honest instead of a guess. No `bun test` proves the rollback (no DB) — `tasks/todo/015-db-test-lane.md`.
 
 **The bulk save is the one with real logic** ⇒ it lives in `lib/config-form.ts`
 (`parseConfigNumbers`) and is tested. It parses **every** numeric field before the first write and

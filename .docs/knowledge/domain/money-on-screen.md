@@ -95,6 +95,13 @@ on the 011 card).
 the payroll run does, instead of a screen inventing a value and looking right while the run dies
 on it.
 
+🔑 **ใบ 014 rewrote `/ot`'s paste action and moved neither claim this card makes about that file.**
+The write is now one `$transaction` (`deleteMany` + `createMany`) with three rejection buckets in
+front of it, and the hours formatter and both `num()` reads are untouched — no baht is computed on
+that screen and no rate has a fallback. The buckets themselves belong to
+[form-refusals.md](form-refusals.md); recorded here only so the next reader does not go looking for
+a change to the rules above that is not there.
+
 ## A screen may also be the only place a **silence** is reported
 
 The banner blocks on `/` and `/payslips` are not arithmetic, but they are on this card because they

@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { periodRange } from "@/lib/payroll-run";
-import { parseOtPaste, otUsernameKey, type OtImportRow, type OtImportState } from "@/lib/ot-import";
+import { parseOtPaste, otUsernameKey, type OtImportState } from "@/lib/ot-import";
 import { num, type Config } from "@/lib/config-keys";
 import { isNextControlFlowError } from "@/lib/next-errors";
 import { finiteNumber } from "@/lib/form-number";
@@ -12,25 +12,6 @@ import { PasteForm } from "./_components/paste-form";
 import { timed } from "@/lib/job-timing";
 
 export const dynamic = "force-dynamic";
-
-/**
- * Which row the write loop stopped on, in Thai — **without claiming why it stopped**.
- *
- * ⚠️ `toISOString()` throws `RangeError` on an `Invalid Date`, and an unparseable date is the most
- * likely reason the write failed at all ⇒ the formatter running inside the `catch` must not become
- * the next thing that throws. `row` is `undefined` only if the throw came from outside the loop.
- */
-function describeFailedRow(
-  row: OtImportRow | undefined,
-  staff: { id: string; username: string }[],
-) {
-  if (!row) return "บันทึกข้อมูลไม่ผ่าน";
-  const who = staff.find((s) => s.id === row.staffId)?.username ?? row.staffId;
-  const when = Number.isNaN(row.date.getTime())
-    ? "(วันที่อ่านไม่ออก)"
-    : row.date.toISOString().slice(0, 10);
-  return `หยุดที่บรรทัดของ ${who} วันที่ ${when}`;
-}
 
 export default async function OtPage({
   searchParams,
@@ -103,62 +84,76 @@ export default async function OtPage({
    * off — degrades to a plain GET that imports nothing and says nothing.
    *
    * ⇒ the action **returns** its failure instead of throwing, and the try/catch lives here.
-   * `unmatched` and `invalidHours` are decided before the write loop, so they survive a mid-loop
-   * failure and still reach the screen (CLAUDE.md §2 rule 4).
+   * The three rejection buckets are decided before the write, so they survive a failed write and
+   * still reach the screen (CLAUDE.md §2 rule 4).
+   *
+   * 🔴 **The write is all-or-nothing since task 014** — one `$transaction`, so `imported` is either
+   * `rows.length` or `0` and there is no half-imported paste to describe or to retry around. The
+   * per-row data problems that used to cause a mid-loop throw are all rejected by `parseOtPaste`
+   * now, which is what makes the transaction an improvement rather than a regression: what is left
+   * is infrastructure (connection, timeout) and one race — two admins pasting overlapping days at
+   * once, where a `P2002` on `@@unique([staffId, date])` is possible. Neither moves money.
    */
   async function paste(_prev: OtImportState, formData: FormData): Promise<OtImportState> {
     "use server";
     await requireAdmin();
     const everyone = await db.staff.findMany();
     const byUsername = new Map(everyone.map((s) => [otUsernameKey(s.username), s.id]));
-    const { rows, unmatched, invalidHours } = parseOtPaste(
+    const { rows, unmatched, invalidHours, invalidDates } = parseOtPaste(
       String(formData.get("bulk") ?? ""),
       byUsername,
     );
 
-    // Count what actually landed, not `rows.length`: after a mid-loop failure the operator needs
-    // to know how much of the paste is already in, so the retry is not a guess.
     let imported = 0;
     let error: string | null = null;
     try {
-      // เขียนทีละบรรทัด — วางมาทั้งเดือนก็หลายร้อยรอบ จดเวลาไว้ให้ผู้ใช้รู้ว่าต้องรอแค่ไหน
-      await timed("ot-import", async () => {
-        for (const row of rows) {
-          await db.otEntry.upsert({
-            where: { staffId_date: { staffId: row.staffId, date: row.date } },
-            update: { hours: row.hours },
-            create: row,
-          });
-          imported++;
-        }
-      });
+      if (rows.length > 0) {
+        // วางมาทั้งเดือนก็หลายร้อยบรรทัด จดเวลาไว้ให้ผู้ใช้รู้ว่าต้องรอแค่ไหน
+        //
+        // 🔴 Two statements, not one round trip per row. The array form of `$transaction` is one
+        // DB transaction with no interactive-transaction timeout to tune, which is what removes
+        // the 5 s risk a 220-line paste over a remote DB used to carry (task 014).
+        //
+        // 🔴 **`OR` is a list of explicit `(staffId, date)` pairs and must stay one.**
+        // `{ staffId: { in: … }, date: { in: … } }` is the cross product: it would delete a
+        // person's OT for a day this paste never mentioned. This is a money-data delete.
+        //
+        // Delete + recreate loses nothing: `OtEntry` has no `createdAt`, and the only reader of
+        // its `id` is the `del` form on this page, re-rendered on every load.
+        //
+        // `timed()` wraps the transaction from outside on purpose — it writes `JobDuration` in a
+        // `finally` and must not be enrolled in the rollback.
+        //
+        // The `rows.length > 0` guard is not a micro-optimisation: `deleteMany` with an empty `OR`
+        // has no obvious meaning and must not be relied on.
+        await timed("ot-import", () =>
+          db.$transaction([
+            db.otEntry.deleteMany({
+              where: { OR: rows.map((r) => ({ staffId: r.staffId, date: r.date })) },
+            }),
+            db.otEntry.createMany({ data: rows }),
+          ]),
+        );
+      }
+      imported = rows.length;
     } catch (e) {
       // `redirect()`/`notFound()` signal by throwing — swallowing one renders `NEXT_REDIRECT` as
       // literal text. None is thrown here today; this keeps that true if one is ever added.
       if (isNextControlFlowError(e)) throw e;
       // The raw cause stays server-side. A production build redacts uncaught server-action errors
-      // anyway, so the old code could never show what its comment promised — and Prisma's message
-      // is English, which is not UI copy for this product.
-      console.error("[ot-import] write failed after", imported, "row(s)", e);
-      // 🔴 Name the row, never the cause. The old copy asserted "วันที่หรือชั่วโมงไม่ถูกต้อง" for
-      // *any* throw — a dropped connection, a statement timeout, a Prisma version error — and sent
-      // the operator hunting a malformed date that is not there. The loop is ordered and
-      // `imported` counts committed rows, so `rows[imported]` **is** the row that failed.
-      // Two halves, each only stated when it is true:
-      //   · saved/not-saved — the "previous rows are already saved" copy is a lie at
-      //     `imported === 0`, where it tells the operator to go check a save that never happened;
-      //   · "ตรวจบรรทัดนั้น" ("check that line") — only meaningful when `describeFailedRow`
-      //     actually named a line. With `rows[imported]` undefined it degrades to the generic
-      //     `บันทึกข้อมูลไม่ผ่าน`, and the instruction then points at a line nobody identified.
-      const failedRow = rows[imported];
-      const saved = imported > 0 ? "บรรทัดก่อนหน้าบันทึกแล้ว" : "ยังไม่มีบรรทัดไหนถูกบันทึก";
-      const tail = failedRow
-        ? `${saved} ตรวจบรรทัดนั้นแล้ววางใหม่อีกครั้ง`
-        : `${saved} วางใหม่อีกครั้ง`;
-      error = `นำเข้าไม่สำเร็จ — ${describeFailedRow(failedRow, everyone)} · ${tail}`;
+      // anyway, and Prisma's message is English, which is not UI copy for this product.
+      console.error("[ot-import] write failed, rolled back", rows.length, "row(s)", e);
+      // 🔴 Name neither a row nor a cause — there is now nothing true to say about either. The
+      // transaction rolled back, so no row is "the one that failed" and no earlier row is saved;
+      // and the throw is either infrastructure (connection, timeout) or a `P2002` on
+      // `@@unique([staffId, date])` when two admins paste overlapping days in the same second and
+      // run A's delete commits between run B's delete and its insert. Retrying is the operator's
+      // move in both cases, and no money moved in either — so the Thai copy stays true as written.
+      error =
+        "นำเข้าไม่สำเร็จ — ไม่มีบรรทัดไหนถูกบันทึก ทั้งหมดถูกยกเลิกพร้อมกัน ลองวางใหม่อีกครั้ง";
     }
     revalidatePath("/ot");
-    return { imported, unmatched, invalidHours, error };
+    return { imported, unmatched, invalidHours, invalidDates, error };
   }
 
   async function del(formData: FormData) {

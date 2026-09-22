@@ -27,7 +27,9 @@ export function PasteForm({
   // Lines the parser refused. "Nothing came in" must stay false while any of them exists — the
   // empty-state copy would otherwise talk about the paste format while the real answer is on
   // screen right below it.
-  const rejected = state ? state.unmatched.length + state.invalidHours.length : 0;
+  const rejected = state
+    ? state.unmatched.length + state.invalidHours.length + state.invalidDates.length
+    : 0;
 
   return (
     <form action={formAction} className="card flex flex-col gap-2">
@@ -78,6 +80,22 @@ export function PasteForm({
         <WarningCard
           heading={`คำเตือน (${state.invalidHours.length}) — ชั่วโมงไม่ใช่ตัวเลข หรือติดลบ บรรทัดกลุ่มนี้ยังไม่ถูกบันทึก`}
           items={state.invalidHours}
+          mono
+          max={20}
+        />
+      )}
+
+      {/* The third bucket (task 014): the name is fine, the hours are fine, the *date* is not a
+          real calendar day. Capped at 20 for the same reason as `invalidHours` — one wrong export
+          format invalidates every line at once, which is one fix, not hundreds.
+          🔴 The heading has to name **both** halves. `new Date()` turns `2026-06-31` into
+          `2026-07-01` without complaint, so a heading reading only "วันที่อ่านไม่ออก" sends the
+          operator hunting a typo in a value that looks perfectly fine to them — while that day's
+          OT would have been counted in the wrong month. Hence the worked example in the copy. */}
+      {state && state.invalidDates.length > 0 && (
+        <WarningCard
+          heading={`คำเตือน (${state.invalidDates.length}) — วันที่อ่านไม่ออก หรือไม่มีอยู่จริง (เช่น 2026-06-31) บรรทัดกลุ่มนี้ยังไม่ถูกบันทึก`}
+          items={state.invalidDates}
           mono
           max={20}
         />
