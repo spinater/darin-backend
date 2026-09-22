@@ -6,11 +6,9 @@ sources:
   - lib/color-rules.test.ts
   # ใบ 070 moved the colour refusals here from form-refusals.md; this is where addColor lives.
   - app/admin/config/_actions.ts
-  # …and the screen the second set of refusals belongs to. ⚠️ **Only the colour half is this
-  # card's.** Since ใบ 080 that file also carries `resolve`'s field refusals — `err=date` (the
-  # calendar-day guard every money write shares) and the two former silent `return`s, `err=need`
-  # and `err=stale` — and those are [form-refusals.md](form-refusals.md)'s, which lists this file
-  # for them. Two cards, one file, one claim each; both go stale together.
+  # …and the screen the second set belongs to — ⚠️ its **colour half only**: `resolve`'s *field*
+  # refusals (ใบ 080) are [form-refusals.md](form-refusals.md)'s, listed in its table. One file,
+  # two cards, one claim each; both go stale together.
   - app/sync/review/page.tsx
   # The reader: the one place a colour turns into `ignored` / `needs_review`, and the place an
   # unknown colour becomes silence.
@@ -114,8 +112,8 @@ every entry) and is recorded as retired in ใบ 043 rather than left in the li
 ⚠️ **`addColor` still validates nothing about the hex's *shape*** — `"ฟ้า"` is accepted and stored as
 a rule that can never match a cell. The two refusals ใบ 043 did add (a `meaning` outside the closed
 set · `#ffffff`) are on the *meaning* and on the *one hex that is unaimable*, not on the format.
-Out of scope for 043; it belongs with the form-refusal work in [form-refusals.md](form-refusals.md),
-which also owns the claim that `addColor` lowercases what it stores.
+Out of scope for 043; it belongs with the form-refusal work in [form-refusals.md](form-refusals.md).
+The lowercasing itself is **rule 2 of the fold above**, not that card's.
 
 ⚠️ **No screen can delete a `ColorRule`** — the same gap [041](../../../tasks/todo/041-no-way-to-remove-a-registered-activity.md)
 has for activities. A colour ruled wrongly can be re-ruled, so nothing is unrepairable; a rule for
@@ -148,9 +146,9 @@ as ใบ 034's `addActivity` and ใบ 027's `addStaff`). ⚠️ Their copy is
 (`COLOR_REASONS` in `save-notice.tsx`), because the four `REASONS` say *"ยังไม่ได้บันทึกอะไรเลยสักช่อง"*
 — true of a form of several dozen fields, a fault rather than a refusal about a one-field form.
 ⚠️ The empty-hex `return` stays silent, made unreachable by `required` rather than given a third
-flag — a missing value, not one that would have paid. 🔴 **Still no guard on the hex's *shape* at
-this end**: `"ฟ้า"` is stored as a rule no cell can match (pre-existing). ⚠️ `addColor` revalidates
-through `revalidateColorGaps()` (`lib/revalidate.ts`) since ใบ 070 — the same list the ข้าม below uses.
+flag — a missing value, not one that would have paid. 🔴 The hex's *shape* is still unguarded here too
+(the ⚠️ under "What is not proven"). ⚠️ `addColor` revalidates through `revalidateColorGaps()`
+(`lib/revalidate.ts`) since ใบ 070 — the same list the ข้าม below uses.
 
 ## `/sync/review` — refusals on the first screen that takes money *off* a slip (ใบ 070)
 

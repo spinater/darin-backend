@@ -43,9 +43,10 @@ at this length there is room to be disciplined instead.
 
 Nearly every row in [form-refusals.md](form-refusals.md)'s action table refuses a **field**; the
 rows that instead weigh a value against a **second** value are split by where the prose is
-load-bearing. `addStaff`'s `username` **vs** the rows already stored (`err=newstaffDup`) stays on
-that card, because it carries that card's P2002/TOCTOU argument — the one refusal the parse cannot
-make. This card owns the two on `/classes`, where the refusal is itself a money decision. The first
+load-bearing. `addStaff`'s `username` **vs** the rows already stored (`err=newstaffDup`) is not
+here either: it travels with the P2002/TOCTOU argument — the one refusal the parse cannot make —
+which left for [config-form-parses.md](config-form-parses.md) at ใบ 083, while the flag itself stays
+in [form-refusals.md](form-refusals.md)'s table. This card owns the two on `/classes`, where the refusal is itself a money decision. The first
 of them
 refuses a **pair**: `booked: 2, noShow: 5` passes both field guards — each is a non-negative
 integer — and stores, and the engine then reads `attended = −3`, a case §1.4 does not define.

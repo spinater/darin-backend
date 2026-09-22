@@ -8,7 +8,8 @@ sources:
   - lib/config-keys.ts
   # ⚠️ The two parses and the four screens came **out** of this list at ใบ 068 with the prose that
   # described them (§5: shrink `sources:` with the split, or the card goes stale just as often).
-  # They are [form-refusals.md](form-refusals.md)'s now.
+  # The four screens are [form-refusals.md](form-refusals.md)'s; the two parses went one card
+  # further at ใบ 083, to [config-form-parses.md](config-form-parses.md).
 ---
 
 # Numbers arriving from a form — the guard every money field goes through
@@ -59,13 +60,13 @@ in its most expensive direction: quiet, and noticed at payday.
 The pair exists so a `null` is never ambiguous: the caller decides whether a *blank* field has a
 documented meaning, and every other `null` is a refusal.
 
-⇒ **Which caller decides what — the per-action table, the two parses with real logic
-(`parseConfigNumbers`, `parseNewStaff`) and the shared `?err=` surface — is
+⇒ **Which caller decides what — the per-action table and the shared `?err=` surface — is
 [form-refusals.md](form-refusals.md)**, split out at ใบ 068; the guards that compare a value against
 a **second** value rather than validating one field left that card for
-[pair-guards.md](pair-guards.md) at ใบ 073. This
-card stops at the predicate on purpose: the predicate is one decision and does not grow, while the
-action table gains a row every time a form lands.
+[pair-guards.md](pair-guards.md) at ใบ 073, and the two parses with real logic
+(`parseConfigNumbers`, `parseNewStaff`) for [config-form-parses.md](config-form-parses.md) at ใบ 083.
+This card stops at the predicate on purpose: the predicate is one decision and does not grow, while
+the action table gains a row every time a form lands.
 
 ## What is deliberately *not* guarded here
 
@@ -75,4 +76,5 @@ action table gains a row every time a form lands.
 - **A non-numeric config key.** All 18 keys in `CONFIG_DEFAULTS` are non-negative numbers today, and
   the `cfg` rule assumes it. A key that is a name, a flag or a date needs its own branch in
   `parseConfigNumbers` **before** it is added, or the first owner who edits it is refused — that
-  parse and the file it lives in are [form-refusals.md](form-refusals.md)'s, which sources it.
+  parse and the file it lives in are [config-form-parses.md](config-form-parses.md)'s, which
+  sources it.

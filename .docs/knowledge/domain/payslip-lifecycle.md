@@ -115,9 +115,10 @@ what a recompute rebuilds changed.
   `app/admin/config/page.tsx` already promises the user in Thai that unmatched work
   "ขึ้นเตือนในสลิป".
 - The same shape elsewhere has **different lifetimes and therefore different homes**: the OT
-  paste's rejected lines live one submission (returned by the action, `lib/ot-import.ts` —
-  `unmatched` for a username nobody has, `invalidHours` for an hours field that is not a usable
-  number), and a sheet whose grid did not arrive lives one sync run (`SyncResult.missingGrid`).
+  paste's rejected lines live one submission (returned by the action, `lib/ot-import.ts`
+  ([ot-paste-import.md](ot-paste-import.md)) — `unmatched` for a username nobody has,
+  `invalidHours` for an hours field that is not a usable number), and a sheet whose grid did not
+  arrive lives one sync run (`SyncResult.missingGrid`).
   Neither belongs in `PayslipWarning`.
 - **`SeedMark` (task 040) is not part of this lifecycle at all.** One row, written last by
   `prisma/seed.ts` to record that this database's reference fixture has been planted or adopted.

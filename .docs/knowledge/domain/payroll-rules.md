@@ -98,7 +98,8 @@ sources:
      put the one-row form, the paste parser and four more money-writing actions on one predicate,
      `finiteNumber` (`lib/form-number.ts`), which also refuses a **negative** value (`-5` stored, then
      paid nothing). The predicate is [money-input-guards.md](money-input-guards.md); the per-site rules
-     and the shared `?err=` surface are [form-refusals.md](form-refusals.md).
+     and the shared `?err=` surface are [form-refusals.md](form-refusals.md), and the paste's four
+     buckets are [ot-paste-import.md](ot-paste-import.md) since ใบ 083.
 4. **ปัดเศษที่เดียว** — `money()` ปัดทศนิยม 2 ตำแหน่ง · ห้ามปัดกลางทางแล้วปัดซ้ำ
    ⇒ สลิปคือที่เดียวที่ **คำนวณ** เงิน · หน้าจอ **แสดง** ยอดที่เก็บไว้/ตั้งค่าไว้ได้ แต่ห้ามคิดเองสักตัว
    และเรท/เกณฑ์ที่อ่านนอกเอนจินต้องอ่านด้วย `num()` ตามข้อ 1 — กติกาฝั่งหน้าจอทั้งชุด (ใบ 011 ·
