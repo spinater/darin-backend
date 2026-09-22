@@ -55,7 +55,9 @@ What is unified is the **meaning**, and it has exactly one home: `runBlockers(pe
 `lib/run-blockers.ts`, read by both `/payslips` and `/`. 🔴 **Labelled members, never one total** —
 a sum reads as one queue and hides which screen to open. Three of them since ใบ 043, and the third is
 a *list* of colours rather than a count ([colour-gap-states.md](colour-gap-states.md)); what that
-proves about this one is that the shape of a member follows the repair, not the other way round.
+proves about this one is that the shape of a member follows the repair, not the other way round —
+and ใบ 070 sharpened it further by giving a single entry **three** possible repairs, each carried by
+the entry itself rather than by the reader's memory.
 
 ## `key` — three shapes in one column, kept apart by arity
 

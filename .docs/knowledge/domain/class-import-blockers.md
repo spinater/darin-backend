@@ -35,8 +35,10 @@ each repair is a different action. The two counts this card owns both say pay wi
 **short**; the third member, `colorGaps` (ใบ 043, [colour-gap-states.md](colour-gap-states.md)),
 is a **list** and says it will come out **long** — a คาบ whose colour nobody has vouched for syncs as
 `status: "ok"`, so it is already on the slip. It is a list because the owner answers per colour and
-each entry carries *which* repair it needs (answer the colour, or re-sync a colour already answered),
-so a count alone could not be acted on.
+each entry carries *which* repair it needs (answer the colour, re-sync a colour already answered,
+or — since ใบ 070 — click ข้าม in `/sync/review?hex=` for the rows no sync will ever re-evaluate),
+so a count alone could not be acted on. 🔑 **Three repairs behind one entry is the strongest form of
+the argument** this section makes: a member's shape follows what has to be done about it.
 
 ## The count on `/payslips`, and why its exclusion is not `imported − matched`
 

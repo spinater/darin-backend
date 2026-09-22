@@ -77,6 +77,23 @@ export default async function Dashboard({
         ))}
       </div>
 
+      {/* 🔴 **Its own box, deliberately outside "ต้องเคลียร์ก่อนจ่ายจริง"** (ใบ 070). Everything in
+          that list is คาบ that will be paid **short** until somebody acts; this is คาบ that will not
+          be paid **at all, because somebody already acted**. Filing it as a blocker would tell the
+          owner to go undo their own decision every month. It is here at all because ใบ 070 gave the
+          product its first button that takes money *off* a slip, and a recomputed slip carries no
+          trace of it — no `PayslipWarning`, no line, nothing on `/me`, just a smaller number
+          (§2 ข้อ 4). */}
+      {blockers.handIgnored > 0 && (
+        <p className="card text-sm">
+          งวดนี้มี <b>{blockers.handIgnored}</b> คาบที่<b>คนกดข้ามเอง</b> ⇒ ไม่เข้าเงินเดือน และ
+          <b>ไม่มีบรรทัดไหนในสลิปบอกไว้</b> —{" "}
+          <Link href={`/sync/review?ignored=1&period=${period}`} className="underline">
+            ดูรายการ / เอากลับเข้าคิว
+          </Link>
+        </p>
+      )}
+
       {(blockers.sheetReview > 0 ||
         blockers.classImport > 0 ||
         blockers.colorGaps.length > 0 ||
@@ -115,8 +132,8 @@ export default async function Dashboard({
                 <Link href="/sync" className="underline">
                   sync ใหม่
                 </Link>{" "}
-                คาบพวกนี้ถึงจะเปลี่ยน · 🔴 ส่วนคาบที่<b>ตรวจด้วยมือแล้ว</b> sync จะข้ามตลอดไป และ
-                <b>ยังไม่มีหน้าจอไหนแก้ได้</b> (ใบ 070) — ต้องรอทางแก้ ห้ามตั้งสีเป็น
+                คาบพวกนี้ถึงจะเปลี่ยน · 🔴 ส่วนคาบที่<b>ตรวจด้วยมือแล้ว</b> sync จะข้ามตลอดไป ต้อง
+                <b>กดข้ามเองจากลิงก์ที่อยู่ข้างสีนั้น</b> — ไม่ว่าทางไหนก็ห้ามตั้งสีเป็น
                 &quot;จ่ายปกติ&quot; เพื่อให้คำเตือนหาย <ColorSwatches colors={unapplied} />
               </li>
             )}

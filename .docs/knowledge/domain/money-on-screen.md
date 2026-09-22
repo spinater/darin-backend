@@ -107,3 +107,9 @@ the engine is right not to. 🔑 And the banner must survive the owner *answerin
 most wrong and the last moment a screen should go quiet. The copy names the direction out loud rather than borrowing
 the wording of the two beside it — "จะจ่ายขาด" and "จะจ่ายเกิน" are opposite instructions to the
 person reading them.
+
+📌 **ใบ 070 changed the last clause of that banner on both screens, and only the clause.** It used to
+end *"คาบที่ตรวจด้วยมือแล้ว … ยังไม่มีหน้าจอไหนแก้ได้ — ต้องรอทางแก้"*; there is a screen now, so it
+names it (`/sync/review?hex=`, reached from the swatch itself). 🔑 What did **not** change is the
+sentence beside it: re-ruling the colour to "จ่ายปกติ" is still forbidden as a way to make the warning
+go away, on both screens, because an exit that exists does not make the wrong exit any less wrong.

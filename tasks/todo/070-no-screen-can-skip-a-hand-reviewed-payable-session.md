@@ -62,3 +62,58 @@ apply it. They share the `prev.reviewed` short-circuit and nothing else.
 
 - Opened out of the ใบ 043 review round (2026-09-21). Pre-existing: the disjointness of
   `NEEDS_ATTENTION` and "reviewed and payable" is older than 043 and nothing in 043 made it worse.
+
+---
+
+## What shipped — the `?hex=` listing, and the four guards that make its button safe
+
+**Shape chosen: the first option** (`?hex=` on `/sync/review`). It reuses the `ignore` action and
+its per-row `reviewNote` audit trail; the `/admin/config` bulk `updateMany` was rejected for writing
+no per-row reason and for putting a bulk money action on a screen that has none.
+
+| Piece | Where |
+|---|---|
+| the filter, pure and pinned | `payableWithColorWhere()` · `isReportableHex()` — `lib/color-rules.ts` |
+| the listing, the way back, both actions | `app/sync/review/page.tsx` + `_components/` |
+| the closed-period lock | `lib/closed-slips.ts` |
+| one path list for both writers | `lib/revalidate.ts` |
+| the count of what people removed | `runBlockers().handIgnored` → `/` and `/payslips` |
+
+🔴 **Both review lanes BLOCKed the first cut, and every guard below is one of their findings.** The
+listing was right from the start; what was wrong was everything around the button.
+
+1. **`?hex=` accepted anything.** `?hex=%23ffffff` listed the ~320 payable คาบ a month that carry
+   white — no swatch counts white, `addColor` refuses to *store* a white rule — under a bulk ข้าม, at
+   50 × 250 = **12,500 ฿ a page**. And `mode: "insensitive"` compiles to `ILIKE`, so `%` and `_` are
+   **wildcards** (`payroll-auditor` measured it against a real Postgres): `?hex=%25` matched every
+   coloured payable คาบ of every period. ⇒ `isReportableHex` (`^#[0-9a-f]{6}$` and not neutral), and
+   `payableWithColorWhere` returns **`null`** rather than a wider filter so no caller can forget it.
+2. **One instruction for rules that mean opposite things.** ว่ายน้ำ is ruled `review` — *ให้คนตรวจ*
+   never said "do not pay" — and the page told its reader to ข้าม *"ตามกฎสี"*. ⇒ one sentence per
+   rule, bulk ข้าม only under `skip`, and **no listing at all** for a colour with no rule or ruled
+   `pay`, because fifty checkboxes under an unanswered colour is the default-to-`skip` this repo
+   refuses, reached through a URL.
+3. **The queue's own controls were lethal on these rows.** They are `status: "ok"` with a date and a
+   trainer, i.e. already inside computed slips. ยืนยัน on a row marked `sync ครั้งหน้าจัดให้เอง`
+   strands it for ever (50 × 400 = **20,000 ฿**); editing the date of a คาบ in a paid period pays it
+   **twice**. ⇒ the colour and ignored listings are read-only but for their one button.
+4. **ข้าม in a closed period hid the problem instead of fixing it.** `runPayroll` will not recompute
+   a non-`draft` slip, so the money stays and the row simply leaves `colorGaps`' `status: "ok"`
+   filter — the one report still saying the colour is being paid goes quiet (**9,500 ฿** measured).
+   ⇒ such a row is listed, named `งวดปิดแล้ว`, has no button, and the action re-checks it itself.
+5. **Nothing named what the button removed.** This is the product's first action that takes money
+   *off* a slip, and a recomputed slip carries no trace. ⇒ `handIgnored` on both dashboards (beside
+   the queues, never summed with them) and `?ignored=1` with **เอากลับเข้าคิว** as the way back.
+
+Also: `bulkIgnore` is constrained by the listing's own `where` instead of trusting posted ids · the
+bulk button says **ในหน้านี้**, because selection does not survive pagination · `addColor` and the
+ข้าม share `revalidateColorGaps()` · `sheet` is URL-encoded in every link (Thai sheet names).
+
+⚠️ **What is still not proven:** no test here reaches a database, so that the listing's query agrees
+with the swatch that linked to it is **reviewed, not asserted** — [015](015-db-test-lane.md). What is
+pinned (16 tests) is the pure decision *may this string be aimed at rows at all*.
+
+⚠️ **Not touched, on purpose:** whether a *sync* may override a human's review — that is
+[066](../todo-human/066-may-a-human-dismiss-an-import-problem.md) and
+[069](069-a-recoloured-reviewed-row-is-invisible-to-every-screen.md)'s question, and every act here
+is a human's own explicit click in the direction their own colour rule already points.

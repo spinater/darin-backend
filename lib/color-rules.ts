@@ -19,7 +19,9 @@
  * (payroll-auditor, round 1). `ColorRule` is applied **only at sync time**, and `syncSources()`
  * skips a `reviewed: true` row before it ever reaches the lookup. So the คาบ already in the database
  * do not move when the rule is written: a colour answered "ไม่จ่าย" goes on being paid until the
- * next sync, and on a hand-reviewed row **for ever**. A report that retired a colour the moment it
+ * next sync, and on a hand-reviewed row **no sync will ever repair it** — the only exit for those
+ * is a human's explicit ข้าม in `/sync/review?hex=`, which is what `reviewedSessions` counts and
+ * what the swatches link at (task 070). A report that retired a colour the moment it
  * was answered would go quiet at exactly the moment the money is most wrong — the owner's correct
  * answer buying silence instead of a fix. ⇒ a colour leaves this list when the **rows** agree with
  * its rule, not when the rule exists.
@@ -82,13 +84,18 @@ export type ColorGap = SeenColor & {
    *
    * 🔴 **`pending === 0` is not "resolved", and this fold must never retire a colour on it**
    * (payroll-auditor, round 3). `reviewed: true` records that somebody resolved the row's *parse*
-   * problem; it is **not** evidence that anybody looked at its **colour**. `/sync/review` never
-   * renders `bgColor`, and the one note that did carry it — `สีในชีตต้องให้คนตรวจ (#hex)` from
-   * `lib/sync.ts` — is overwritten with `"คนตรวจยืนยันแล้ว"` the moment the row is resolved. There
-   * is no `reviewedAt` and no `ColorRule.updatedAt`, so "reviewed *because of* this rule" cannot be
-   * told from "reviewed a year earlier about a missing trainer name". ⇒ a colour with
-   * `pending: 0` and `reviewedSessions > 0` is still **emitted**, and the screens say what is
-   * actually known: these คาบ were cleared by a human who was never shown this colour.
+   * problem; it is **not** evidence that anybody looked at its **colour**. The one note that carried
+   * the colour — `สีในชีตต้องให้คนตรวจ (#hex)` from `lib/sync.ts` — is overwritten with
+   * `"คนตรวจยืนยันแล้ว"` the moment the row is resolved, and there is no `reviewedAt` and no
+   * `ColorRule.updatedAt`, so "reviewed *because of* this rule" cannot be told from "reviewed a year
+   * earlier about a missing trainer name". ⇒ a colour with `pending: 0` and `reviewedSessions > 0`
+   * is still **emitted**, and the screens say what is actually known: these คาบ were cleared by a
+   * human who was never shown this colour.
+   *
+   * ⚠️ Task 070 put a `bgColor` column on `/sync/review` and a `?hex=` listing behind it, so a
+   * reviewer **can** be shown the colour from now on — but that changes nothing above. The rows this
+   * count is about were cleared before it existed, and with no `reviewedAt` there is still nothing
+   * to date a review against a rule. Retiring on `pending === 0` stays wrong for the same reason.
    *
    * The ว่ายน้ำ sheet is why this is the guaranteed path rather than a corner: `prisma/seed.ts`
    * gives it `trainer: null`, so every payable swim คาบ is hand-cleared by construction. Retiring on
@@ -116,6 +123,80 @@ export const NEUTRAL_BG = new Set(["#ffffff"]);
 
 export function isNeutralBg(hex: string | null | undefined): boolean {
   return !hex || NEUTRAL_BG.has(hex.trim().toLowerCase());
+}
+
+/**
+ * A string that may be **aimed at rows** — exactly the shape `colorGaps()` emits, and the only one
+ * `/sync/review?hex=` will build a listing for (task 070).
+ *
+ * 🔴 **`addColor` refusing `#ffffff` is worth nothing if a second screen accepts it**, and ใบ 070
+ * added one. That page reaches `TeachSession` by `bgColor` with a bulk ข้าม under it, so
+ * `?hex=%23ffffff` — typed by hand; no swatch can link to it, `colorGaps()` drops neutral hexes —
+ * would list ~320 uncoloured payable คาบ a month and hand someone fifty checkboxes to remove them
+ * from pay, at ~50 × 250 = **12,500 ฿ a page**, with `warnings: []` and **no swatch anywhere that
+ * counts white** to report it afterwards. That is `NEUTRAL_BG`'s own paragraph reached through the
+ * screen instead of through the rule (§2 rule 4).
+ *
+ * ⚠️ **The shape check is not cosmetic either.** A hex pasted without its `#` matches no row, and a
+ * listing that answers an undecidable input with *"ไม่มีคาบสีนี้ที่ยังจ่ายอยู่แล้ว"* has turned "I
+ * cannot tell" into "there is nothing to do" — the one translation §2 rule 4 forbids. It also keeps
+ * the value safe for the inline `style={{ background }}` that renders the swatch, which is a raw
+ * declaration, not an escaped attribute.
+ */
+export function isReportableHex(v: string | null | undefined): boolean {
+  if (!v) return false;
+  const hex = v.trim().toLowerCase();
+  return /^#[0-9a-f]{6}$/.test(hex) && !isNeutralBg(hex);
+}
+
+/**
+ * **The rows `/sync/review?hex=` may list** — payable คาบ carrying one colour, every period
+ * (task 070). `null` means *this string may not be aimed at rows at all*, and the caller must
+ * render a refusal rather than a listing.
+ *
+ * 🔴 **Returning `null` rather than trusting the caller is the whole point.** The page that calls
+ * this puts a bulk ข้าม under the listing, so a filter one character wider than intended is a bulk
+ * money action on rows nobody chose. Two ways that happens, both closed by `isReportableHex`:
+ *
+ * - **`#ffffff`** — an unstyled cell and a deliberate white fill are the same bytes, so ~320
+ *   payable คาบ a month carry it and no swatch anywhere counts them (`colorGaps` drops
+ *   `NEUTRAL_BG`). `addColor` already refuses to *store* such a rule; a second screen that will
+ *   *aim* at it makes that refusal worth nothing.
+ * - 🔴 **`%` and `_`** — `mode: "insensitive"` compiles to `ILIKE` with the value as a plain
+ *   parameter, so those two characters are **wildcards**, not literals (`payroll-auditor` measured
+ *   this against a real Postgres, 2026-09-22). `?hex=%25` would match *every* coloured payable คาบ
+ *   of every period. The `^#[0-9a-f]{6}$` shape admits neither, which is why the guard is a shape
+ *   check and not merely an `isNeutralBg` check.
+ *
+ * ⚠️ `mode: "insensitive"` stays, and is not the hazard: `lib/sync.ts` stores `bgColor` as the
+ * sheet gave it while `colorGaps` folds case, so an exact match would miss a row the swatch counted.
+ */
+export function payableWithColorWhere(hex: string): Prisma.TeachSessionWhereInput | null {
+  if (!isReportableHex(hex)) return null;
+  return {
+    status: "ok",
+    staffId: { not: null },
+    bgColor: { equals: hex.trim().toLowerCase(), mode: "insensitive" },
+  };
+}
+
+/**
+ * **คาบ a person removed from pay by hand** — `status: "ignored"` written by a human, on a row that
+ * was payable when they wrote it (task 070).
+ *
+ * 🔴 This exists because ใบ 070's ข้าม is the **first** action in this product that takes money
+ * *off* a slip. The queue's older ข้าม could not: it only ever reached `needs_review` rows, which
+ * `runPayroll` never paid, so removing one cost nothing and needed no trace. A colour view's ข้าม
+ * removes rows that **were** being paid, and a slip recomputed afterwards is simply smaller — no
+ * `PayslipWarning`, no line, nothing on `/me`. Money leaving quietly is §2 rule 4's own sentence,
+ * so the count goes on the two screens that ask "is this period clean", beside the queues that mean
+ * the opposite direction.
+ *
+ * ⚠️ `reviewed: true` is what separates a human's ข้าม from `syncSources()` writing `ignored` by
+ * colour rule — the latter is the rule working as intended and is not reported.
+ */
+export function handIgnoredWhere(from: Date, to: Date): Prisma.TeachSessionWhereInput {
+  return { status: "ignored", reviewed: true, staffId: { not: null }, date: { gte: from, lt: to } };
 }
 
 /**
@@ -200,6 +281,12 @@ export async function colorGapsInPeriod(period: string): Promise<ColorGap[]> {
  */
 export async function colorGapsSeen(): Promise<ColorGap[]> {
   return gapsWhere({});
+}
+
+/** How many คาบ a person took off this period's pay by hand — see `handIgnoredWhere`. */
+export async function handIgnoredInPeriod(period: string): Promise<number> {
+  const { from, to } = periodRange(period);
+  return db.teachSession.count({ where: handIgnoredWhere(from, to) });
 }
 
 async function gapsWhere(where: Prisma.TeachSessionWhereInput): Promise<ColorGap[]> {

@@ -1,4 +1,14 @@
+import Link from "next/link";
 import { COLOR_MEANING_LABELS, type ColorGap } from "@/lib/color-rules";
+
+/**
+ * The one exit for a payable คาบ carrying this colour (task 070) — `/sync/review`'s `?hex=`
+ * listing, which mirrors `colorGapsSeen()`'s filter so the page holds exactly the rows the swatch
+ * counted.
+ */
+function reviewHref(hex: string) {
+  return `/sync/review?hex=${encodeURIComponent(hex)}`;
+}
 
 /**
  * The sheet background colours a payroll run is about to pay without anyone having vouched for
@@ -18,13 +28,16 @@ import { COLOR_MEANING_LABELS, type ColorGap } from "@/lib/color-rules";
  * 🔴 **`pending` is the actionable count, never the exposure.** It is the คาบ that *openly* disagree
  * with what is known about the colour, so it is what the eye should land on — but every payable คาบ
  * is named, always: the reviewed share is called out separately in both directions, `stranded` under
- * a `skip` rule (rows no screen in this app can repair — card 070) and `unseen` under a `review` one
- * (rows a human cleared without ever being shown the colour). ⚠️ `pending === 0` is **not**
- * "resolved" and never hides a colour — `lib/color-rules.ts` carries why `reviewed: true` is not
- * evidence about a colour at all.
+ * a `skip` rule (rows no *sync* will ever re-evaluate) and `unseen` under a `review` one (rows a
+ * human cleared without ever being shown the colour). ⚠️ `pending === 0` is **not** "resolved" and
+ * never hides a colour — `lib/color-rules.ts` carries why `reviewed: true` is not evidence about a
+ * colour at all.
  *
- * ⚠️ Neither sentence may point at `/sync/review`: its listing is `NEEDS_ATTENTION`, and a
- * hand-reviewed payable row matches neither arm of it.
+ * 🔑 **Both of those sentences now carry the exit** (task 070). They may point at `/sync/review`
+ * only through `reviewHref()` — the bare page lists `NEEDS_ATTENTION`, which a hand-reviewed payable
+ * row matches neither arm of; `?hex=` is the listing that holds it. A sentence linking to the
+ * unfiltered queue sends the owner to a screen where the rows are not, which is what the previous
+ * version refused to do by not linking at all.
  *
  * ⚠️ The inline `background` is the **only** hex this project writes outside `app/globals.css`, and
  * it is not a design decision: it is the datum. A swatch that renders an approximation of the cell's
@@ -36,14 +49,15 @@ export function ColorSwatches({ colors }: { colors: ColorGap[] }) {
       {colors.map((c) => {
         // Two different things a hand-reviewed คาบ can mean, and they get different sentences.
         //
-        // `stranded` — under a `skip` rule those rows openly contradict the rule and **no screen in
-        // this app can repair them** (ใบ 070). Only on `unapplied`: on an *unruled* colour the claim
-        // would be premature, since it is true only if the answer turns out to be ไม่จ่าย.
+        // `stranded` — under a `skip` rule those rows openly contradict the rule, and a re-sync will
+        // never touch them (`if (prev?.reviewed) … continue`), so the ข้าม in the colour view is the
+        // only repair. Only on `unapplied`: on an *unruled* colour the claim would be premature,
+        // since it is true only if the answer turns out to be ไม่จ่าย.
         //
         // `unseen` — under a `review` rule they are not in open conflict, but nobody vouched for
-        // them either: `/sync/review` never renders `bgColor`, so whoever cleared them was never
-        // shown this colour (`lib/color-rules.ts`). Neutral wording, not red, because the repair is
-        // a re-queue rather than an ข้าม.
+        // them either: they were cleared before the queue rendered `bgColor` at all (task 070), so
+        // whoever cleared them was never shown this colour (`lib/color-rules.ts`). Neutral wording,
+        // not red, because the repair is a second look rather than an ข้าม.
         const stranded = c.state === "unapplied" && c.meaning !== "review" ? c.reviewedSessions : 0;
         const unseen = c.state === "unapplied" && c.meaning === "review" ? c.reviewedSessions : 0;
         return (
@@ -71,12 +85,20 @@ export function ColorSwatches({ colors }: { colors: ColorGap[] }) {
               </span>
             )}
             {stranded > 0 && (
-              <span className="font-sans">· {stranded} คาบตรวจมือแล้ว ยังไม่มีหน้าจอไหนแก้ได้</span>
+              <span className="font-sans">
+                · {stranded} คาบตรวจมือแล้ว sync จะข้ามตลอดไป —{" "}
+                <Link href={reviewHref(c.hex)} className="underline">
+                  กดข้ามทีละคาบที่นี่
+                </Link>
+              </span>
             )}
             {unseen > 0 && (
               <span className="font-sans text-neutral-600">
-                · {unseen} คาบถูกตรวจด้วยมือไว้ โดยหน้าคิวรอตรวจ<b>ไม่เคยแสดงสีให้คนตรวจเห็น</b> ⇒
-                ยังไม่มีใครดูมันด้วยกฎสีนี้ (ใบ 070)
+                · {unseen} คาบถูกตรวจด้วยมือไว้<b>ก่อนที่หน้าคิวจะแสดงสี</b> ⇒
+                ยังไม่มีใครดูมันด้วยกฎสีนี้ —{" "}
+                <Link href={reviewHref(c.hex)} className="underline">
+                  เปิดดูทีละคาบ
+                </Link>
               </span>
             )}
           </span>

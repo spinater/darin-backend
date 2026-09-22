@@ -4,6 +4,10 @@ sources:
   - lib/color-rules.ts
   # The pin on all of it — the fold is the only pure half.
   - lib/color-rules.test.ts
+  # ใบ 070 moved the colour refusals here from form-refusals.md; this is where addColor lives.
+  - app/admin/config/_actions.ts
+  # …and the screen the second set of refusals belongs to.
+  - app/sync/review/page.tsx
   # The reader: the one place a colour turns into `ignored` / `needs_review`, and the place an
   # unknown colour becomes silence.
   - lib/sync.ts
@@ -80,6 +84,13 @@ not leave this list when it is answered — it leaves when the rows follow.** Bo
 so the period window, the `status: "ok"` / `staffId` filter and the `groupBy` are **reviewed, not
 asserted**.
 
+⚠️ **`reviewedSessions` now has a consumer, and it is untested for the same reason.** ใบ 070 turned
+that count into a link — `/sync/review?hex=<hex>`, whose listing mirrors `colorGapsSeen()`'s filter
+(`status: "ok"` · `staffId: { not: null }` · the hex, case-insensitively · every period). The fold
+that produces the number is pinned; **the query behind the link is not**, and neither is the fact
+that the two agree. Both are database work, so they wait on
+[015](../../../tasks/todo/015-db-test-lane.md) like the rest of this section.
+
 🔴 **One blind spot, and it is in the data rather than in the fold:** a **hand-reviewed** row that is
 later *recoloured* in the sheet. `syncSources()` re-opens a `reviewed: true` row only when its
 **text** changes, so it `continue`s past the colour and the database keeps the old `bgColor` — the
@@ -105,3 +116,55 @@ which also owns the claim that `addColor` lowercases what it stores.
 ⚠️ **No screen can delete a `ColorRule`** — the same gap [041](../../../tasks/todo/041-no-way-to-remove-a-registered-activity.md)
 has for activities. A colour ruled wrongly can be re-ruled, so nothing is unrepairable; a rule for
 `#ffffff` created before ใบ 043's refusal could not be removed from any screen, and none exists.
+
+## The refusals of the two colour screens (moved here from [form-refusals.md](form-refusals.md) at ใบ 070)
+
+They keep that card's surface — a **flag**, not a message; a clean-URL redirect; **loud**, never a
+silent `return`. Here is *which* value each refuses, and why the money says so.
+
+### ใบ 043 — `addColor` gained a second entry point **and its first two refusals**
+
+`/admin/config` renders one `<form action={addColor}>` per colour in the gap list: hidden hex, a
+`meaning` dropdown with **no default** ([colour-gap-states.md](colour-gap-states.md)). ⚠️ `addColor`
+/`addAlias` moved to `app/admin/config/_actions.ts` (the page had hit the 450-line warn), each
+re-asserting `requireAdmin()` because a server action is its own entry point · `note` is written only
+when the field is present (`formData.has`) — the quick form carries none and `?? ""` blanked the
+rule's reason. The two **refusals**, both silent-*overpay* guards:
+
+- **`meaning` must be in `COLOR_MEANINGS`** → `?err=colorMeaning`. `lib/sync.ts` branches on
+  `=== "skip"`/`=== "review"` and falls through everything else ⇒ `""` or a typo stores a rule that
+  pays every คาบ of that colour while the owner believes they answered. 🔑 The dropdown's empty
+  placeholder and this refusal are a **pair**: without it the placeholder's `""` would be stored.
+- **`#ffffff` is refused outright** → `?err=colorNeutral`. An unstyled cell and a deliberate white
+  fill are the same bytes ⇒ the rule cannot be aimed: `skip` on white takes a month of ~320 payable
+  คาบ out of every slip. The only guard here refusing a value no wording could make safe.
+🔴 **Both are loud**; they shipped silent and both review lanes called it — a refusal the owner does
+not see leaves them believing a rule is in force, ใบ 043's own defect through the form (same reason
+as ใบ 034's `addActivity` and ใบ 027's `addStaff`). ⚠️ Their copy is a **separate** map
+(`COLOR_REASONS` in `save-notice.tsx`), because the four `REASONS` say *"ยังไม่ได้บันทึกอะไรเลยสักช่อง"*
+— true of a form of several dozen fields, a fault rather than a refusal about a one-field form.
+⚠️ The empty-hex `return` stays silent, made unreachable by `required` rather than given a third
+flag — a missing value, not one that would have paid. 🔴 **Still no guard on the hex's *shape* at
+this end**: `"ฟ้า"` is stored as a rule no cell can match (pre-existing). ⚠️ `addColor` revalidates
+through `revalidateColorGaps()` (`lib/revalidate.ts`) since ใบ 070 — the same list the ข้าม below uses.
+
+## `/sync/review` — refusals on the first screen that takes money *off* a slip (ใบ 070)
+
+The older ข้าม needed none — its rows were `needs_review`, which `runPayroll` never paid. The `?hex=`
+listing holds `status: "ok"` rows **being paid**, so the same button is a money action.
+
+| Refusal | Shape | Flag |
+|---|---|---|
+| `?hex=` not `^#[0-9a-f]{6}$`, or `#ffffff` — `isReportableHex` | no listing at all; a notice replaces it | — (nothing was submitted) |
+| no rule for that colour, or ruled `pay` | same, pointing at `/admin/config` | — |
+| ข้าม / เอากลับเข้าคิว on a คาบ in a period whose slip left `draft` | refused per row, dropped from a bulk submit | `?err=closed` |
+
+🔴 The hex guard **is** the `#ffffff` refusal above, one screen along: refusing to *store* a white rule
+buys nothing while a second screen will *aim* at white. Its shape half is not cosmetic either — `mode:
+"insensitive"` compiles to `ILIKE`, where `%` and `_` are **wildcards**.
+
+🔴 `?err=closed` is the one refusal about money **already gone**: `runPayroll` will not recompute a
+non-`draft` slip, so ข้าม there takes nothing back and only switches off the report still saying the
+colour is being paid (9,500 ฿ measured). ⚠️ The row stays **listed** as `งวดปิดแล้ว` with no button,
+and the check re-runs **inside** the action — a tab opened before the approval posts to an action
+that never re-rendered the page.

@@ -147,3 +147,8 @@ what a recompute rebuilds changed.
 an unruled colour syncs as `status: "ok"`, so the คาบ is ordinary input, `computePayslip` has no
 reason to warn, and the slip is **correct for the input it was given**. The only place to say it is
 before the run.
+
+📌 **ใบ 070 gave that box a working link** — the swatch now points at `/sync/review?hex=`, where a
+hand-reviewed payable คาบ can be sent to `status: "ignored"`. It still sits outside this card's
+lifecycle: the repair happens to a `TeachSession` *before* any slip is computed, and a slip already
+approved or paid is not reopened by it (`runPayroll` refuses a non-draft slip — item 1 above).

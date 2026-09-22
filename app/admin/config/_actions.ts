@@ -19,6 +19,7 @@ import { requireAdmin } from "@/lib/auth";
 import { isColorMeaning, isNeutralBg } from "@/lib/color-rules";
 import { db } from "@/lib/db";
 import { normalizeTrainer } from "@/lib/normalize";
+import { revalidateColorGaps } from "@/lib/revalidate";
 
 export async function addAlias(formData: FormData) {
   await requireAdmin();
@@ -55,6 +56,9 @@ export async function addColor(formData: FormData) {
     update: { meaning, ...(note === undefined ? {} : { note }) },
     create: { hex, meaning, note: note ?? "" },
   });
-  revalidatePath("/admin/config");
+  // 🔴 Answering a colour and clearing its rows change the **same** three swatches, so they share
+  // one path list (`lib/revalidate.ts`, task 070) — one of the two revalidating them and the other
+  // not is worse than neither doing it, because the owner cannot tell which click is believable.
+  revalidateColorGaps();
   redirect("/admin/config");
 }

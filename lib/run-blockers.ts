@@ -21,7 +21,7 @@
  * (`.docs/knowledge/ops/gates.md`).
  */
 import { pendingClassImportInPeriod } from "./class-problems-run";
-import { colorGapsInPeriod, type ColorGap } from "./color-rules";
+import { colorGapsInPeriod, handIgnoredInPeriod, type ColorGap } from "./color-rules";
 import { pendingReviewInPeriod } from "./payroll-run";
 
 export type RunBlockers = {
@@ -42,13 +42,31 @@ export type RunBlockers = {
    * because a screen that counted it for itself is a screen that comes to disagree with the other.
    */
   colorGaps: ColorGap[];
+  /**
+   * คาบ **a person took off this period's pay by hand** (`status: "ignored"` + `reviewed: true`) —
+   * task 070.
+   *
+   * 🔴 **It is not a blocker and it is not summed with the two above; it is the opposite
+   * direction.** `sheetReview` and `classImport` are คาบ that have not been paid **yet**; this one
+   * is คาบ that will not be paid **at all**, because somebody said so. ใบ 070 gave the product its
+   * first button that takes money *off* a slip, and a recomputed slip carries no trace of it — no
+   * `PayslipWarning`, no line, nothing on `/me`, just a smaller number. A fourth member here is the
+   * cheapest place that number can be seen at all, and it is the same question the other three
+   * answer: is this period what somebody meant it to be.
+   *
+   * ⚠️ **A count, not a list** — unlike `colorGaps`, the repair does not differ per row: it is
+   * "open the list and put back anything that should not be there". The rows live at
+   * `/sync/review?ignored=1&period=…`, which is also the only way back.
+   */
+  handIgnored: number;
 };
 
 export async function runBlockers(period: string): Promise<RunBlockers> {
-  const [sheetReview, classImport, colorGaps] = await Promise.all([
+  const [sheetReview, classImport, colorGaps, handIgnored] = await Promise.all([
     pendingReviewInPeriod(period),
     pendingClassImportInPeriod(period),
     colorGapsInPeriod(period),
+    handIgnoredInPeriod(period),
   ]);
-  return { sheetReview, classImport, colorGaps };
+  return { sheetReview, classImport, colorGaps, handIgnored };
 }

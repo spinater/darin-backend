@@ -134,6 +134,20 @@ export default async function PayslipsPage({
         </p>
       )}
 
+      {/* ใบ 070 · คาบที่คนเอาออกจากเงินเดือนเอง — not a blocker and not summed with the boxes
+          above: those are คาบ waiting to be paid, this is คาบ somebody decided not to pay. The run
+          screen has to carry it because this is where the number is about to become a slip, and the
+          slip itself will say nothing about it. */}
+      {blockers.handIgnored > 0 && (
+        <p className="card text-sm">
+          งวดนี้มี <b>{blockers.handIgnored}</b> คาบที่<b>คนกดข้ามเอง</b> ⇒ จะไม่เข้าสลิป และ
+          <b>สลิปจะไม่มีบรรทัดไหนบอกไว้</b> —{" "}
+          <Link href={`/sync/review?ignored=1&period=${period}`} className="underline">
+            ดูรายการ / เอากลับเข้าคิว
+          </Link>
+        </p>
+      )}
+
       {/* The third box, and the only one that reports the error in the **other** direction: the two
           above are คาบ that will be paid short, this one is คาบ that are already being paid when
           nobody has vouched for them. `syncSources()` treats a colour it has no rule for as ordinary
@@ -156,8 +170,8 @@ export default async function PayslipsPage({
               <Link href="/sync" className="underline">
                 sync ใหม่
               </Link>{" "}
-              ส่วนคาบที่<b>ตรวจด้วยมือแล้ว</b> sync จะข้ามตลอดไป และ<b>ยังไม่มีหน้าจอไหนแก้ได้</b>{" "}
-              (ใบ 070)
+              ส่วนคาบที่<b>ตรวจด้วยมือแล้ว</b> sync จะข้ามตลอดไป ต้อง
+              <b>กดข้ามเองจากลิงก์ข้างสีนั้น</b>
             </>
           )}{" "}
           <ColorSwatches colors={blockers.colorGaps} />

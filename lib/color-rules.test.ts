@@ -5,6 +5,8 @@ import {
   colorGaps,
   isColorMeaning,
   isNeutralBg,
+  isReportableHex,
+  payableWithColorWhere,
 } from "./color-rules";
 
 /**
@@ -86,9 +88,10 @@ describe("colorGaps — สีที่กำลังจ่ายโดยไ�
 
   test("hand-reviewed คาบ are carried and summed — no sync will ever repair them", () => {
     // `if (prev?.reviewed) continue` in `lib/sync.ts` means these rows are skipped before the
-    // colour lookup, for ever — and no screen lists them either (`NEEDS_ATTENTION` is
-    // `needs_review` **or** `ok`-with-no-trainer; these are `ok` *with* one) ⇒ ยังไม่มีหน้าจอไหน
-    // แก้ได้, ใบ 070. The count has to survive the fold to be able to say so.
+    // colour lookup, for ever — and the plain review queue does not list them either
+    // (`NEEDS_ATTENTION` is `needs_review` **or** `ok`-with-no-trainer; these are `ok` *with* one).
+    // ใบ 070 gave them the one exit there is, `/sync/review?hex=`, and the swatch links at it with
+    // this count — so the count has to survive the fold or the link cannot exist.
     expect(colorGaps([seen("#ea9999", 4, 4), seen("#ea9999", 8, 2)], [])).toEqual([
       { hex: "#ea9999", sessions: 12, reviewedSessions: 6, pending: 12, state: "unruled" },
     ]);
@@ -203,5 +206,55 @@ describe("isNeutralBg", () => {
     expect(isNeutralBg(undefined)).toBe(true);
     expect(isNeutralBg("")).toBe(true);
     expect(isNeutralBg("#b6d7a8")).toBe(false);
+  });
+});
+
+/**
+ * ใบ 070 — the guard between a URL and a bulk money action.
+ *
+ * 🔴 `/sync/review?hex=` lists payable คาบ by colour and puts a bulk ข้าม under them, so whatever
+ * decides *which* rows that is has to be pure and pinned. The query it produces still cannot be
+ * tested here (no database — see the header), but the decision "may this string be aimed at rows at
+ * all" can be, and that decision is the whole of the money risk.
+ */
+describe("isReportableHex", () => {
+  test("only the shape colorGaps emits — and never white", () => {
+    expect(isReportableHex("#ea9999")).toBe(true);
+    expect(isReportableHex(" #EA9999 ")).toBe(true); // same folding as the rest of the module
+    // 🔴 White is the expensive one: an unstyled cell and a deliberate white fill are the same
+    // bytes, so ~320 payable คาบ a month carry it and no swatch anywhere counts them. `addColor`
+    // already refuses to *store* such a rule; a screen that would *aim* at it makes that worthless.
+    expect(isReportableHex("#ffffff")).toBe(false);
+    expect(isReportableHex(" #FFFFFF ")).toBe(false);
+    // 🔴 `mode: "insensitive"` compiles to ILIKE, where these two are **wildcards**, not letters
+    // (measured against a real Postgres by `payroll-auditor`, 2026-09-22): `%` alone would match
+    // every coloured payable คาบ of every period.
+    expect(isReportableHex("%")).toBe(false);
+    expect(isReportableHex("#%%%%%%")).toBe(false);
+    expect(isReportableHex("#______")).toBe(false);
+    // Not a colour at all ⇒ must refuse, not answer "there are none left" about it.
+    expect(isReportableHex("ea9999")).toBe(false);
+    expect(isReportableHex("#fff")).toBe(false);
+    expect(isReportableHex("red;background-image:url(x)")).toBe(false);
+    expect(isReportableHex("")).toBe(false);
+    expect(isReportableHex(null)).toBe(false);
+    expect(isReportableHex(undefined)).toBe(false);
+  });
+});
+
+describe("payableWithColorWhere", () => {
+  test("mirrors the payable filter, case-folded, and refuses to be built at all otherwise", () => {
+    // The three clauses are `colorGapsSeen()`'s own (`gapsWhere`): a row with no trainer is paid to
+    // nobody, and anything but `status: "ok"` is not being paid at this moment.
+    expect(payableWithColorWhere(" #EA9999 ")).toEqual({
+      status: "ok",
+      staffId: { not: null },
+      bgColor: { equals: "#ea9999", mode: "insensitive" },
+    });
+    // 🔴 `null`, not a broader filter: the caller cannot forget the guard, because there is nothing
+    // to pass on when it fails.
+    expect(payableWithColorWhere("#ffffff")).toBeNull();
+    expect(payableWithColorWhere("%")).toBeNull();
+    expect(payableWithColorWhere("")).toBeNull();
   });
 });
