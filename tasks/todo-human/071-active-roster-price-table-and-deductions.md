@@ -2,6 +2,9 @@
 
 - status: todo-human
 - รอ: **linus** (ข้อ 1.2 และ 3.3 เท่านั้น — ที่เหลือตอบครบแล้ว)
+- 🔴 **ใบนี้ commit ครั้งแรกด้วยเลข 064 ซึ่งถูกใช้ไปแล้ว** (`tasks/done/064-gymmo-import-problems-have-no-home.md`)
+  ⇒ `check-links.sh` แดงที่ commit `2605991` และ commit นั้น**ไม่เคยถูก push** · เปลี่ยนเลขเป็น 071
+  ที่ใบ 070 · ถ้าตามรอยจาก commit message ที่เขียนว่า `(task 064)` ให้มาที่ไฟล์นี้
 - ตอบคำถามที่ถามไว้ใน [049 §7.2](049-redesign-one-app-instead-of-five-places.md) ·
   แก้ [050 §8.1](../todo/050-two-rules-that-clear-ninety-percent-of-the-queue.md)
 
