@@ -130,3 +130,8 @@ end *"คาบที่ตรวจด้วยมือแล้ว … ยั
 names it (`/sync/review?hex=`, reached from the swatch itself). 🔑 What did **not** change is the
 sentence beside it: re-ruling the colour to "จ่ายปกติ" is still forbidden as a way to make the warning
 go away, on both screens, because an exit that exists does not make the wrong exit any less wrong.
+
+📌 **ใบ 082 — both screens now read two more config keys, and neither computes anything new.**
+`/ot` and `/classes` add `date.earliestYear` and `date.futureDays` to the `findMany` they already
+make, through `num()` inside `dateWindow` (never a `?? 2024`, the same rule as the rates above), and
+render the resulting bounds in one refusal notice. No baht figure on either screen moved.

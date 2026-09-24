@@ -143,3 +143,11 @@ formatter gate opened. **Shape only — no rule, rate or branch changed**; the p
 but not in the behaviour, and the engine suite (then `lib/payroll.test.ts`) ran the same 21 tests.
 From now on `prettier --check` is the first stage of `scripts/check-code.sh`, so a hand-formatted
 edit to these files goes red before `tsc` even starts — see [../ops/gates.md](../ops/gates.md).
+
+## ใบ 082 — two keys that are not a rate
+
+`CONFIG_DEFAULTS` gained `date.earliestYear` and `date.futureDays`. Neither is read by
+`computePayslip` and neither appears in any formula: they bound the **dates a form will accept**, a
+guard in front of the engine rather than a term inside it ([date-window.md](date-window.md)). They
+are in `CONFIG_DEFAULTS` for §2 rule 3's reason all the same — the alternative was a literal year in
+a guard — and they are numbers, so `num()` reads them unchanged and the key set stays all-numeric.

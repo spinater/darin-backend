@@ -21,11 +21,42 @@ export const CONFIG_DEFAULTS = {
   "freeze.price": { value: "300", note: "ค่า freeze (ไม่มีคอม)" },
   "payday.base": { value: "31", note: "วันจ่ายฐานเงินเดือน" },
   "payday.variable": { value: "3", note: "วันจ่ายค่าสอน+คอม+OT ของเดือนก่อน" },
+  // ใบ 082 — the plausible window a hand-typed date has to fall inside (`lib/date-window.ts` reads
+  // these two keys). Deliberately **generous**: a window that is too tight refuses a legitimate
+  // back-dated correction, i.e. hours or a bill not recorded — §2 rule 4 in its mirror direction.
+  "date.earliestYear": {
+    value: "2024",
+    note: "ปีเก่าสุดที่รับวันที่ได้ (กันปีพิมพ์ผิด เช่น 0226)",
+  },
+  "date.futureDays": { value: "31", note: "รับวันที่ล่วงหน้าได้กี่วันนับจากวันนี้" },
 } as const;
 
 export type ConfigKey = keyof typeof CONFIG_DEFAULTS;
 
 export type Config = Record<string, string>;
+
+/**
+ * A configured value this module refuses — **the only class of failure `num()` decides on**.
+ *
+ * 🔴 **It exists so a caller's `catch` can be as narrow as its claim** (`payroll-auditor`, ใบ 082
+ * third round). `lib/date-window.ts` re-tags this throw as its own, so that a blank or missing
+ * `date.earliestYear` reports *on* the page instead of taking it down. Catching a bare `Error`
+ * there would sweep up anything else that can come out of this call — a `cfg` that is not the
+ * shape it claims (`cfg[key]` on a null), a fault a future edit adds here — and print it in an
+ * amber box headed "the two date keys are misconfigured", i.e. a wrong cause stated confidently
+ * and an exception nobody ever investigates. Tagging the throws means everything else still
+ * reaches `app/error.tsx` and the log.
+ *
+ * ⚠️ **The messages stay here, not in the caller.** This is the one place that decides what a bad
+ * config value reads like (§2 rule 3, task 013 item 4); a second copy of that sentence would go
+ * stale.
+ */
+export class ConfigError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ConfigError";
+  }
+}
 
 /**
  * Read one configured number, or **throw**.
@@ -50,11 +81,11 @@ export type Config = Record<string, string>;
  */
 export function num(cfg: Config, key: ConfigKey): number {
   const raw = cfg[key];
-  if (raw == null) throw new Error(`ไม่พบ config: ${key}`);
+  if (raw == null) throw new ConfigError(`ไม่พบ config: ${key}`);
   if (raw.trim() === "")
-    throw new Error(`config ${key} ถูกเว้นว่างไว้ — ต้องตั้งค่าก่อนคิดเงินเดือน`);
+    throw new ConfigError(`config ${key} ถูกเว้นว่างไว้ — ต้องตั้งค่าก่อนคิดเงินเดือน`);
   const n = Number(raw);
-  if (!Number.isFinite(n)) throw new Error(`config ${key} ไม่ใช่ตัวเลข: ${raw}`);
+  if (!Number.isFinite(n)) throw new ConfigError(`config ${key} ไม่ใช่ตัวเลข: ${raw}`);
   return n;
 }
 

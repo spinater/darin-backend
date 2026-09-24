@@ -10,6 +10,7 @@
  * instead of dropping them on the floor (CLAUDE.md §2 rule 4, task 009).
  */
 
+import { withinWindow, type DateWindow } from "./date-window";
 import { finiteNumber } from "./form-number";
 
 /** One OT row the caller writes. `date` is UTC midnight, matching `OtEntry`'s `@@unique([staffId, date])`. */
@@ -93,12 +94,27 @@ export type OtImportParse = {
    * line.
    */
   invalidDates: string[];
+  /**
+   * Lines whose date is a **perfectly real day in a year this gym cannot have operated in** — the
+   * ใบ 082 bucket. Their hours are NOT in `rows`.
+   *
+   * 🔴 **Its own bucket, deliberately not `invalidDates`.** `0226-06-05` round-trips cleanly
+   * through `calendarDate`: the 5th of June of the year 226 exists and is written exactly as it was
+   * meant, so reporting it as "วันที่อ่านไม่ออก" would name the **wrong cause** and send the
+   * operator hunting a malformed cell that is not there. §2 rule 4 asks for a warning that is
+   * *useful*, not merely present — and "ปีอยู่นอกช่วงที่ระบบรับ" is a one-keystroke fix the moment
+   * it is said out loud.
+   *
+   * The window itself, why it is generous, and what it deliberately does not catch are
+   * `lib/date-window.ts`'s. Not deduplicated, same reasoning as the two buckets above.
+   */
+  outOfWindowDates: string[];
 };
 
 /**
  * What the `/ot` paste server action hands back to the screen. `null` = not submitted yet.
  *
- * 🔴 The three rejection buckets and `error` travel together on purpose. All three are decided
+ * 🔴 The four rejection buckets and `error` travel together on purpose. All of them are decided
  * *before* the write, so they must survive a failed write and still reach the screen, never be lost
  * with the exception (CLAUDE.md §2 rule 4).
  *
@@ -113,6 +129,8 @@ export type OtImportState = {
   invalidHours: string[];
   /** Lines rejected for a date that is not a real calendar day — same lifetime, same reason. */
   invalidDates: string[];
+  /** Lines rejected for a real day outside the configured window (ใบ 082) — same lifetime. */
+  outOfWindowDates: string[];
   /** Thai, user-facing. The raw cause is logged server-side — see `app/ot/page.tsx`. */
   error: string | null;
 } | null;
@@ -172,19 +190,31 @@ export function calendarDate(text: string): Date | null {
  *   `unmatched`. That was always what happened to a header, under every version of the skip.
  *
  * Everything else falls through to a bucket: an unknown name — or **no** name — to `unmatched`, a
- * date that is not a real calendar day to `invalidDates`, an hours cell that is unusable *or
- * missing* to `invalidHours`. Nothing is dropped in silence (CLAUDE.md §2 rule 4).
+ * date that is not a real calendar day to `invalidDates`, a real day in a year outside the
+ * configured window to `outOfWindowDates` (ใบ 082), an hours cell that is unusable *or missing* to
+ * `invalidHours`. Nothing is dropped in silence (CLAUDE.md §2 rule 4).
+ *
+ * 🔴 **`acceptWindow` is a required argument, not an optional one.** A paste has no page context, so the
+ * window cannot be derived here — and an optional parameter is one a caller forgets, which would
+ * re-open the hole on the path OT actually arrives by while the one-row form beside it stayed
+ * guarded. The caller loads the config and supplies `now`, exactly as it does for every rate
+ * (§2 rule 2: this module has no DB, no env and no clock).
  *
  * ⚠️ A separators-only line (`,,`) is not blank either, so it now reaches `unmatched` under the
  * existing `"(บรรทัดไม่มีชื่อผู้ใช้)"` bullet — deduplicated with every other nameless line to
  * **one** bullet. That is the deliberate cost of the simpler predicate: one visible non-event on a
  * paste that ends in an empty spreadsheet row, bought with the skip that was losing the 100 ฿.
  */
-export function parseOtPaste(text: string, byUsername: Map<string, string>): OtImportParse {
+export function parseOtPaste(
+  text: string,
+  byUsername: Map<string, string>,
+  acceptWindow: DateWindow,
+): OtImportParse {
   const rows: OtImportRow[] = [];
   const unmatched: string[] = [];
   const invalidHours: string[] = [];
   const invalidDates: string[] = [];
+  const outOfWindowDates: string[] = [];
   const seen = new Set<string>();
   // Where each `staffId + date` already sits in `rows`, so a repeat replaces it in place.
   const rowAt = new Map<string, number>();
@@ -217,6 +247,17 @@ export function parseOtPaste(text: string, byUsername: Map<string, string>): OtI
       continue;
     }
 
+    // ใบ 082 — **after** `calendarDate` and into a **different** bucket, and both halves of that
+    // are the decision. Ordered second because the two questions are asked of different things: a
+    // cell that is not a day cannot be inside or outside a window, so asking the window first would
+    // report a malformed cell under a heading about years. Bucketed separately because a real day
+    // in an impossible year is a different mistake from an unreadable one — see
+    // `OtImportParse.outOfWindowDates`.
+    if (!withinWindow(parsedDate, acceptWindow)) {
+      outOfWindowDates.push(`${user} → "${date}"`);
+      continue;
+    }
+
     // `finiteNumber` is the shared predicate the five write actions use (`lib/form-number.ts`), so
     // the paste and the one-row form refuse exactly the same set — including a negative value and
     // an absent field, the two this path used to let through in different directions.
@@ -245,5 +286,5 @@ export function parseOtPaste(text: string, byUsername: Map<string, string>): OtI
     }
   }
 
-  return { rows, unmatched, invalidHours, invalidDates };
+  return { rows, unmatched, invalidHours, invalidDates, outOfWindowDates };
 }

@@ -6,8 +6,10 @@ import { periodRange } from "@/lib/payroll-run";
 import { num, type Config } from "@/lib/config-keys";
 import { finiteNumber, isBlank, INT_COLUMN_MAX } from "@/lib/form-number";
 import { calendarDate } from "@/lib/ot-import";
+import { dateWindow, withinWindow, windowForRender } from "@/lib/date-window";
 import { listClassImportProblems } from "@/lib/class-problems-run";
 import { SubmitButton } from "@/app/_components/submit-button";
+import { WindowFaultNotice } from "@/app/_components/window-fault-notice";
 import { ImportProblems } from "./_components/import-problems";
 import { SessionTable } from "./_components/session-table";
 
@@ -34,7 +36,12 @@ export default async function ClassesPage({
     db.classPrice.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
     db.staff.findMany({ where: { role: "trainer", active: true }, orderBy: { name: "asc" } }),
     db.payrollConfig.findMany({
-      where: { key: { in: ["class.minAttendees", "class.halfRatio"] } },
+      where: {
+        key: {
+          // ใบ 082's two window keys ride along in the query this page already makes.
+          in: ["class.minAttendees", "class.halfRatio", "date.earliestYear", "date.futureDays"],
+        },
+      },
     }),
     // 🔴 Through `lib/class-problems-run.ts`, never `db.classImportProblem` from here — that model's
     // reads have one home (task 064), and this page is the caller it was written to expect.
@@ -49,6 +56,12 @@ export default async function ClassesPage({
   const classConfig: Config = Object.fromEntries(cfg.map((c) => [c.key, c.value]));
   const minAtt = num(classConfig, "class.minAttendees");
   const halfRatio = num(classConfig, "class.halfRatio");
+  // 🔴 ใบ 082 (second review round) — **`windowForRender`, not `dateWindow`, on the render path.**
+  // The throw is right on the action path and was a regression here: it took the page's
+  // *correction* surface down with its write surface, so a duplicate row could no longer be seen
+  // or deleted while a config key was wrong. `lib/date-window.ts` carries the measured cost. The
+  // **action** below still builds its own window, from its own `new Date()`, and still throws.
+  const win = windowForRender(classConfig, new Date());
 
   async function add(formData: FormData) {
     "use server";
@@ -76,6 +89,21 @@ export default async function ClassesPage({
     // repeating the arithmetic goes wrong silently the first time either key moves.
     const date = calendarDate(String(formData.get("date") ?? "").trim());
     if (date === null) redirect(`/classes?period=${encodeURIComponent(period)}&err=date`);
+
+    // 🔴 ใบ 082 — the second date question, its own flag, still ahead of both head counts and the
+    // pair. `calendarDate` asks whether the day exists, and `0226-06-05` **is** a day: it round-trips
+    // exactly as typed (measured, with `0206`, `0026`, `0001-01-01`, `9999-12-31`), which is what a
+    // date picker's three-digit year box produces from an ordinary slip. The คาบ then matches no
+    // `periodRange` at all ⇒ §1.4's credit never sees it in either month, so what the comment above
+    // calls "destroyed twice" becomes "destroyed outright".
+    //
+    // The order extends the argument above, it does not contradict it: the date still outranks the
+    // head counts, and within the date `calendarDate` must answer first, because a cell that is not
+    // a day can be neither inside nor outside a window.
+    // `err=dateRange`, never `err=date` — "this day does not exist" and "this year is outside the
+    // window" are two different mistakes and get two different sentences.
+    if (!withinWindow(date, dateWindow(classConfig, new Date())))
+      redirect(`/classes?period=${encodeURIComponent(period)}&err=dateRange`);
 
     // 🔴 These two head counts decide the full/half/no-pay branch of the whole class (the line
     // under the heading spells the branch out), so `Number()` is not good enough here either:
@@ -167,45 +195,69 @@ export default async function ClassesPage({
         {minAtt - 1} คน = ×{halfRatio} · ≥{minAtt} คน = เต็มราคา
       </p>
 
-      <form action={add} className="card grid gap-2 md:grid-cols-5">
-        <label className="flex flex-col gap-1 text-xs text-neutral-500">
-          วันที่
-          <input name="date" type="date" required className="input" />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-neutral-500">
-          คลาส
-          <select name="classId" className="input" required>
-            {classes.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name} ({c.price})
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-neutral-500">
-          ผู้สอน
-          <select name="staffId" className="input" required>
-            {trainers.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-neutral-500">
-          คนจอง
-          <input name="booked" type="number" min={0} required className="input" />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-neutral-500">
-          no-show
-          <input name="noShow" type="number" min={0} defaultValue={0} className="input" />
-        </label>
-        <SubmitButton
-          className="btn md:col-span-5 md:justify-self-start"
-          pendingLabel="กำลังบันทึก…"
+      {/* 🔴 ใบ 082 (second review round). Above the form it disables, because it is the reason
+          the form is disabled — and above the table, which is the part of this screen that keeps
+          working: a duplicate row can still be read and still be deleted while the two keys are
+          wrong. `win.fault` is `lib/date-window.ts`'s own sentence; nothing here comes from the
+          URL. */}
+      {win.fault && <WindowFaultNotice reason={win.fault} />}
+
+      <form action={add} className="card">
+        {/* 🔴 ใบ 082 — **the form is disabled while the window is unusable, and the page is not.**
+            A submit that is certain to be refused should say so before the typing, not after
+            (§2 rule 4: a refusal has to be useful). `disabled` on a wrapping `<fieldset>` disables
+            every control inside it in one place.
+            🔴 **The grid lives on the `<fieldset>` itself, so that no `display: contents`
+            behaviour is relied on.** An earlier round left the grid on the `<form>` and put
+            `className="contents"` here — a class that applies on **every** render, not only in the
+            fault state, so an engine that ignores it collapses these columns permanently, and
+            nothing in this pipeline renders a browser that would catch that. `border-0 p-0 m-0`
+            clears the fieldset's own chrome; `min-w-0` overrides its `min-inline-size:
+            min-content`, which otherwise stops grid children shrinking. The server action
+            re-checks anyway: this is the courtesy, never the guard. */}
+        <fieldset
+          disabled={!win.bounds}
+          className="grid gap-2 border-0 p-0 m-0 min-w-0 md:grid-cols-5"
         >
-          บันทึก
-        </SubmitButton>
+          <label className="flex flex-col gap-1 text-xs text-neutral-500">
+            วันที่
+            <input name="date" type="date" required className="input" />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-neutral-500">
+            คลาส
+            <select name="classId" className="input" required>
+              {classes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} ({c.price})
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-neutral-500">
+            ผู้สอน
+            <select name="staffId" className="input" required>
+              {trainers.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-neutral-500">
+            คนจอง
+            <input name="booked" type="number" min={0} required className="input" />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-neutral-500">
+            no-show
+            <input name="noShow" type="number" min={0} defaultValue={0} className="input" />
+          </label>
+          <SubmitButton
+            className="btn md:col-span-5 md:justify-self-start"
+            pendingLabel="กำลังบันทึก…"
+          >
+            บันทึก
+          </SubmitButton>
+        </fieldset>
       </form>
 
       {/* One flag per refusal — two fields plus the pair. Each says what was refused and that
@@ -219,6 +271,30 @@ export default async function ClassesPage({
         <p className="card-warn text-sm">
           ⚠️ วันที่อ่านไม่ออก หรือไม่มีอยู่จริง (เช่น 2026-06-31) — <b>คาบนี้ยังไม่ถูกบันทึก</b>{" "}
           ตรวจช่อง “วันที่” แล้วบันทึกอีกครั้ง
+        </p>
+      )}
+      {/* ใบ 082's box — a different refusal from the one above, so a different sentence: there the
+          date is unreadable, here it reads perfectly and names a year this gym cannot have
+          operated in. Bounds printed from the window, never typed into the copy.
+
+          🔑 **The remedy sentence belongs here, same as `/ot`** — printing the bounds tells the
+          operator what was refused, not what to do about a backfill that is genuinely older than
+          the window. This page is `requireAdmin()` end to end (line 22), and so is `/admin/config`,
+          so everyone who can reach this box can reach the key. `/sales` deliberately has **no**
+          such sentence: its gate is `requireRole("owner", "admin", "counter")`, and the counter
+          staff it exists for cannot open `/admin/config` ⇒ pointing them there is a dead end. */}
+      {/* ⚠️ `win.bounds &&` is not defensive noise: with no usable window there are no bounds to
+          print, and the box above already says why in more detail. Reaching this pair needs the
+          config to have broken between the refused submit and this render. */}
+      {err === "dateRange" && win.bounds && (
+        <p className="card-warn text-sm">
+          ⚠️ ปีในวันที่อยู่นอกช่วงที่ระบบรับ (เช่น 0226-06-05 ที่เกิดจากพิมพ์ปีไม่ครบ) —{" "}
+          <b>คาบนี้ยังไม่ถูกบันทึก</b> ช่วงที่รับคือ{" "}
+          <b>
+            {win.bounds.earliest} ถึง {win.bounds.latest}
+          </b>{" "}
+          ตรวจช่อง “วันที่” แล้วบันทึกอีกครั้ง · ถ้าต้องคีย์ย้อนหลังไกลกว่านี้ ให้แก้ค่า
+          date.earliestYear ที่หน้าตั้งค่า
         </p>
       )}
       {err === "booked" && (

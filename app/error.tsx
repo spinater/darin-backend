@@ -10,8 +10,12 @@ import Link from "next/link";
  *
  * 1. `error.message` is never rendered. A production build redacts server error messages
  *    before they reach this boundary, so printing it would only ever show Next's generic
- *    placeholder while looking informative. The copy instead names the most likely cause —
- *    a config value not set yet — and points at `/admin/config`. `error.digest` is printed
+ *    placeholder while looking informative. The copy instead names the two likely causes —
+ *    a config value not set yet, and (ใบ 082) two values that are each filled in but
+ *    **contradict each other**, for which "check every field is filled in" is exactly the
+ *    wrong instruction: every field *is* filled in, so the reader concludes config is fine
+ *    and escalates the digest while the real Thai sentence sits in the server log — and
+ *    points at `/admin/config`. `error.digest` is printed
  *    when present so the operator can hand that string to whoever reads the server log,
  *    where the real Thai message (e.g. `lib/config-keys.ts`'s `ไม่พบ config: …`) actually
  *    lands. There is no `NODE_ENV` branch that renders the message in dev — a second code
@@ -58,12 +62,14 @@ export default function ErrorBoundary({
     <div className="card-error flex flex-col gap-3" role="alert">
       <p className="font-semibold">เปิดหน้านี้ไม่สำเร็จ</p>
       <p className="text-sm leading-relaxed">
-        ระบบแสดงข้อมูลของหน้านี้ไม่ได้ สาเหตุที่พบบ่อยที่สุดคือ <b>ค่าตั้งค่ายังไม่ครบ</b>
+        ระบบแสดงข้อมูลของหน้านี้ไม่ได้ สาเหตุที่พบบ่อยที่สุดคือ <b>ค่าตั้งค่ายังไม่ครบ</b> หรือ
+        <b>ค่าที่กรอกไว้ขัดกันเอง</b> (เช่น ช่วงวันที่ที่รับ)
       </p>
       <p className="text-sm leading-relaxed">
         <b>ถ้าคุณเป็นผู้ดูแลระบบ</b> ให้เปิดหน้า “ตั้งค่า” แล้วตรวจว่าเกณฑ์ เปอร์เซ็นต์
-        และเรทถูกกรอกไว้ครบทุกช่อง · <b>ถ้าไม่เจอช่องที่ขาด</b> แปลว่าค่านั้นยังไม่มีแถวในฐานข้อมูล
-        หน้าตั้งค่าจึงไม่มีช่องให้แก้ — ให้แจ้งคนที่ดูแลเซิร์ฟเวอร์
+        และเรทถูกกรอกไว้ครบทุกช่อง <b>และไม่ขัดกันเอง</b> · <b>ถ้าไม่เจอช่องที่ขาด</b>{" "}
+        แปลว่าค่านั้นยังไม่มีแถวในฐานข้อมูล หน้าตั้งค่าจึงไม่มีช่องให้แก้ —
+        ให้แจ้งคนที่ดูแลเซิร์ฟเวอร์
         {error.digest && (
           <>
             {" "}

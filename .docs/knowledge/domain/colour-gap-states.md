@@ -155,3 +155,9 @@ cell's colour is a swatch nobody can match against their own sheet.
 On `/admin/config` each unruled colour is its **own one-click form** (hidden hex + the same
 `meaning` dropdown + save), because an owner asked to retype a hex they were just shown answers
 fewer of them.
+
+📌 **ใบ 082 touched `app/sync/review/page.tsx` and changed nothing on this card's surface.** Its
+`resolve` gained a second date guard (`err=dateRange`) and the page's five refusal notices moved to
+`_components/refusal-notice.tsx` for §4's ceiling. The colour listings, the two states above and the
+`?ignored=1` return path are untouched — the guard and its flag are
+[form-refusals.md](form-refusals.md)'s, the window itself [date-window.md](date-window.md)'s.

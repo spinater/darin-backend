@@ -5,9 +5,11 @@ import { db } from "@/lib/db";
 import { periodRange } from "@/lib/payroll-run";
 import { parseOtPaste, otUsernameKey, calendarDate, type OtImportState } from "@/lib/ot-import";
 import { num, type Config } from "@/lib/config-keys";
+import { dateWindow, withinWindow, windowForRender } from "@/lib/date-window";
 import { isNextControlFlowError } from "@/lib/next-errors";
 import { finiteNumber } from "@/lib/form-number";
 import { SubmitButton } from "@/app/_components/submit-button";
+import { WindowFaultNotice } from "@/app/_components/window-fault-notice";
 import { PasteForm } from "./_components/paste-form";
 import { timed } from "@/lib/job-timing";
 
@@ -34,7 +36,15 @@ export default async function OtPage({
       orderBy: [{ staffId: "asc" }, { date: "asc" }],
     }),
     db.staff.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
-    db.payrollConfig.findMany({ where: { key: { in: ["ot.thresholdHours", "ot.ratePerHour"] } } }),
+    db.payrollConfig.findMany({
+      where: {
+        key: {
+          // ใบ 082's two window keys ride along in the query this page already makes — one round
+          // trip, and `num()` still throws on a key nobody seeded rather than inventing a bound.
+          in: ["ot.thresholdHours", "ot.ratePerHour", "date.earliestYear", "date.futureDays"],
+        },
+      },
+    }),
     db.jobDuration.findUnique({ where: { job: "ot-import" } }),
   ]);
 
@@ -45,6 +55,12 @@ export default async function OtPage({
   const otConfig: Config = Object.fromEntries(cfg.map((c) => [c.key, c.value]));
   const threshold = num(otConfig, "ot.thresholdHours");
   const rate = num(otConfig, "ot.ratePerHour");
+  // 🔴 ใบ 082 (second review round) — **`windowForRender`, not `dateWindow`, on the render path.**
+  // The throw is right on the action path and was a regression here: it took the page's
+  // *correction* surface down with its write surface, so a duplicate row could no longer be seen
+  // or deleted while a config key was wrong. `lib/date-window.ts` carries the measured cost. The
+  // **action** below still builds its own window, from its own `new Date()`, and still throws.
+  const win = windowForRender(otConfig, new Date());
 
   async function add(formData: FormData) {
     "use server";
@@ -77,6 +93,24 @@ export default async function OtPage({
     // structural problem, and the date is the half that decides which month the row belongs to.
     const date = calendarDate(String(formData.get("date") ?? "").trim());
     if (date === null) redirect(`/ot?period=${encodeURIComponent(period)}&err=date`);
+
+    // 🔴 ใบ 082 — **second, and on its own flag.** `calendarDate` asks whether the day exists;
+    // `0226-06-05` is a real day, written exactly as typed, so it walked straight through (measured,
+    // with `0206`, `0026`, `0001-01-01` and `9999-12-31`). A three-digit year is what a browser's
+    // date picker produces from a slip of the hand, and the row then falls outside every
+    // `periodRange` ⇒ it is in no payslip at all.
+    //
+    // The order extends the argument above rather than contradicting it: the date still outranks
+    // `hours`, and within the date the two questions are asked of different things — a cell that is
+    // not a day cannot be inside or outside a window, so `calendarDate` must answer first or the
+    // operator is told about a year when the real problem is a malformed cell.
+    // `err=dateRange`, never `err=date`: "this day does not exist" and "this year is outside the
+    // window the system accepts" are two different mistakes and must not share one line of Thai.
+    //
+    // `new Date()` here rather than the page's render-time clock: the window's far edge is
+    // `now + date.futureDays`, and this is the moment the row is actually written.
+    if (!withinWindow(date, dateWindow(otConfig, new Date())))
+      redirect(`/ot?period=${encodeURIComponent(period)}&err=dateRange`);
 
     // 🔴 `type="number" step="0.25" min={0} required` is a *client* hint; a server action is a
     // plain HTTP endpoint, so `hours` arrives as anything or not at all, and every wrong shape is
@@ -112,7 +146,7 @@ export default async function OtPage({
    * off — degrades to a plain GET that imports nothing and says nothing.
    *
    * ⇒ the action **returns** its failure instead of throwing, and the try/catch lives here.
-   * The three rejection buckets are decided before the write, so they survive a failed write and
+   * The four rejection buckets are decided before the write, so they survive a failed write and
    * still reach the screen (CLAUDE.md §2 rule 4).
    *
    * 🔴 **The write is all-or-nothing since task 014** — one `$transaction`, so `imported` is either
@@ -127,9 +161,13 @@ export default async function OtPage({
     await requireAdmin();
     const everyone = await db.staff.findMany();
     const byUsername = new Map(everyone.map((s) => [otUsernameKey(s.username), s.id]));
-    const { rows, unmatched, invalidHours, invalidDates } = parseOtPaste(
+    // The window is a **required** argument (`lib/ot-import.ts`): the parse has no page context, so
+    // it cannot derive one, and an optional parameter is the one a caller forgets — which would
+    // leave the path OT actually arrives by unguarded while the one-row form above stayed closed.
+    const { rows, unmatched, invalidHours, invalidDates, outOfWindowDates } = parseOtPaste(
       String(formData.get("bulk") ?? ""),
       byUsername,
+      dateWindow(otConfig, new Date()),
     );
 
     let imported = 0;
@@ -181,7 +219,7 @@ export default async function OtPage({
         "นำเข้าไม่สำเร็จ — ไม่มีบรรทัดไหนถูกบันทึก ทั้งหมดถูกยกเลิกพร้อมกัน ลองวางใหม่อีกครั้ง";
     }
     revalidatePath("/ot");
-    return { imported, unmatched, invalidHours, invalidDates, error };
+    return { imported, unmatched, invalidHours, invalidDates, outOfWindowDates, error };
   }
 
   async function del(formData: FormData) {
@@ -214,28 +252,52 @@ export default async function OtPage({
         เท่านั้นถึงนับ
       </p>
 
-      <form action={add} className="card grid gap-2 md:grid-cols-4">
-        <label className="flex flex-col gap-1 text-xs text-neutral-500">
-          พนักงาน
-          <select name="staffId" className="input" required>
-            {staff.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-neutral-500">
-          วันที่
-          <input name="date" type="date" required className="input" />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-neutral-500">
-          ชั่วโมงทำงานวันนั้น
-          <input name="hours" type="number" step="0.25" min={0} required className="input" />
-        </label>
-        <SubmitButton className="btn self-end" pendingLabel="กำลังบันทึก…">
-          บันทึก
-        </SubmitButton>
+      {/* 🔴 ใบ 082 (second review round). Above the form it disables, because it is the reason
+          the form is disabled — and above the table, which is the part of this screen that keeps
+          working: a duplicate row can still be read and still be deleted while the two keys are
+          wrong. `win.fault` is `lib/date-window.ts`'s own sentence; nothing here comes from the
+          URL. */}
+      {win.fault && <WindowFaultNotice reason={win.fault} />}
+
+      <form action={add} className="card">
+        {/* 🔴 ใบ 082 — **the form is disabled while the window is unusable, and the page is not.**
+            A submit that is certain to be refused should say so before the typing, not after
+            (§2 rule 4: a refusal has to be useful). `disabled` on a wrapping `<fieldset>` disables
+            every control inside it in one place.
+            🔴 **The grid lives on the `<fieldset>` itself, so that no `display: contents`
+            behaviour is relied on.** An earlier round left the grid on the `<form>` and put
+            `className="contents"` here — a class that applies on **every** render, not only in the
+            fault state, so an engine that ignores it collapses these columns permanently, and
+            nothing in this pipeline renders a browser that would catch that. `border-0 p-0 m-0`
+            clears the fieldset's own chrome; `min-w-0` overrides its `min-inline-size:
+            min-content`, which otherwise stops grid children shrinking. The server action
+            re-checks anyway: this is the courtesy, never the guard. */}
+        <fieldset
+          disabled={!win.bounds}
+          className="grid gap-2 border-0 p-0 m-0 min-w-0 md:grid-cols-4"
+        >
+          <label className="flex flex-col gap-1 text-xs text-neutral-500">
+            พนักงาน
+            <select name="staffId" className="input" required>
+              {staff.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-neutral-500">
+            วันที่
+            <input name="date" type="date" required className="input" />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-neutral-500">
+            ชั่วโมงทำงานวันนั้น
+            <input name="hours" type="number" step="0.25" min={0} required className="input" />
+          </label>
+          <SubmitButton className="btn self-end" pendingLabel="กำลังบันทึก…">
+            บันทึก
+          </SubmitButton>
+        </fieldset>
       </form>
 
       {/* Same wording as the paste form's `invalidHours` box, one row instead of a list: the
@@ -262,7 +324,28 @@ export default async function OtPage({
         </p>
       )}
 
-      <PasteForm action={paste} importMs={importTime?.ms ?? null} />
+      {/* ใบ 082 — a **different** refusal from the box above, so a different sentence. The date
+          there is unreadable; the date here reads perfectly and names a year this gym cannot have
+          operated in, which is what a date picker's three-digit year box produces. Re-using
+          “อ่านไม่ออก” would send the operator hunting a typo in a cell that looks fine to them.
+          The bounds are printed from the window itself, never typed into the copy: both are
+          `PayrollConfig` (§2 rule 3) and a repeated literal goes wrong the first time either
+          moves. */}
+      {/* ⚠️ `win.bounds &&` is not defensive noise: with no usable window there are no bounds to
+          print, and the box above already says why in more detail. Reaching this pair needs the
+          config to have broken between the refused submit and this render. */}
+      {err === "dateRange" && win.bounds && (
+        <p className="card-warn text-sm">
+          คำเตือน — ปีในช่อง “วันที่” อยู่นอกช่วงที่ระบบรับ (เช่น 0226-06-05
+          ที่เกิดจากพิมพ์ปีไม่ครบ) รายการนี้ยังไม่ถูกบันทึก · ช่วงที่รับคือ{" "}
+          <b>
+            {win.bounds.earliest} ถึง {win.bounds.latest}
+          </b>{" "}
+          — ถ้าต้องคีย์ย้อนหลังไกลกว่านี้ ให้แก้ค่า date.earliestYear ที่หน้าตั้งค่า
+        </p>
+      )}
+
+      <PasteForm action={paste} importMs={importTime?.ms ?? null} disabled={!win.bounds} />
 
       <table className="card w-full">
         <thead>

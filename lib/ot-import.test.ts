@@ -1,5 +1,6 @@
 import { expect, test, describe } from "bun:test";
 import { parseOtPaste, otUsernameKey, calendarDate } from "./ot-import";
+import type { DateWindow } from "./date-window";
 
 // ⚠️ `bun test` has no database — `lib/ot-import.ts`'s own header says why (stage 4 of
 // `scripts/check-code.sh` runs before the throwaway postgres exists). So **nothing in this file
@@ -16,10 +17,20 @@ const staff = new Map([
   [otUsernameKey("Nok"), "s2"],
 ]);
 
+// ใบ 082 — the window is a **required** argument now, so every case below states which one it was
+// parsed against. Written out rather than computed from `CONFIG_DEFAULTS` on purpose: this file is
+// about the **parse**, and a fixture that moves when a config default moves would make these cases
+// fail for a reason that is not theirs. The bounds themselves — where they come from, both edges,
+// and the years the card measured — are `lib/date-window.test.ts`'s.
+const acceptWindow: DateWindow = {
+  earliest: new Date("2024-01-01T00:00:00Z"),
+  latest: new Date("2026-10-25T00:00:00Z"),
+};
+
 describe("parseOtPaste (task 009)", () => {
   test("tab and comma are both accepted as separators", () => {
-    const tabbed = parseOtPaste("somchai\t2026-07-01\t10", staff);
-    const comma = parseOtPaste("somchai,2026-07-01,10", staff);
+    const tabbed = parseOtPaste("somchai\t2026-07-01\t10", staff, acceptWindow);
+    const comma = parseOtPaste("somchai,2026-07-01,10", staff, acceptWindow);
     expect(tabbed.rows).toEqual(comma.rows);
     expect(tabbed.rows).toHaveLength(1);
     expect(tabbed.unmatched).toHaveLength(0);
@@ -27,7 +38,7 @@ describe("parseOtPaste (task 009)", () => {
 
   test("a known username parses to staffId + UTC-midnight date + hours", () => {
     // Spacing and casing are normalized away — the scanner export is not tidy.
-    const { rows } = parseOtPaste("  NOK , 2026-07-02 , 9.5 ", staff);
+    const { rows } = parseOtPaste("  NOK , 2026-07-02 , 9.5 ", staff, acceptWindow);
     expect(rows).toEqual([{ staffId: "s2", date: new Date("2026-07-02T00:00:00Z"), hours: 9.5 }]);
   });
 
@@ -52,6 +63,7 @@ describe("parseOtPaste (task 009)", () => {
         "somchai\t2026-07-01\t8", // the good row still lands
       ].join("\n"),
       staff,
+      acceptWindow,
     );
     expect(rows).toEqual([{ staffId: "s1", date: new Date("2026-07-01T00:00:00Z"), hours: 8 }]);
     // 🔴 Whole-array compare, not a length: the two no-identity lines both key on `""`, so they
@@ -74,6 +86,7 @@ describe("parseOtPaste (task 009)", () => {
         "somchai\t2026-07-03\t7", // the good row still lands
       ].join("\n"),
       staff,
+      acceptWindow,
     );
     expect(rows).toEqual([{ staffId: "s1", date: new Date("2026-07-03T00:00:00Z"), hours: 7 }]);
     expect(invalidHours).toHaveLength(2);
@@ -88,6 +101,7 @@ describe("parseOtPaste (task 009)", () => {
     const { rows, unmatched } = parseOtPaste(
       ["username,date,hours", "somchai,2026-07-01,8"].join("\n"),
       staff,
+      acceptWindow,
     );
     expect(rows).toHaveLength(1);
     expect(unmatched).toEqual(["username"]);
@@ -97,6 +111,7 @@ describe("parseOtPaste (task 009)", () => {
     const { rows, unmatched } = parseOtPaste(
       ["\t2026-07-01\t8", "\t2026-07-02\t8", ",2026-07-03,8"].join("\n"),
       staff,
+      acceptWindow,
     );
     expect(rows).toHaveLength(0);
     // The dedup key is `""`, so a whole month of them collapses to one bullet — and the bullet has
@@ -117,12 +132,43 @@ describe("parseOtPaste (task 009)", () => {
         "somchai\t2026-07-03\t9.5", // the good row in the same paste still lands
       ].join("\n"),
       staff,
+      acceptWindow,
     );
     expect(rows).toEqual([{ staffId: "s1", date: new Date("2026-07-03T00:00:00Z"), hours: 9.5 }]);
     expect(invalidDates).toHaveLength(3);
     expect(invalidDates[1]).toContain("2026-06-31");
     // Nothing that survived may be a date the operator did not write.
     expect(rows.every((r) => !Number.isNaN(r.date.getTime()))).toBe(true);
+  });
+
+  // 🔴 ใบ 082 — a real day in a year this gym cannot have operated in, in **its own** bucket.
+  // `calendarDate` accepts `0226-06-05`: the 5th of June of the year 226 exists and is written
+  // exactly as typed, which is what a date picker's three-digit year box produces. The row then
+  // matches no `periodRange` ⇒ those hours are in no payslip at all.
+  //
+  // 🔑 The load-bearing assertion is `invalidDates).toHaveLength(1)` — **one**, the genuinely
+  // unreadable line, and not the two well-formed ones. Routing these into `invalidDates` would have
+  // been the cheap fix and it would report the wrong cause: the operator would be sent hunting a
+  // malformed cell in a date that looks perfectly fine to them (§2 rule 4 is about the warning
+  // being *useful*). One fixture carries both halves plus the good row, per §7.
+  test("a real day outside the window reaches its OWN bucket, never invalidDates (ใบ 082)", () => {
+    const { rows, invalidDates, outOfWindowDates } = parseOtPaste(
+      [
+        "somchai\t0226-06-05\t8", // the card's measured case: a real day, an impossible year
+        "Nok\t9999-12-31\t8", // the other end of the same hole
+        "somchai\t2026-13-01\t8", // genuinely unreadable ⇒ still the older bucket
+        "Nok\t2026-07-03\t9.5", // the good row in the same paste still lands
+      ].join("\n"),
+      staff,
+      acceptWindow,
+    );
+    expect(rows).toEqual([{ staffId: "s2", date: new Date("2026-07-03T00:00:00Z"), hours: 9.5 }]);
+    expect(outOfWindowDates).toHaveLength(2);
+    expect(outOfWindowDates[0]).toContain("0226-06-05");
+    expect(outOfWindowDates[1]).toContain("9999-12-31");
+    // The two well-formed-but-impossible years did NOT land here.
+    expect(invalidDates).toHaveLength(1);
+    expect(invalidDates[0]).toContain("2026-13-01");
   });
 
   // Task 014: the write became `deleteMany` + `createMany` inside one transaction, and
@@ -137,6 +183,7 @@ describe("parseOtPaste (task 009)", () => {
         "somchai\t2026-07-01\t9", // same person, same day ⇒ replaces the first, does not move
       ].join("\n"),
       staff,
+      acceptWindow,
     );
     expect(rows).toEqual([
       { staffId: "s1", date: new Date("2026-07-01T00:00:00Z"), hours: 9 },
@@ -148,6 +195,7 @@ describe("parseOtPaste (task 009)", () => {
     const { rows, unmatched } = parseOtPaste(
       ["ghost\t2026-07-01\t12", "somchai\t2026-07-01\t12"].join("\n"),
       staff,
+      acceptWindow,
     );
     // The hours of the unknown name are not imported — that is exactly why they must be shown.
     expect(rows).toEqual([{ staffId: "s1", date: new Date("2026-07-01T00:00:00Z"), hours: 12 }]);
@@ -167,6 +215,7 @@ describe("parseOtPaste (task 009)", () => {
         "somchai\t2026-07-03\t9.5", // the good row still lands
       ].join("\n"),
       staff,
+      acceptWindow,
     );
     expect(rows).toEqual([{ staffId: "s1", date: new Date("2026-07-03T00:00:00Z"), hours: 9.5 }]);
     expect(rows.every((r) => Number.isFinite(r.hours))).toBe(true);
@@ -189,6 +238,7 @@ describe("parseOtPaste (task 009)", () => {
         "somchai\t2026-07-03\t0", // a real zero somebody typed still lands
       ].join("\n"),
       staff,
+      acceptWindow,
     );
     expect(rows).toEqual([{ staffId: "s1", date: new Date("2026-07-03T00:00:00Z"), hours: 0 }]);
     expect(invalidHours).toHaveLength(2);
@@ -201,6 +251,7 @@ describe("parseOtPaste (task 009)", () => {
     const { unmatched } = parseOtPaste(
       ["ghost\t2026-07-01\t12", "GHOST\t2026-07-02\t12", " ghost \t2026-07-03\t12"].join("\n"),
       staff,
+      acceptWindow,
     );
     expect(unmatched).toEqual(["ghost"]);
   });

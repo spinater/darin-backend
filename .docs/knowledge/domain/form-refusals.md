@@ -17,11 +17,13 @@ sources:
   - app/sales/page.tsx
   - app/classes/page.tsx
   - app/admin/config/page.tsx
+  # ⚠️ ใบ 082's window predicate and its two config keys are [date-window.md](date-window.md)'s;
+  # this card keeps only the per-action `err=dateRange` rows above.
   # ใบ 080 put the ยืนยัน action on this card's surface: its `date` guard and its two former silent
   # `return`s are **field** refusals on the shared `?err=` surface, not colour ones.
   # [sheet-colour-rules.md](sheet-colour-rules.md) keeps that screen's *colour* refusals (ใบ 070)
   # and lists this same file for them — two cards, one file, one claim each, and they go stale
-  # together. Dropping any of the three flags below must land here.
+  # together. Dropping any of the four flags below must land here.
   - app/sync/review/page.tsx
 ---
 
@@ -47,6 +49,7 @@ Two topics have left this card. `/classes`'s two **pair** guards at ใบ 073 (
 | --- | --- | --- | --- |
 | `/ot` `add` | `hours` | refused | `err=hours` |
 | `/ot` `add` | `date` | refused — and so is a day that is not a real calendar day (ใบ 072); **checked before `hours`**, one flag per submit | `err=date` |
+| `/ot` · `/sales` · `/classes` `add` · `/sync/review` `resolve` | `date`, **again** | a real day whose **year** is outside the configured operating window (ใบ 082) — checked **after** `calendarDate` and before the money fields, on all four | `err=dateRange` |
 | `/sales` `add` | `date` | refused — and so is a day that is not a real calendar day (ใบ 080); **checked before both prices** | `err=date` |
 | `/sales` `add` | `netPrice` | refused | `err=netPrice` |
 | `/sales` `add` | `listPrice` | "sold at list price" ⇒ `null`, and fine | `err=listPrice` |
@@ -54,7 +57,7 @@ Two topics have left this card. `/classes`'s two **pair** guards at ใบ 073 (
 | `/classes` `add` | `booked` | refused | `err=booked` |
 | `/classes` `add` | `noShow` | 0 — what `?? 0` and `defaultValue={0}` already said | `err=noShow` |
 | `/classes` `add` | `noShow` **vs** `booked` | — (a *pair*, not a field ⇒ [pair-guards.md](pair-guards.md)) | `err=noShowOverBooked` |
-| `/sync/review` `resolve` (ยืนยัน) | `date`, then `staffId` | **blank is refused, loudly** — both were a bare `return` until ใบ 080; the calendar-day half is the same predicate as the three rows above | `err=need` (either field blank) · `err=date` · `err=stale` |
+| `/sync/review` `resolve` (ยืนยัน) | `date`, then `staffId` | **blank is refused, loudly** — both were a bare `return` until ใบ 080; the calendar-day half is the same predicate as the three rows above | `err=need` (either field blank) · `err=date` · `err=dateRange` · `err=stale` |
 | `/admin/config` `addStaff` | `baseSalary`, `classCredit` | 0, the documented default | `err=newstaff` |
 | `/admin/config` `addStaff` | `name`, `username` (trimmed), `password` | refused, one flag each and in a **fixed order** ([config-form-parses.md](config-form-parses.md)) — a `File` part too, never `"[object File]"` | `err=newstaffName` · `err=newstaffUser` · `err=newstaffPass` |
 | `/admin/config` `addStaff` | `username` **vs** the rows already there | — (the `@unique` index, caught as `P2002`) | `err=newstaffDup` |
@@ -90,6 +93,23 @@ these screens is not a per-row question:
 🔑 **One sentence, one worked example (`เช่น 2026-06-31`), each screen's own noun** (บิลนี้ · คาบนี้)
 — a box reading as copied from another screen, beside two that do not, is the third dialect. Only
 `/sync/review`'s says more, and only what is particular to it: the stamp is permanent.
+
+🔴 **ใบ 082 added a *second* date question to all four, on its own flag.** `calendarDate` answers
+"does this day exist"; `0226-06-05` **does** exist and round-trips exactly as typed, so it passed
+every guard above and landed in **no** period at all. The order extends ใบ 080's argument rather
+than replacing it — the date still outranks the money fields, and within the date `calendarDate`
+goes first, because a cell that is not a day can be neither inside nor outside a window. 🔑 **It is
+never `err=date`**: "this day does not exist" and "this year is outside the window the system
+accepts" are two different mistakes, and a box saying "อ่านไม่ออก" over a date that reads perfectly
+sends the operator hunting a typo that is not there. The window, its two keys, what it deliberately
+does not catch, and why a window that cannot be **built** is a notice on the page rather than a row
+here (⇒ these four rows render nothing — no bounds to print) are [date-window.md](date-window.md)'s.
+
+🔑 **A refusal box names a remedy only when its reader is allowed to reach it.** Three of the four
+`dateRange` boxes end "แก้ค่า `date.earliestYear` ที่หน้าตั้งค่า" — `/ot`, `/classes` and
+`/sync/review` are `requireAdmin()`, the same gate `/admin/config` has. `/sales` is
+`requireRole("owner", "admin", "counter")` and **deliberately has no such sentence**: the counter
+staff it exists for cannot open that screen, so the sentence would name a door they cannot use.
 
 🔴 **Both of `resolve`'s silent `return`s became flags in the same card.** Neither lost a baht (the
 row stays in the queue) ⇒ §2 rule 4's *shape*, and the shape is the point: **a click that does
@@ -133,7 +153,9 @@ orphan draws its `baseSalary` in every run with no sessions to make it look wron
 `addAlias`, `addColor`, `toggleActive` and both `del` actions carry the same redirect for the same
 reason.
 
-`/admin/config` keeps its copy in `_components/` (`save-notice`, `add-staff-form`, `add-activity-form`)
+`/sync/review` keeps its five (six since ใบ 082) notices in `_components/refusal-notice.tsx` for the
+same reason — 449 lines against §4's 500 when the sixth flag arrived. `/admin/config` keeps its copy
+in `_components/` (`save-notice`, `add-staff-form`, `add-activity-form`)
 rather than the page: 462 lines against the §4 ceiling of 500 when the first moved, and the rate matrix
 followed as `rate-table.tsx` at task 036.
 

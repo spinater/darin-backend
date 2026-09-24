@@ -23,10 +23,14 @@ body {
     @apply rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-40;
   }
   .btn-ghost {
-    @apply rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-100;
+    @apply rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-100 disabled:opacity-40;
   }
+  /* `disabled:` is part of the token, not a per-screen class chain: ใบ 082 disables whole forms
+     with a wrapping `<fieldset disabled>` (the window's two config keys contradict each other, so
+     every dated write would be refused), and a control that takes no input while looking exactly
+     like one that does is the refusal arriving too late to help. `.btn` already carried it. */
   .input {
-    @apply rounded-md border border-neutral-300 bg-white px-2 py-1.5 text-sm focus:border-neutral-900 focus:outline-none;
+    @apply rounded-md border border-neutral-300 bg-white px-2 py-1.5 text-sm focus:border-neutral-900 focus:outline-none disabled:bg-neutral-100 disabled:text-neutral-500;
   }
   /* Dividers are alpha, not fixed gray, so they stay visible on any tinted `card-*`
      background (a fixed `neutral-100` is ~1.04:1 on `green-50`, i.e. invisible). On white

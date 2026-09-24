@@ -8,11 +8,15 @@ import {
   payableWithColorWhere,
   type ColorMeaning,
 } from "@/lib/color-rules";
+import { type Config } from "@/lib/config-keys";
+import { dateWindow, withinWindow, windowForRender } from "@/lib/date-window";
 import { db } from "@/lib/db";
 import { calendarDate } from "@/lib/ot-import";
 import { NEEDS_ATTENTION, periodRange } from "@/lib/payroll-run";
 import { revalidateColorGaps } from "@/lib/revalidate";
+import { WindowFaultNotice } from "@/app/_components/window-fault-notice";
 import { BadHexNotice, ColorNotice, NoRuleNotice } from "./_components/color-notice";
+import { RefusalNotice } from "./_components/refusal-notice";
 import { ReviewTable } from "./_components/review-table";
 
 export const dynamic = "force-dynamic";
@@ -94,7 +98,9 @@ export default async function ReviewPage({
     ? ignoredWhere(period)
     : (colorScope ?? { ...NEEDS_ATTENTION, ...(sheet ? { source: { sheetName: sheet } } : {}) });
 
-  const [rows, total, trainers, sources] = await Promise.all([
+  // ใบ 082: the two window keys, read through `num()` inside `dateWindow` so a key nobody seeded
+  // throws rather than this page inventing a bound (§2 rule 3).
+  const [rows, total, trainers, sources, cfg] = await Promise.all([
     db.teachSession.findMany({
       where,
       include: { source: { select: { sheetName: true } } },
@@ -105,7 +111,16 @@ export default async function ReviewPage({
     db.teachSession.count({ where }),
     db.staff.findMany({ where: { role: "trainer", active: true }, orderBy: { name: "asc" } }),
     db.sheetSource.findMany({ orderBy: { sheetName: "asc" } }),
+    db.payrollConfig.findMany({
+      where: { key: { in: ["date.earliestYear", "date.futureDays"] } },
+    }),
   ]);
+
+  const dateConfig: Config = Object.fromEntries(cfg.map((c) => [c.key, c.value]));
+  // ใบ 082 second round: `windowForRender` never throws on the render path — a broken window must
+  // not take this queue down (why, measured: `.docs/knowledge/domain/date-window.md`). `resolve`
+  // still builds its own window from its own `new Date()`, and still throws.
+  const win = windowForRender(dateConfig, new Date());
 
   // Only the two listings whose rows are already inside a computed slip need the lock.
   const closed: ClosedSlips =
@@ -183,6 +198,18 @@ export default async function ReviewPage({
       if (!dateStr) redirect(withErr(back, "need")); // ต้องครบทั้งคู่ถึงจะจ่ายได้
       const date = calendarDate(dateStr);
       if (date === null) redirect(withErr(back, "date"));
+
+      // 🔴 ใบ 082, and **this screen is that card's headline**. `calendarDate` asks whether the day
+      // exists, and the 5th of June of the year 226 does — `0226-06-05` round-trips exactly as
+      // typed, which is what a date picker's three-digit year box produces from the same shaky hand
+      // the guard above was written about. Confirming it wrote `status: "ok", reviewed: true` ⇒ the
+      // คาบ left the queue, matched no `periodRange`, and no later sync could repair it: 250 ฿ paid
+      // as 0 ฿, permanently, queue clean. Third in the order for the reason the two above are in
+      // theirs — blank, then "is this a day at all", then "is that year one this gym could have
+      // operated in" — and on its own flag, because "อ่านไม่ออก" names the wrong cause for a date
+      // that reads perfectly. The window itself is `lib/date-window.ts`'s.
+      if (!withinWindow(date, dateWindow(dateConfig, new Date())))
+        redirect(withErr(back, "dateRange"));
 
       // 🔴 Was a bare `return` until ใบ 080 — a **silent** refusal on a money path, in a file whose
       // own comment 20 lines above insists the refusal must be loud. Nothing was ever lost by it
@@ -284,42 +311,14 @@ export default async function ReviewPage({
         <span className="text-sm text-neutral-500">{total} รายการ</span>
       </div>
 
-      {/* ใบ 080 — `/ot`'s sentence and worked example, one refusal with four surfaces now. The
-          sharper half is this screen's alone: the reviewer is here **because** the sheet's date was
-          unreadable, so the notice has to say that a typo is stamped permanently (`reviewed: true`
-          ⇒ no later sync repairs it) rather than merely "not saved". */}
-      {err === "date" && (
-        <div className="card-warn text-sm">
-          ⚠️ วันที่อ่านไม่ออก หรือไม่มีอยู่จริง (เช่น 2026-06-31) — <b>คาบนี้ยังไม่ถูกยืนยัน</b>{" "}
-          ตรวจช่อง “วันที่” แล้วกดยืนยันอีกครั้ง · วันที่ผิดเดือนจะ<b>ย้ายคาบนี้ไปอีกงวด</b>{" "}
-          และเพราะการยืนยันคือการตรวจด้วยมือ <b>sync รอบหน้าจะไม่แก้คืนให้</b>
-        </div>
-      )}
-      {/* The bare `return` this replaces (ใบ 080): neither control carries `required`, so a click
-          on a row with nothing filled in used to do nothing at all — indistinguishable from a
-          successful ยืนยัน. Both fields are named because the refusal is one condition. */}
-      {err === "need" && (
-        <div className="card-warn text-sm">
-          ⚠️ ต้องระบุ<b>ทั้งวันที่และผู้สอน</b>ให้ครบก่อนถึงจะยืนยันได้ —{" "}
-          <b>ยังไม่มีอะไรถูกบันทึก</b> กรอกช่องที่ยังว่างในแถวนั้น แล้วกดยืนยันอีกครั้ง
-        </div>
-      )}
-      {/* Also a bare `return` until ใบ 080. Reachable from an ordinary second tab, not only from a
-          crafted post — so the copy says what changed and what to do, not that something is wrong. */}
-      {err === "stale" && (
-        <div className="card-warn text-sm">
-          ⚠️ คาบนี้<b>ถูกตรวจไปแล้ว</b> (อาจจากอีกแท็บหรืออีกคน) จึงยืนยันซ้ำไม่ได้ —{" "}
-          <b>ไม่มีอะไรถูกบันทึกเพิ่ม</b> โหลดหน้านี้ใหม่เพื่อดูของจริง ·
-          ถ้าวันที่หรือผู้สอนที่บันทึกไว้ผิด ต้องแก้ที่งวดนั้น
-        </div>
-      )}
-      {err === "closed" && (
-        <div className="card-warn text-sm">
-          <b>บางคาบแก้ไม่ได้ เพราะงวดของมันปิดไปแล้ว</b> — สลิปที่อนุมัติหรือจ่ายแล้วจะ
-          <b>ไม่ถูกคำนวณใหม่</b> ⇒ กดข้ามไม่ได้เงินคืน แต่จะทำให้คำเตือนหายไปเฉย ๆ ซึ่งแย่กว่าเดิม ·
-          ต้องแก้ที่งวดนั้นก่อน (ใบ 013)
-        </div>
-      )}
+      {/* The five (six since ใบ 082) refusal notices live in `_components/refusal-notice.tsx` —
+          §4: this page was 449 lines of a 500 ceiling and the notices are the block with the
+          cleanest boundary. `err` is still only ever compared, never rendered. */}
+      <RefusalNotice err={err} bounds={win.bounds} />
+      {/* `surface="review"` — this screen has no delete, so the "ลบรายการซ้ำได้เลย" sentence the
+          other three print would name a button that is not here, and the nearest one that *is*
+          (ข้าม) writes `status: "ignored"` = this คาบ is not paid. See the component. */}
+      {win.fault && <WindowFaultNotice reason={win.fault} surface="review" />}
 
       {color ? (
         <div className="flex flex-col gap-1 text-xs text-neutral-500">
@@ -370,11 +369,17 @@ export default async function ReviewPage({
         </div>
       )}
 
+      {/* ใบ 082: with no usable window every ยืนยัน would be refused, so `editable` drops the date
+          box and the trainer select to read-only — while ข้าม and the bulk skip, which write no
+          date, keep their buttons.
+          🔑 Gated on `win.bounds`, the same discriminant the other three screens' `<fieldset>`
+          uses. `!win.fault` is provably equivalent through the `RenderWindow` union, but two
+          spellings of one condition make a reader prove that before trusting either. */}
       <ReviewTable
         rows={rows}
         trainers={trainers}
         closed={closed}
-        editable={queueMode}
+        editable={queueMode && !!win.bounds}
         showBulk={queueMode || meaning === "skip"}
         ignoredMode={ignoredMode}
         showColourNote={!!color}

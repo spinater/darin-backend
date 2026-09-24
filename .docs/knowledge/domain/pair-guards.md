@@ -79,3 +79,9 @@ and the old row is orphaned instead, never re-created. This action is the repo's
 explicit post from the table's disclosure carries `confirm=imported`; the ordinary delete `<form>`
 does not, so one click can never do it. **The only guard on this screen a human may deliberately
 pass** — every other one refuses outright — because it is the only one where refusing also loses.
+
+📌 **ใบ 082 added a guard *above* both of these on `/classes`.** A second date question
+(`err=dateRange`) sits after `calendarDate` and before `booked`/`noShow`, so a date whose year is
+outside the configured window is reported before either head count and before the pair. The ordering
+argument is unchanged — the date decides which month the คาบ belongs to, and an impossible year puts
+it in none at all. The window is [date-window.md](date-window.md)'s.

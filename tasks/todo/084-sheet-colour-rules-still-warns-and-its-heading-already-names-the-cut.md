@@ -1,4 +1,4 @@
-# `sheet-colour-rules.md` is at 172 and the boundary is already a heading in the file
+# `sheet-colour-rules.md` is at 176 and the boundary is already a heading in the file
 
 - status: todo
 - commit:
@@ -17,7 +17,7 @@ That is all a shrink can honestly buy. Going further means deleting lessons, whi
 ## The boundary is already a heading in the file
 
 Line 122: `## The refusals of the two colour screens (moved here from form-refusals.md at ใบ 070)`
-— that section **arrived as a unit** at ใบ 070 and is 51 lines of the card's 172. Splitting there:
+— that section **arrived as a unit** at ใบ 070 and is 51 lines of the card's 176. Splitting there:
 
 | | Lines after |
 |---|---|
@@ -26,7 +26,7 @@ Line 122: `## The refusals of the two colour screens (moved here from form-refus
 
 ## Why this is a card and not part of ใบ 083
 
-🔑 **172/200 is a warn, and the gate says in its own words that a warn is braking distance, not a
+🔑 **A warn is braking distance, not a rule — and the gate says so in its own words**, which is
 rule** — *"170 ไม่ใช่กฎ มันคือระยะเบรก … จะสอนให้คนแตกการ์ดแบบลวก ๆ เพื่อผ่านเกต"*. ใบ 083 had a
 different reason to act: `form-refusals.md` was at **192/200**, eight lines from the hard cap, with
 [081](081-the-review-screens-queue-guard-and-its-remaining-silences.md) and
@@ -54,6 +54,15 @@ named ใบ 083's cut.
    stopped being true the moment two rows were inserted between them.
 4. **Prove pure movement**: the moved block cut from HEAD by line range must `diff` clean against
    the new card except for declared re-anchor hunks.
+
+### Re-stamped 2026-09-24 — the number moved while this card sat in `todo/`
+
+The card was opened at **172**. It is **176** now: ใบ 082 added the §5-mandated dated note to it as
+an incidental `sources:` card (4 lines), and splitting it inside ใบ 082's commit would have broken
+§6 rule 4 (one feature, one commit), so it was correctly left alone. Nothing about the plan changes
+— the cut is still the ใบ 070 section, which is still 51 lines — but the table below was computed
+from 172 and now reads 4 lines light on the parent side. 🔑 **Re-measure with `wc -l` before
+splitting rather than trusting either number**; a card that has drifted twice will drift again.
 
 ## Notes
 

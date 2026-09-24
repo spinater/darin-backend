@@ -170,3 +170,7 @@ non-`draft` slip, so ข้าม there takes nothing back and only switches off
 colour is being paid (9,500 ฿ measured). ⚠️ The row stays **listed** as `งวดปิดแล้ว` with no button,
 and the check re-runs **inside** the action — a tab opened before the approval posts to an action
 that never re-rendered the page.
+
+📌 **ใบ 082 — unmoved.** It added a *date* guard to `resolve` and moved the page's refusal notices to
+`_components/refusal-notice.tsx` (§4's ceiling); `?hex=`, the unruled colour and `?err=closed` still
+render from the same file. The new flag is [form-refusals.md](form-refusals.md)'s.

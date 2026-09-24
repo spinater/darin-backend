@@ -32,7 +32,9 @@ export function numericKind(name: string): ConfigFieldKind | null {
  *   fractions are the point: `class.halfRatio` is `0.5`. No **maximum** either: a per-key ceiling
  *   (a percentage that cannot exceed 100, a payday that cannot exceed 31) needs a spec table
  *   beside `CONFIG_DEFAULTS`, which is carded, not guessed here. ⚠️ This assumes what is true
- *   today: **all 18 keys in `CONFIG_DEFAULTS` are non-negative numbers.** A key that is not — a
+ *   today: **all 20 keys in `CONFIG_DEFAULTS` are non-negative numbers.** ใบ 082's two date-window
+ *   keys (`date.earliestYear`, `date.futureDays`) kept that true on purpose — a year and a day
+ *   count are numbers, so they need no branch here and no rendering case. A key that is not — a
  *   name, a flag, a date — needs its own branch here *before* it is added, or this pass refuses
  *   the whole save the first time an owner edits it.
  * - **`rate` · `class` · `staff`** all land in PostgreSQL `integer` columns, which **truncate**

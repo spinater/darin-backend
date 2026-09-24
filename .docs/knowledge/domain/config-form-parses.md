@@ -54,3 +54,9 @@ retroactive 12% fires for every trainer every month · a cleared `ot.ratePerHour
 `warnings: []`. Both halves are closed: this parse refuses the write, and **`num()` in
 `lib/config-keys.ts` now throws on a blank or non-finite value** so the read fails loudly too — a
 value can also arrive by seed or by hand in the database.
+
+📌 **ใบ 082 added two keys and no branch.** `date.earliestYear` and `date.futureDays` are
+non-negative numbers, so `numericKind`'s `cfg` arm and the `RULES.cfg` shape above cover them with
+no edit — which is the reason a *year* was chosen as the granularity rather than a date string. The
+count in the `cfg` bullet is **20** now; the ⚠️ about a key that is a name, a flag or a date still
+stands unused. What they feed is [date-window.md](date-window.md).

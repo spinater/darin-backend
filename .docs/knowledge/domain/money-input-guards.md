@@ -4,7 +4,9 @@ sources:
   - lib/form-number.ts
   - lib/form-number.test.ts
   # `num()` is the read-time half of the same guard — it must throw on a blank, and the card says so;
-  # `CONFIG_DEFAULTS`' 18 keys are also what the "not guarded here" section below counts.
+  # `CONFIG_DEFAULTS`' 20 keys are also what the "not guarded here" section below counts.
+  # ⚠️ Shared with [date-window.md](date-window.md) since ใบ 082, which owns the two `date.*` keys
+  # and the predicate they feed — two cards, one file, one claim each.
   - lib/config-keys.ts
   # ⚠️ The two parses and the four screens came **out** of this list at ใบ 068 with the prose that
   # described them (§5: shrink `sources:` with the split, or the card goes stale just as often).
@@ -73,8 +75,10 @@ the action table gains a row every time a form lands.
 - **A per-key ceiling for a config value.** Nothing stops `comm.pt.selfClosed` being set to `900`
   (a 900% commission) or `payday.base` to `77`. That needs a spec table beside `CONFIG_DEFAULTS`,
   one row per key, and is carded — guessing the maxima here would put the spec in the guard.
-- **A non-numeric config key.** All 18 keys in `CONFIG_DEFAULTS` are non-negative numbers today, and
-  the `cfg` rule assumes it. A key that is a name, a flag or a date needs its own branch in
+- **A non-numeric config key.** All 20 keys in `CONFIG_DEFAULTS` are non-negative numbers today —
+  ใบ 082's `date.earliestYear` and `date.futureDays` kept that true on purpose, a year and a day
+  count being numbers ⇒ no new accessor, no new branch, no `/admin/config` rendering case — and the
+  `cfg` rule still assumes it. A key that is a name, a flag or a date needs its own branch in
   `parseConfigNumbers` **before** it is added, or the first owner who edits it is refused — that
   parse and the file it lives in are [config-form-parses.md](config-form-parses.md)'s, which
   sources it.
