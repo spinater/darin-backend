@@ -30,7 +30,7 @@ Line 122: `## The refusals of the two colour screens (moved here from form-refus
 rule** — *"170 ไม่ใช่กฎ มันคือระยะเบรก … จะสอนให้คนแตกการ์ดแบบลวก ๆ เพื่อผ่านเกต"*. ใบ 083 had a
 different reason to act: `form-refusals.md` was at **192/200**, eight lines from the hard cap, with
 [081](081-the-review-screens-queue-guard-and-its-remaining-silences.md) and
-[082](082-calendarDate-accepts-a-year-that-cannot-be-real.md) both landing on it. It came out at
+[082](../done/082-calendarDate-accepts-a-year-that-cannot-be-real.md) both landing on it. It came out at
 **146**. Nothing is that urgent here: 28 lines of headroom, and no card in the queue grows this one.
 
 ⚠️ So this is **not** "finish what 083 started". It is the next split, named with its line so the

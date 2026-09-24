@@ -81,6 +81,6 @@ screen. Twelve such คาบ in a month is 3,000 ฿. This is ใบ 082's own 
   not close, so that list is short by one. Whoever takes this card should decide whether the two
   import paths are one job or two — they share the predicate and the "must not refuse, must queue"
   constraint below, which argues for one.
-- Related: [082](082-calendarDate-accepts-a-year-that-cannot-be-real.md) (the same defect on the
+- Related: [082](../done/082-calendarDate-accepts-a-year-that-cannot-be-real.md) (the same defect on the
   five form paths, closed) · [088](088-three-money-screens-have-a-period-they-cannot-change.md) ·
   [016](016-sync-summary-reads-as-success.md) · [030](030-class-warning-cannot-name-its-row.md)

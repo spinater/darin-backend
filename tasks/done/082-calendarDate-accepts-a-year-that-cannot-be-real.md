@@ -1,7 +1,7 @@
 # `calendarDate` validates the calendar but not the year — and one screen makes that permanent
 
-- status: todo
-- commit:
+- status: done
+- commit: 373f457
 
 ## Goal
 
@@ -82,7 +82,7 @@ one pure predicate. Four reasons, in the order they decided it:
   wrong* year — `2025-06-05` typed for `2026-06-05` — passes this window and still leaves the queue
   into a period nobody is looking at. Catching that needs the row bound to the month the operator
   is looking at, which needs a month control on the three screens first. Opened as its own card
-  ([088](088-three-money-screens-have-a-period-they-cannot-change.md)); it is the *reason* reason 1
+  ([088](../todo/088-three-money-screens-have-a-period-they-cannot-change.md)); it is the *reason* reason 1
   above is a "today", not a "never".
 - 🔴 **Also not closed — the sheet parser, which is the path the data actually arrives by.**
   `lib/parser.ts:77-79` normalises a sheet year with `if (y < 100) y += 2000;` then
@@ -96,7 +96,7 @@ one pure predicate. Four reasons, in the order they decided it:
   the code, not a measurement. ใบ 089's Notes say the same. It is **pre-existing and was out of
   this card's scope** (this card guards the five
   *forms*), and it has its own card:
-  [089](089-a-three-digit-year-in-the-sheet-falls-between-both-normalisation-arms.md). Said here
+  [089](../todo/089-a-three-digit-year-in-the-sheet-falls-between-both-normalisation-arms.md). Said here
   because a reader of the line above would otherwise conclude "a year that cannot be real is now
   refused" full stop, which is not true of the sync.
 
@@ -390,11 +390,11 @@ and that does not depend on how the bad state is reached.
 - [date-window.md](../../.docs/knowledge/domain/date-window.md) is at **169/170** after this
   round for the same reason; it is the next one due to split.
 - The related-but-different gap on the same screen is
-  [081](081-the-review-screens-queue-guard-and-its-remaining-silences.md) — that one is about queue
+  [081](../todo/081-the-review-screens-queue-guard-and-its-remaining-silences.md) — that one is about queue
   membership, this one about the date. They land in the same action and should not be merged: one is
   a predicate shared by four screens, the other is one screen's own guard.
-- Related: [014](../done/014-ot-import-atomicity.md) ·
-  [072](../done/072-the-one-row-ot-form-still-stores-a-rolled-over-date.md) ·
-  [080](../done/080-three-more-money-writes-still-take-an-unguarded-date.md) ·
-  [079](079-periodRange-accepts-aliases-for-one-month-and-payslips-are-keyed-by-the-string.md)
+- Related: [014](014-ot-import-atomicity.md) ·
+  [072](072-the-one-row-ot-form-still-stores-a-rolled-over-date.md) ·
+  [080](080-three-more-money-writes-still-take-an-unguarded-date.md) ·
+  [079](../todo/079-periodRange-accepts-aliases-for-one-month-and-payslips-are-keyed-by-the-string.md)
   (the same family on the period key rather than the row's day).

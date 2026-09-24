@@ -51,7 +51,7 @@ the band, and leaves the parent as one topic — per-field refusals on the share
   less than one action row with its reason. The next card that lands there either fails the hard cap
   or gets crammed, and §5's remedy is a split, never a shrink.
   [081](../todo/081-the-review-screens-queue-guard-and-its-remaining-silences.md) and
-  [082](../todo/082-calendarDate-accepts-a-year-that-cannot-be-real.md) both land there.
+  [082](082-calendarDate-accepts-a-year-that-cannot-be-real.md) both land there.
   🔑 Same order as ใบ 073 before ใบ 072, and for the same reason: a docs split with a money change
   in flight makes the money diff unreadable. It was deferred out of ใบ 080 on that argument, not
   because the split could wait.
@@ -78,7 +78,7 @@ new surface needed" claim rests on the component, which nothing sourced before.
 🔴 **Cut B was not named by this card and is a decision, not a discovery.** The named cut alone
 leaves the parent at **exactly 170** — the warn line, zero braking distance — with
 [081](../todo/081-the-review-screens-queue-guard-and-its-remaining-silences.md) and
-[082](../todo/082-calendarDate-accepts-a-year-that-cannot-be-real.md) both landing on that file. §5's remedy
+[082](082-calendarDate-accepts-a-year-that-cannot-be-real.md) both landing on that file. §5's remedy
 is a split, never a shrink, and `scripts/check-knowledge.sh` says in its own comment that paying the
 difference by deleting old lines is the easy wrong path. So the two parses with real logic
 (`parseConfigNumbers`, `parseNewStaff`) and the `cfg`-boxes hole left too — one topic, **parse the

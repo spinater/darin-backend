@@ -50,7 +50,7 @@ only by hand-editing the address bar, which is not an operation a counter staff 
 
 - Opened by ใบ 082, which measured the gap while deciding its bounds. Nothing here was found by a
   crafted request — it is what the three files render.
-- Related: [082](082-calendarDate-accepts-a-year-that-cannot-be-real.md) ·
+- Related: [082](../done/082-calendarDate-accepts-a-year-that-cannot-be-real.md) ·
   [079](079-periodRange-accepts-aliases-for-one-month-and-payslips-are-keyed-by-the-string.md)
   (what a period *string* is allowed to be, rather than how it is chosen) ·
   [006](../todo-human/006-ui-design-pass.md)
