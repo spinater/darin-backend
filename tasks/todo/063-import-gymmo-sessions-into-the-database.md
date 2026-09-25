@@ -3,6 +3,10 @@
 - status: todo
 - commit:
 - ต่อจาก [058](../done/058-read-gymmo-worklog.md) · เอนจินคิดเงินไม่ต้องแก้ (พิสูจน์แล้วใน [060](../todo-human/060-class-pay-proven-and-finance-export.md))
+- ⚠️ **Read [090 §5](../todo-human/090-jib-three-pay-streams-and-the-debt-sheets.md) before item 4.**
+  Gymmo types swimming lessons as `Type = PT` (จิ้บ alone: 255 private · 49 pair · 8 single, Jan–Sep
+  2026), so a split by `Type` pays them at PT rates and counts them toward ใบ 052's PT→CT KPI. The
+  split has to be by session name. Relayed by `manager-darin` 2026-09-25.
 
 ทุกชิ้นของเส้นทางนี้พิสูจน์แล้วแยกกัน **ยกเว้นชิ้นที่เขียนลงฐาน**
 ⇒ ใบนี้คือชิ้นเดียวที่กั้นระหว่าง "คำนวณได้ในสคริปต์" กับ "ออกสลิปได้เองทุกเดือน"
