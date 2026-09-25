@@ -43,7 +43,7 @@
 
 ```
 ① ลงทะเบียน Lead      ② คัดกรอง PAR-Q      ③ วัดร่างกาย
-   ชื่อ · เบอร์ · เป้าหมาย    ⛔ ธงแดง → หยุด       ส่วนสูง · น้ำหนัก · InBody · รอบเอว
+   ชื่อ · เบอร์ · เป้าหมาย    ⛔ ธงแดง → หยุด       ส่วนสูง · น้ำหนัก · Fitdays · รอบเอว
    มาจากไหน                  ส่งพบแพทย์ก่อน
 
 ④ ทดสอบสมรรถภาพ 5 ด้าน   ⑤ สรุป + ตั้งเป้าหมาย   ⑥ เสนอแพ็ค
@@ -65,7 +65,7 @@ darin ยังวัด **อัตราปิดการขาย** ไม�
 
 | # | องค์ประกอบ | แบบทดสอบที่เสนอ | ใช้อะไร | เวลา |
 |---|---|---|---|---|
-| 1 | **องค์ประกอบร่างกาย** | **InBody** + รอบเอว/สะโพก | ✅ มีเครื่องแล้ว + สายวัด | 3 นาที |
+| 1 | **องค์ประกอบร่างกาย** | **Fitdays** (not InBody — ใบ 091 §6) + รอบเอว/สะโพก | ✅ มีเครื่องแล้ว + สายวัด | 3 นาที |
 | 2 | **หัวใจและปอด** | **YMCA 3-Minute Step Test** (จับชีพจรฟื้นตัว) | กล่องสูง 30 ซม. · เมโทรนอม · จับเวลา | 5 นาที |
 | 3 | **ความแข็งแรง** | **Handgrip dynamometer** หรือ predicted 1RM (leg press) | เครื่องวัดแรงบีบมือ ~2,000 บ. | 5 นาที |
 | 4 | **ความทนทานกล้ามเนื้อ** | **Push-up test (1 นาที)** + **Plank hold** | เสื่อ · จับเวลา | 5 นาที |
@@ -179,8 +179,27 @@ darin ยังวัด **อัตราปิดการขาย** ไม�
 
 ## 5. 🔴 สรุปสิ่งที่ยังรอจาก linus
 
-1. **ไฟล์ InBody** (กำลังจะส่ง) — เพื่อดูว่ามีฟิลด์อะไรบ้าง นำเข้าอัตโนมัติได้แค่ไหน
+1. ~~**ไฟล์ InBody**~~ ✅ **received 2026-09-25** — it is a **Fitdays** report. Still open: does it
+   export CSV/Excel or only images, and is the Fitdays account the gym's or each member's (ใบ 091 §9)
 2. **รายการสินค้า Loyverse** (กำลังจะทยอยส่ง)
 3. **Loyverse export อะไรได้ + ใช้ฮาร์ดแวร์อะไร** (§1.1)
-4. **ทดลองครั้งแรกเก็บเงินไหม · เทรนเนอร์ได้ค่าตอบแทนไหมถ้าลูกค้าไม่ซื้อ** (§2.3)
-5. **นโยบายยกเลิก — เริ่มใช้กับลูกค้าเก่าด้วยไหม** (§4.3)
+4. ~~**ทดลองครั้งแรกเก็บเงินไหม · เทรนเนอร์ได้ค่าตอบแทนไหมถ้าลูกค้าไม่ซื้อ**~~ ✅ **answered** — see below.
+   🔴 **Still open: the trial price**, and whether it is the same for every trainer rank (ใบ 091 §8.2)
+5. ~~**นโยบายยกเลิก — เริ่มใช้กับลูกค้าเก่าด้วยไหม**~~ ✅ **answered** — see below.
+
+## ✅ Answered 2026-09-25 (recorded in [091](091-linus-answers-2026-09-25-and-the-teaching-credit-kpi.md) §1 · §4 · §5)
+
+**D7 — the first trial** — *"ลูกค้าซื้อหนึ่งครั้งเพื่อทดลองเทรน ก็คือเทรนเนอร์ได้หนึ่งครั้ง ถ้าปิดไม่ได้ก็คือขายคอร์สไม่ได้"*
+
+- The trial is **a product sold once** — one row in the product table (ใบ 071 §2), price unknown.
+- The trainer is paid **one session at their own rank's normal rate**. No new rule: the engine pays
+  that already. No close ⇒ no commission, nothing extra.
+- 🔑 Side benefit (ใบ 091 §4): with the trial recorded as a sale, **trial → package conversion per
+  trainer** becomes countable — the metric ใบ 052 §8.3 weights most and has no denominator for today.
+
+**D8 — cancellation / no-show for existing customers** — *"ใช้เลย"*
+
+- ⚠️ ใบ 091 §5 **recommends** applying it to **bookings made after an announcement date**, with notice
+  (e.g. 7 days), **not retroactively** to packages sold under no-penalty terms (a complaint risk,
+  สคบ.). The system stores the policy's start date and enforces only on bookings after it. This is a
+  recommendation layered on linus's answer — confirm it with him before it is built.

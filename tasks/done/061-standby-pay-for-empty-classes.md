@@ -1,9 +1,19 @@
 # ค่าสแตนบายของคาบที่ไม่มีคนเข้า — ควรจ่ายไหม จ่ายเท่าไหร่
 
-- status: todo-human
-- รอ: **linus** (เป็นนโยบายจ่ายเงิน ไม่ใช่เรื่องที่โค้ดตัดสินได้)
+- status: done — **closed as "not now"** by linus 2026-09-25 (D3, ใบ 091)
+- commit: n/a — closed without code; the decision is linus's D3, recorded in ใบ 091 (473fe64)
+- (เดิม) รอ: **linus** (เป็นนโยบายจ่ายเงิน ไม่ใช่เรื่องที่โค้ดตัดสินได้)
 - สืบเนื่องจาก [050 §8.2](../todo/050-two-rules-that-clear-ninety-percent-of-the-queue.md) ·
-  [060](060-class-pay-proven-and-finance-export.md)
+  [060](../todo-human/060-class-pay-proven-and-finance-export.md)
+
+## ✅ Answered 2026-09-25 — no standby pay (recorded in [091](../todo-human/091-linus-answers-2026-09-25-and-the-teaching-credit-kpi.md) §1, D3)
+
+> *"ข้ามไปก่อน ยังไม่ต้องจ่าย"*
+
+- **No standby pay.** A คาบ with nobody attending keeps paying **0** (attended 0 ⇒ ratio 0), exactly
+  as the engine does today. Nothing to build, nothing to change in `lib/payroll.ts`.
+- "ไปก่อน" is *for now*, not *never* — if it comes back, this card is the record of the numbers
+  (§1) and of who asked (ประพัฒน์, whose own pay arrangement is still open in ใบ 071 §1.2).
 
 linus 2026-09-21: *"ประพัฒน์ สอนคลาส 5 คาบ ควรให้ค่าสแตนบายมั้ย"*
 

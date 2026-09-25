@@ -3,12 +3,29 @@
 - status: todo-human
 - commit:
 
-- 🚫 **Blocked on linus:** when someone resigns or is deactivated part-way through a period, does
+- 🚫 **Blocked on linus — one question left:** **÷ 30 or ÷ the actual days of that month?**
+  Everything else is answered (below and ใบ 091 §3). Do not pick the divisor for him.
+- (เดิม) 🚫 **Blocked on linus:** when someone resigns or is deactivated part-way through a period, does
   their payslip carry the **whole** `baseSalary` for that period, or a share of it? If a share:
   **by what** — calendar days worked ÷ days in the month, working days, or something the shop
   already does by hand today? Nobody may pick this default for him: it moves a real baht figure on
   a real person's last payslip, in the direction that is never checked because the person has
   already gone.
+
+## ✅ Answered 2026-09-25 — prorate by days (recorded in [091](091-linus-answers-2026-09-25-and-the-teaching-credit-kpi.md) §1, D6)
+
+> *"หักตามวัน"*
+
+- **A share, by days.** Draft formula in ใบ 091 §3: `baseSalary ÷ D × calendar days employed in the
+  month`, capped at the full `baseSalary`.
+- **The same rule for a mid-month joiner** — this card asked only about leavers, but the mirror case
+  must get the same answer.
+- ⚠️ **Only the base is prorated.** Teaching, commission and OT of a leaver are still paid **in full**
+  (ใบ 013 item 3) — they were earned per session / per sale / per day.
+- 🔴 **Still open, and it moves real baht:** `D` = **30** or **the actual days of that month**.
+  ÷30 is the Thai convention for the daily rate of a monthly employee and keeps 28- and 31-day months
+  from swinging; ÷actual is exact per month. **Not ours to pick** — money code waits on it, and when it
+  lands it goes through `payroll-auditor` (§9).
 
 ## Goal
 

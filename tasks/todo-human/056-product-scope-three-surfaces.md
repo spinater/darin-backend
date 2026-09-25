@@ -3,6 +3,11 @@
 - status: todo-human
 - commit:
 - ต่อจาก [055](055-scope-change-replace-gymmo-not-just-payroll.md) (แทน Gymmo 100%)
+- ⚠️ **2026-09-25 — the body-composition device is Fitdays, not InBody** ([091](091-linus-answers-2026-09-25-and-the-teaching-credit-kpi.md) §6 · §9). Three
+  constraints that land here: its proprietary **"body score" / "body age" must never become a KPI**
+  (the formula changes with app updates); readings swing with body water, so store **when** each was
+  taken and the **device model**; and health data is **sensitive under PDPA §26** — explicit consent,
+  visible only to the client, their trainer and the owner. No personal figures are in the repo.
 
 linus 2026-09-20 ให้ภาพสินค้าเต็ม โดยอ้างแอปของ **Fitness First** เป็นตัวอย่าง
 ใบนี้เก็บทุกอย่างที่สั่ง + **§6 คือสิ่งที่ผมเสนอเพิ่ม** + **§7 คือความเสี่ยงที่ต้องตัดสินก่อนเขียนโค้ด**
@@ -62,7 +67,7 @@ linus 2026-09-20 ให้ภาพสินค้าเต็ม โดยอ�
 ### 2.4 ข้อมูลร่างกายและการบาดเจ็บ
 
 น้ำหนัก · ส่วนสูง · % ไขมัน · มวลกล้ามเนื้อ · รอบเอว/อก/แขน/ขา · **จุดที่บาดเจ็บ/ข้อจำกัด**
-⇒ กราฟความคืบหน้า + **นำเข้าจาก InBody** ถ้ามีเครื่อง
+⇒ กราฟความคืบหน้า + **นำเข้าจาก Fitdays** (not InBody — the device is Fitdays, ใบ 091 §6)
 
 ⚠️ ข้อมูลกลุ่มนี้คือ **ข้อมูลสุขภาพ** — ดู §7.1 ก่อนออกแบบ
 
@@ -187,7 +192,8 @@ linus 2026-09-20 ให้ภาพสินค้าเต็ม โดยอ�
 
 ## 7. 🔴 ที่ต้องให้ linus ตอบ
 
-1. **มีเครื่อง InBody ไหม** — ถ้ามี นำเข้าอัตโนมัติได้เลย ถ้าไม่มี ต้องกรอกมือ
+1. ~~**มีเครื่อง InBody ไหม**~~ ✅ **answered 2026-09-25** — the device is **Fitdays**, not InBody
+   (ใบ 091 §6 · §9). Whether it exports data or only images is still open (ใบ 091 §9).
 2. **วันนี้คัดกรองสุขภาพก่อนเทรนหรือยัง** (PAR-Q) — ถ้ามีกระดาษอยู่แล้ว ย้ายเข้าแอปได้เลย
 3. **รูปถ่ายความคืบหน้า เอาไหม** — ถ้าเอา ต้องทำเรื่องความยินยอมเต็มรูปแบบ
 4. **นโยบายยกเลิก/no-show วันนี้เป็นยังไง** — มีอยู่แล้วหรือยังไม่เคยกำหนด

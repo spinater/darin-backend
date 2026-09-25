@@ -9,6 +9,17 @@
   these answers — it is correct under every one of them — so nothing is waiting on this card. What is
   waiting is knowing whether a branch of complexity in the payroll engine deserves to exist at all.
 
+## 2026-09-25 — linus: *"ไม่ทราบ"* (D11, [091](091-linus-answers-2026-09-25-and-the-teaching-credit-kpi.md) §1) — **this does not unblock the card**
+
+linus does not know what the "เพิ่มกิจกรรมใหม่" form is for. That is an answer to *"what is it for"*,
+not to the three questions below, which are about whether `rate = 0` is ever deliberate — so the 🚫
+above still stands as written.
+
+ใบ 091 §7 **proposes** (a): leave the form as it is and close this card, because it feeds the Google
+Sheet path that the Gymmo import (ใบ 063) is replacing — activity names will come from Gymmo session
+names instead (ใบ 090 §5). ⚠️ **That is a proposal awaiting linus's OK, not a decision** — nobody may
+close this card on it. Reconsider once ใบ 063 lands.
+
 ## 1. Is "this rank is not paid for this activity" a real thing that happens?
 
 The engine currently distinguishes two cases and pays them differently:

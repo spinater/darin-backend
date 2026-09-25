@@ -1,14 +1,31 @@
 # เครดิตขาดสอน 5,000 — กลไกถูกแล้ว แต่หน้าจอบอกกลับด้าน
 
 - status: todo-human
-- รอ: **linus** (ข้อ 4 · 5 · 6)
+- รอ: **linus** — to confirm the **draft in ใบ 091 §2** (the KPI gate and the 5,000 / 3,500 / 2,000
+  ladder). ⛔ **Do not implement it until he does.**
+- (เดิม) รอ: **linus** (ข้อ 4 · 5 · 6)
 - แก้ข้อสรุปของ [060](060-class-pay-proven-and-finance-export.md) และ
-  [061 §3](061-standby-pay-for-empty-classes.md)
+  [061 §3](../done/061-standby-pay-for-empty-classes.md)
 
 linus 2026-09-21: *"จริง ๆ เป็นหนึ่งในกลไกเงินเดือนที่เราสตาร์ตเงินเดือนให้ค่อนข้างสูงเกินไป
 ในต่างจังหวัด ซึ่งปกติเทรนเนอร์จะได้เงินเดือนไม่เกิน 10,000 ประมาณ 8,000 เป็นฐานเงินเดือน
 แล้ว 5,000 นี้เป็นฐานเงินเดือนที่เพิ่มเข้ามา ก็เลยชี้แจงน้องไปนานแล้วว่าเป็นเครดิตขาดสอน
 ก็คือบังคับสอนขาด"*
+
+
+## 2026-09-25 — linus answered the direction, not the numbers (D4, [091](091-linus-answers-2026-09-25-and-the-teaching-credit-kpi.md) §1 · §2)
+
+> *"ให้ไปมีผลพ่วงกับ KPI ยังไม่กำหนดเงื่อนไข ช่วยคิดเงื่อนไขขึ้นมาด้วย · ตอนนี้ 5,000 เท่ากันทุกคน · ถ้าเทรนเนอร์เลื่อนขั้นอาจจะลดเงินส่วนนี้ลงด้วยตามขั้นบันได เพิ่มเป็นหนึ่ง KPI"*
+
+- **Q1 (§4) — direction answered:** a shortfall affects **KPI / promotion, not money**. Nothing is
+  deducted from a slip.
+- **Q2 (§5) — answered for today:** 5,000 for everyone now; it may **step down by rank on promotion**.
+- **Q3 (§6)** — not addressed directly.
+- 🔴 **The conditions are a draft by `manager-darin`, not linus's:** ใบ 091 §2 — monthly delivery % =
+  class value taught ÷ credit; promotion gate = 3-month average ≥ 100% with no red month; credit
+  5,000 (PT) / 3,500 (CT) / 2,000 (ST) as per-rank config. ⚠️ Measured before announcing: the team
+  delivered ~86% over 8 months and 4 of 6 never reached 100% in any month. **Unconfirmed — do not
+  build it.**
 
 ---
 

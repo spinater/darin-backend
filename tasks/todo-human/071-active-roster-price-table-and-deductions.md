@@ -1,7 +1,9 @@
 # คำตอบสามข้อที่ปลดล็อกเฟส 1 — และสิ่งที่ต้องแก้ตาม
 
 - status: todo-human
-- รอ: **linus** (ข้อ 1.2 และ 3.3 เท่านั้น — ที่เหลือตอบครบแล้ว)
+- รอ: **linus** — narrowed 2026-09-25 (ใบ 091): **ประพัฒน์** (§1.2) · **may an adjustment go below the
+  minimum** (§3.3 Q2) · **the full list of current debts** (§3.3 Q3 — ใบ 090 records one)
+- (เดิม) รอ: **linus** (ข้อ 1.2 และ 3.3 เท่านั้น — ที่เหลือตอบครบแล้ว)
 - 🔴 **ใบนี้ commit ครั้งแรกด้วยเลข 064 ซึ่งถูกใช้ไปแล้ว** (`tasks/done/064-gymmo-import-problems-have-no-home.md`)
   ⇒ `check-links.sh` แดงที่ commit `2605991` และ commit นั้น**ไม่เคยถูก push** · เปลี่ยนเลขเป็น 071
   ที่ใบ 070 · ถ้าตามรอยจาก commit message ที่เขียนว่า `(task 064)` ให้มาที่ไฟล์นี้
@@ -46,8 +48,13 @@ worklog ของ Gymmo ก.ย. 2026 มีครูสอนคลาส **6 �
 | **ประพัฒน์ พันธุ์โยศรี** | 5 | **0** |
 
 **สามคนนี้ยังสอนอยู่ไหม และจ่ายแบบไหน** — ถ้าใช่ แปลว่าทีมคือ **4 เทรนเนอร์ PT + ครูคลาสอีก 3**
-ไม่ใช่ 4 คนทั้งหมด · ข้อนี้สำคัญกับ [ใบ 061](061-standby-pay-for-empty-classes.md) โดยตรง
+ไม่ใช่ 4 คนทั้งหมด · ข้อนี้สำคัญกับ [ใบ 061](../done/061-standby-pay-for-empty-classes.md) โดยตรง
 เพราะประพัฒน์คือคนที่ถามเรื่องค่าสแตนบายให้
+
+**2026-09-25 ([091](091-linus-answers-2026-09-25-and-the-teaching-credit-kpi.md) §1, D1):** *"เกวลีจ่ายสิ้นเดือนเหมือนกัน"* ⇒ **เกวลี is paid monthly with salary**,
+like โอ/พลอย/ต้น · **ไกรทัศนพงษ์ = จิ้บ**, whose three pay streams are in ใบ 090 · 🔴 **ประพัฒน์ is still
+unanswered** — and ใบ 061 (his standby-pay question) is now closed as "not now", so it no longer
+waits on this.
 
 ---
 
@@ -105,6 +112,12 @@ model DeductionEntry {      // หักจริงเดือนไหน เ
 1. **"ปรับได้ตามสมควร" ใครปรับได้** — เจ้าของเท่านั้น หรือแอดมินด้วย
 2. **ปรับต่ำกว่าขั้นต่ำได้ไหม** หรือขั้นต่ำคือพื้นจริง ๆ (ปรับได้แต่เพิ่มขึ้นเท่านั้น)
 3. ตอนนี้ **ใครมีหนี้ค้างอยู่บ้าง ยอดเท่าไหร่ ขั้นต่ำเท่าไหร่** — ตั้งครั้งเดียวตอนเริ่มใช้ระบบ
+
+**2026-09-25 ([091](091-linus-answers-2026-09-25-and-the-teaching-credit-kpi.md) §1, D2):** Q1 — *"เจ้าของเท่านั้น"* ⇒ ⛔ **only the owner may adjust an instalment**,
+enforced **at the data layer** (a role check in the write path, not a hidden button) · Q2 — **still
+open** · Q3 — partially: ใบ 090 records one live debt (พี่แพท, bicycle, 150,000) whose instalments
+sum to 150,000 while its own note says 1,950 remains — the example of why §3.2 derives the balance
+instead of storing it. The owner-only guard touches money ⇒ `payroll-auditor` (§9).
 
 ---
 
